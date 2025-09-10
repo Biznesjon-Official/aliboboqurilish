@@ -84,7 +84,7 @@ const ProductsGrid = ({
     hasNextPage,
     isFetchingNextPage,
     refetch
-  } = useInfiniteProducts(mappedCategory, searchQuery || '', 40); // Changed to 40 for faster loading
+  } = useInfiniteProducts(mappedCategory, searchQuery || '', 40, true); // Load all products
 
   // Flatten pages into a single list with deduplication to prevent React key warnings
   const fetchedProducts = useMemo(() => {
@@ -96,17 +96,17 @@ const ProductsGrid = ({
       index === self.findIndex(p => p._id === product._id)
     );
     
-    // Limit to maximum 100 products
-    return deduplicatedProducts.slice(0, 100);
+    // No need to limit to 100 products since we're loading all
+    return deduplicatedProducts;
   }, [data]);
 
   // Update total loaded products count when fetchedProducts changes
   useEffect(() => {
     const newTotal = fetchedProducts.length;
     setTotalLoadedProducts(newTotal);
-    setAllProductsLoaded(newTotal >= 100 || (newTotal > 0 && !hasNextPage));
-  }, [fetchedProducts, hasNextPage]);
-
+    // Set all products loaded to true since we're loading all at once
+    setAllProductsLoaded(true);
+  }, [fetchedProducts]);
 
   // Hide skeleton once the first response arrives (even if empty)
   useEffect(() => {
@@ -124,50 +124,13 @@ const ProductsGrid = ({
       }, 0);
       
       setTotalLoadedProducts(prev => {
-        const updated = Math.min(newTotal, 100);
-        if (updated >= 100) {
-          setAllProductsLoaded(true);
-        }
+        const updated = newTotal;
+        // Set all products loaded to true since we're loading all at once
+        setAllProductsLoaded(true);
         return updated;
       });
     }
   }, [data, isInitialLoad]);
-
-  // Background prefetch: continuously load more pages to reach 100 products
-  useEffect(() => {
-    // Only run when we have first page and there are more pages
-    if (!data || !hasNextPage || !fetchNextPage) return;
-
-    let cancelled = false;
-    const MAX_PAGES = 3; // 3 pages max (40 products per page)
-
-    // Helper to fetch next pages sequentially with small delays for smooth appearance
-    const prefetchMore = async () => {
-      try {
-        let pagesFetched = 0;
-        // Reduce the number of prefetched pages to allow manual loading
-        const maxPrefetchPages = Math.min(2, MAX_PAGES); // Only prefetch up to 2 pages automatically (80 products)
-        while (!cancelled && hasNextPage && pagesFetched < maxPrefetchPages && totalLoadedProducts < 80) {
-          // Small delay between pages to make products appear one by one
-          await new Promise((r) => setTimeout(r, 25)); // 25ms delay between pages (even faster)
-          const res = await fetchNextPage();
-          pagesFetched += 1;
-          // If react-query indicates no more next page after fetch, break
-          if (!res?.hasNextPage) break;
-        }
-      } catch (_) {
-        // ignore background prefetch errors
-      }
-    };
-
-    // Start prefetching after a delay to allow manual interaction
-    const timeoutId = setTimeout(prefetchMore, 250); // Start after 0.25 second (faster)
-    return () => {
-      cancelled = true;
-      clearTimeout(timeoutId);
-    };
-  }, [data, hasNextPage, fetchNextPage, totalLoadedProducts]);
-
 
   // Handle API errors - hide skeleton and show error state
   useEffect(() => {
