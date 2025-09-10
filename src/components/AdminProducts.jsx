@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useProducts, useDeleteProduct, useRestoreProduct, useUpdateProduct, useCreateProduct } from '../hooks/useProductQueries';
+import { useProductsFast } from '../hooks/useProductsFast';
 import { useRecentActivitiesCache } from '../hooks/useRecentActivities';
 import { queryClient, queryKeys } from '../lib/queryClient';
 
@@ -13,6 +14,8 @@ import ImageUploader from './admin/ImageUploader';
 import VariantEditor from './admin/VariantEditor';
 import SimpleProductForm from './admin/SimpleProductForm';
 import VariantManager from './admin/VariantManager';
+import OptimizedImage from './OptimizedImage';
+import Base64Image from './Base64Image';
 import '../styles/select-styles.css';
 
 const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
@@ -49,6 +52,11 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // React Query hooks for product operations
   const createProductMutation = useCreateProduct();
   const updateProductMutation = useUpdateProduct();
+  
+  // Debug mutation states (only when needed)
+  if (process.env.NODE_ENV === 'development' && createProductMutation.isError) {
+    console.log('🔍 Create mutation error:', createProductMutation.error);
+  }
   
   // Recent activities cache management
   const activitiesCache = useRecentActivitiesCache();
@@ -118,11 +126,11 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     try {
       const response = await fetch('http://localhost:5000/api/products/categories/list');
       if (response.ok) {
-        const categoriesData = await response.json();
-        console.log('📋 Loaded categories from API:', categoriesData);
-        // Ensure categoriesData is an array before spreading
-        const categoryArray = Array.isArray(categoriesData) ? categoriesData : [];
-        setCategories(['Barcha kategoriyalar', ...categoryArray]);
+        const data = await response.json();
+        // console.log('📋 Loaded categories from API:', data);
+        // Extract category names from the API response
+        const categoryNames = data.categories?.map(cat => cat._id) || [];
+        setCategories(['Barcha kategoriyalar', ...categoryNames]);
       } else {
         console.log('⚠️ API failed, using main categories as fallback');
         setCategories(['Barcha kategoriyalar', ...mainCategories]);
@@ -277,14 +285,14 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     loadCategories();
   }, [loadCategories]);
 
-  // Debounce search/filter to reduce query churn
+  // Debounce search/filter to reduce query churn - OPTIMIZED for speed
   useEffect(() => {
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     debounceTimeoutRef.current = setTimeout(() => {
       setDebouncedSearch(searchTerm);
       setDebouncedCategory(filterCategory);
       setCurrentPage(1);
-    }, 500);
+    }, 150); // Reduced from 500ms to 150ms for faster response
     return () => {
       if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     };
@@ -339,6 +347,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         page: String(nextPage),
         sortBy: 'updatedAt',
         sortOrder: 'desc',
+        includeImages: 'true', // Always include images for admin interface
       });
       if (debouncedCategory) params.append('category', debouncedCategory);
       if (debouncedSearch) params.append('search', debouncedSearch);
@@ -354,7 +363,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   useEffect(() => {
     return () => {
       if (debounceTimeoutRef.current) {
-        console.log('🧹 Komponent unmount: timeout tozalandi');
+        // console.log('🧹 Komponent unmount: timeout tozalandi');
         clearTimeout(debounceTimeoutRef.current);
       }
     };
@@ -402,7 +411,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       return;
     }
     
-    console.log('🔍 Tahrirlash uchun mahsulot ma\'lumotlari:', JSON.stringify(product, null, 2));
+    // console.log('🔍 Tahrirlash uchun mahsulot ma\'lumotlari:', JSON.stringify(product, null, 2));
 
     setSelectedProduct(product);
     setFormData({
@@ -575,8 +584,8 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 
     setIsSubmitting(true);
 
-    console.log(' Mahsulot saqlanmoqda...', selectedProduct ? 'Tahrirlash' : 'Yangi qo\'shish');
-    console.log(' Form ma\'lumotlari:', formData);
+    // console.log(' Mahsulot saqlanmoqda...', selectedProduct ? 'Tahrirlash' : 'Yangi qo\'shish');
+    // console.log(' Form ma\'lumotlari:', formData);
 
     try {
       // For non-variant products, rely on images managed by SimpleProductForm's ImageUploader
@@ -634,7 +643,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         productData.images = allImages; // All images array
       }
 
-      console.log(' Yuborilayotgan ma\'lumotlar:', productData);
+      // console.log(' Yuborilayotgan ma\'lumotlar:', productData);
 
       // Use React Query mutations for automatic cache invalidation
       if (selectedProduct && selectedProduct._id) {
@@ -644,56 +653,80 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
           ...productData
         });
         
-        console.log('✅ Muvaffaqiyatli yangilandi:', updatedProduct);
+        // console.log('✅ Muvaffaqiyatli yangilandi:', updatedProduct);
         
         setTimeout(() => {
           safeNotifySuccess('Mahsulot yangilandi', `${productData.name} muvaffaqiyatli yangilandi`);
         }, 0);
+        
+        // GENTLE: Only basic cache management
+        // Single invalidation without forced refetch
+        queryClient.invalidateQueries({ queryKey: queryKeys.recentActivities.all });
+        
+        // Strategy 3: Custom event for immediate UI update
+        window.dispatchEvent(new CustomEvent('productUpdated', {
+          detail: { product: updatedProduct, action: 'updated' }
+        }));
       } else {
         // Create new product using React Query mutation
+        // console.log('🔄 Creating product with mutation...');
         const newProduct = await createProductMutation.mutateAsync(productData);
         
-        console.log('✅ Muvaffaqiyatli qo\'shildi:', newProduct);
+        // console.log('✅ Muvaffaqiyatli qo\'shildi:', newProduct);
         
         setTimeout(() => {
           safeNotifySuccess('Mahsulot qo\'shildi', `${productData.name} muvaffaqiyatli qo\'shildi`);
           // Add to recent activities
           notifyProductAdded(newProduct);
         }, 0);
+        
+        // GENTLE: Only basic cache management
+        // Single invalidation without forced refetch
+        queryClient.invalidateQueries({ queryKey: queryKeys.recentActivities.all });
+        
+        // Strategy 3: Custom event for immediate UI update
+        window.dispatchEvent(new CustomEvent('productAdded', {
+          detail: { product: newProduct, action: 'added' }
+        }));
       }
 
       // Close modal after successful operation
       closeModal();
       
-      // Refresh notifications and recent activities
-      setTimeout(() => {
-        // Invalidate notifications to show new notification
-        queryClient.invalidateQueries({ queryKey: ['notifications'] });
-        // Refresh recent activities to show new activity
-        activitiesCache.refreshAll();
-        // Reload categories to include new ones (if any)
+      // ULTRA-OPTIMIZED: Immediate post-save operations for maximum speed
+      // Only reload categories if a completely new category was added
+      const isNewCategory = formData.category && !categories.includes(formData.category);
+      if (isNewCategory) {
         loadCategories();
-      }, 300);
+      }
+      // Skip heavy cache invalidations - Socket.IO handles real-time updates
+      // queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      // activitiesCache?.refreshAll();
 
     } catch (error) {
       console.error('❌ Mahsulot saqlashda xatolik:', error);
       
-      // Handle specific error types from React Query mutations
-      if (error?.response?.status === 409 || error?.code === 'DUPLICATE_SLUG') {
-        setTimeout(() => {
-          safeNotifyError('Slug xatosi', "Slug allaqachon mavjud. Iltimos mahsulot nomini o'zgartiring.");
-        }, 0);
+      // Extract error message from different error formats
+      let errorMessage = 'Mahsulot saqlanmadi';
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      
+      // Handle specific error types
+      if (error?.response?.status === 409 || error?.code === 'DUPLICATE_SLUG' || errorMessage.includes('Slug')) {
+        safeNotifyError('Slug xatosi', "Slug allaqachon mavjud. Iltimos mahsulot nomini o'zgartiring.");
         // Keep modal open so user can adjust the name and resubmit
         return;
-      } else if (error?.response?.status === 400) {
-        setTimeout(() => {
-          safeNotifyError('Xatolik', "Yaroqsiz ma'lumotlar");
-        }, 0);
+      } else if (error?.response?.status === 400 || errorMessage.includes('Validation')) {
+        safeNotifyError('Xatolik', "Yaroqsiz ma'lumotlar kiritildi");
         return;
       } else {
-        setTimeout(() => {
-          safeNotifyError('Xatolik', 'Mahsulot saqlanmadi');
-        }, 0);
+        safeNotifyError('Xatolik', errorMessage);
       }
     } finally {
       setIsSubmitting(false);
@@ -703,7 +736,14 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const changePage = (direction) => {
     setCurrentPage(prev => {
       const newPage = direction === 'next' ? prev + 1 : prev - 1;
-      return Math.max(1, Math.min(newPage, totalPages));
+      const validPage = Math.max(1, Math.min(newPage, totalPages));
+      
+      // Clear current products to show immediate feedback that page is changing
+      if (validPage !== prev) {
+        setProducts([]);
+      }
+      
+      return validPage;
     });
   };
 
@@ -742,27 +782,25 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     return { text: 'Kam', class: 'bg-red-100 text-red-800' };
   };
   const handleSearchChange = (value) => {
-    console.log('🔍 Search input o\'zgartirildi:', value);
+    // console.log('🔍 Search input o\'zgartirildi:', value);
     setSearchTerm(value);
   };
 
   const handleFilterChange = (value) => {
-    console.log('🔄 Filter changed to:', value);
+    // console.log('🔄 Filter changed to:', value);
     setFilterCategory(value);
   };
 
   const clearSearchAndFilter = () => {
-    console.log('🧹 Qidiruv va filter tozalandi');
+    // console.log('🧹 Qidiruv va filter tozalandi');
     setSearchTerm('');
     setFilterCategory('');
     setCurrentPage(1);
     if (debounceTimeoutRef.current) {
-      console.log('🧹 Clear: timeout tozalandi');
+      // console.log('🧹 Clear: timeout tozalandi');
       clearTimeout(debounceTimeoutRef.current);
     }
   };
-
-  // ... (rest of the code remains the same)
 
   const removeExistingImage = (index) => {
     setFormData(prev => ({
@@ -796,15 +834,38 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // Derive products and pagination from query
   const queriedProducts = productsData?.products || [];
   useEffect(() => {
-    setProducts(queriedProducts);
-    const p = productsData?.pagination;
-    setTotalPages(p?.totalPages || 1);
-    setTotalCount(p?.totalCount || productsData?.totalCount || 0);
-  }, [productsData]);
+    // Only update products if we have valid data for the current page
+    if (productsData && !isLoading && !isFetching) {
+      setProducts(queriedProducts);
+      const p = productsData?.pagination;
+      setTotalPages(p?.totalPages || 1);
+      setTotalCount(p?.totalCount || productsData?.totalCount || 0);
+      
+      // Debug log to help user understand pagination
+      console.log(`📄 Sahifa ${p?.currentPage || currentPage} yuklandi: ${queriedProducts.length} ta mahsulot`, {
+        currentPage: p?.currentPage || currentPage,
+        totalPages: p?.totalPages,
+        totalCount: p?.totalCount,
+        productsOnPage: queriedProducts.length,
+        category: debouncedCategory || 'Barcha kategoriyalar'
+      });
+    }
+  }, [productsData, isLoading, isFetching, queriedProducts, currentPage, debouncedCategory]);
 
   const loading = isLoading;
   const showSkeleton = loading || (isFetching && (products?.length || 0) === 0);
+  const showPageLoading = isFetching && (products?.length || 0) > 0; // Show loading when changing pages
   const showEmpty = !loading && !isFetching && isSuccess && (products?.length || 0) === 0;
+
+  // Yangi loader komponenti
+  const LoadingOverlay = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center">
+        <div className="w-12 h-12 border-4 border-primary-orange border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-700 font-medium">Mahsulotlar yuklanmoqda...</p>
+      </div>
+    </div>
+  );
 
   return (
   <div className="min-h-screen bg-gray-50">
@@ -840,6 +901,10 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         animation: slideOutRight 0.3s ease-in;
       }
     `}</style>
+    
+    {/* Yangi loader */}
+    {loading && <LoadingOverlay />}
+    
     {/* Main Content */}
     <main className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
       {/* Top Bar: Title + Notification Bell (no mobile menu) */}
@@ -875,7 +940,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
               }}
               onKeyDown={e => {
                 if (e.key === 'Enter') {
-                  console.log('🔍 Enter bosildi, qidiruv boshlandi');
+                  // console.log('🔍 Enter bosildi, qidiruv boshlandi');
                   if (debounceTimeoutRef.current) {
                     clearTimeout(debounceTimeoutRef.current);
                   }
@@ -911,7 +976,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
               className="custom-select flex-1"
             >
               <option value="">Barcha kategoriyalar</option>
-              {mainCategories.map(category => (
+              {categories.filter(category => category !== 'Barcha kategoriyalar').map(category => (
                 <option key={category} value={category}>
                   {category}
                 </option>
@@ -931,9 +996,16 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 
       {/* Products Grid */}
       <div className="mb-6">
+        {/* Page loading indicator */}
+        {showPageLoading && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center">
+            <i className="fas fa-spinner fa-spin text-blue-600 mr-2"></i>
+            <span className="text-blue-700 text-sm">Mahsulotlar yuklanmoqda...</span>
+          </div>
+        )}
         {showSkeleton ? (
           <div className="col-span-full">
-            <LoadingCard count={6} />
+            <LoadingCard count={8} />
           </div>
         ) : showEmpty ? (
           <div className="col-span-full text-center py-12">
@@ -953,10 +1025,12 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                     onTouchEnd={(e) => handleTouchEndOnImage(product, e)}
                   >
                     {(function(){ const imgs = getAllProductImages(product); return imgs && imgs.length > 0; })() ? (
-                      <img 
+                      <Base64Image 
                         src={(function(){ const imgs = getAllProductImages(product); const id = product?._id || product?.id; const idx = (id && imageIndexRef.current.get(id)) || 0; return imgs[idx] || imgs[0]; })()} 
                         alt={product.name}
                         className="w-full h-full object-contain p-2 bg-white transition-transform duration-300 group-hover:scale-105"
+                        fallbackSrc="/assets/default-product.svg"
+                        placeholder="skeleton"
                         loading="lazy"
                       />
                     ) : (
@@ -1052,25 +1126,34 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         {totalPages > 1 && (
           <div className="flex items-center justify-between bg-white px-6 py-4 rounded-lg shadow-sm flex-nowrap">
             <div className="text-sm text-gray-600 whitespace-nowrap">
-              {totalCount} ta mahsulotdan {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} tasi ko'rsatilmoqda
+              <span className="font-medium">{totalCount}</span> ta mahsulotdan{' '}
+              <span className="font-medium text-primary-orange">
+                {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)}
+              </span>{' '}
+              tasi ko'rsatilmoqda
+              {debouncedCategory && (
+                <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
+                  {debouncedCategory}
+                </span>
+              )}
             </div>
             <div className="flex items-center space-x-2 shrink-0">
               <button
                 onClick={() => changePage('prev')}
-                disabled={currentPage === 1}
+                disabled={currentPage === 1 || isFetching}
                 className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               >
                 <i className="fas fa-chevron-left mr-1"></i>
                 <span className="hidden sm:inline">Oldingi</span>
               </button>
               <span className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap shrink-0 text-center inline-flex items-center gap-1">
-                <span>{currentPage}</span>
+                <span className="font-medium">{currentPage}</span>
                 <span>/</span>
                 <span>{totalPages}</span>
               </span>
               <button
                 onClick={() => changePage('next')}
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || isFetching}
                 className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               >
                 <span className="hidden sm:inline mr-1">Keyingi</span>
@@ -1132,7 +1215,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                     required
                   >
                     <option value="">Kategoriya tanlang</option>
-                    {mainCategories.map(category => (
+                    {categories.filter(category => category !== 'Barcha kategoriyalar').map(category => (
                       <option key={category} value={category}>
                         {category}
                       </option>
@@ -1306,10 +1389,12 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                     {selectedProduct.images && selectedProduct.images.length > 0 ? (
                       selectedProduct.images.map((image, index) => (
                         <div key={index} className="relative group">
-                          <img 
+                          <Base64Image 
                             src={image} 
                             alt={`${selectedProduct.name} - ${index + 1}`}
                             className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"
+                            fallbackSrc="/assets/default-product.svg"
+                            placeholder="skeleton"
                           />
                           <div className="absolute -top-2 -left-2 bg-primary-orange text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
                             {index + 1}
@@ -1318,10 +1403,12 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                       ))
                     ) : selectedProduct.image && (
                       <div className="relative group">
-                        <img 
+                        <Base64Image 
                           src={selectedProduct.image} 
                           alt={selectedProduct.name}
                           className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"
+                          fallbackSrc="/assets/default-product.svg"
+                          placeholder="skeleton"
                         />
                       </div>
                     )}
@@ -1448,3 +1535,5 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 };
 
 export default AdminProducts; 
+
+

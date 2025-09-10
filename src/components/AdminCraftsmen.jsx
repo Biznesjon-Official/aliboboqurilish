@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AdminNotificationBell from './AdminNotificationBell';
 import AdminNotificationModals from './AdminNotificationModals';
@@ -6,6 +6,8 @@ import LoadingSpinner from './LoadingSpinner';
 import LoadingCard from './LoadingCard';
 import useNotifications from '../hooks/useNotifications';
 import useRealNotifications from '../hooks/useRealNotifications';
+import { useCraftsmen, useCreateCraftsman, useUpdateCraftsman, useDeleteCraftsman } from '../hooks/useCraftsmanQueries';
+import { queryKeys, queryClient } from '../lib/queryClient';
 
 const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
   // Real notification system for notification bell
@@ -37,6 +39,11 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
     notifyError
   } = useNotifications();
 
+  // React Query hooks for craftsman operations
+  const createCraftsmanMutation = useCreateCraftsman();
+  const updateCraftsmanMutation = useUpdateCraftsman();
+  const deleteCraftsmanMutation = useDeleteCraftsman();
+
   // Safe notification handlers to prevent setState during render
   const safeNotifySuccess = useCallback((message) => {
     setTimeout(() => notifySuccess(message), 0);
@@ -53,14 +60,11 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
   const safeNotifyCraftsmanDeleted = useCallback((name, specialty) => {
     setTimeout(() => notifyCraftsmanDeleted(name, specialty), 0);
   }, [notifyCraftsmanDeleted]);
-  const [craftsmen, setCraftsmen] = useState([]);
-  const [loading, setLoading] = useState(true);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSpecialty, setFilterSpecialty] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [sortField, setSortField] = useState('joinDate');
   const [sortDirection, setSortDirection] = useState('desc');
 
@@ -83,6 +87,11 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const path = (location && location.pathname) || '';
+  
+  // Debounce refs
+  const debounceTimeoutRef = useRef(null);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [debouncedSpecialty, setDebouncedSpecialty] = useState('');
 
   const specialties = [
     "Barcha mutaxassisliklar",
@@ -120,47 +129,40 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
     inactive: { text: 'Faol emas', class: 'bg-red-100 text-red-800' }
   };
 
-  // Load craftsmen from MongoDB
-  const loadCraftsmen = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      console.log('🔍 Loading craftsmen with filter:', filterSpecialty);
+  // React Query: fetch craftsmen with debounced inputs
+  const { data: craftsmenData, isLoading, isFetching, isFetched, isSuccess, isError, error } = useCraftsmen(
+    currentPage,
+    itemsPerPage,
+    debouncedSearch,
+    debouncedSpecialty,
+    sortField,
+    sortDirection
+  );
 
-      const params = new URLSearchParams({
-        page: currentPage,
-        limit: itemsPerPage,
-        search: searchTerm,
-        specialty: filterSpecialty,
-        sortBy: sortField,
-        sortOrder: sortDirection
-      });
-
-      console.log('📡 Request URL:', `http://localhost:5000/api/craftsmen?${params}`);
-
-      const response = await fetch(`http://localhost:5000/api/craftsmen?${params}`);
-      const data = await response.json();
-
-      if (response.ok) {
-        setCraftsmen(data.craftsmen);
-        setTotalPages(data.totalPages);
-        setTotalCount(data.totalCount);
-        console.log('✅ Loaded craftsmen:', data.craftsmen.length, 'Filter:', filterSpecialty);
-        // Removed onCountChange call to prevent infinite re-renders
-      } else {
-        throw new Error(data.message || 'Ustalar yuklanmadi');
-      }
-    } catch (error) {
-      console.error('❌ Error loading craftsmen:', error);
-      safeNotifyError('Ustalar yuklanmadi');
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, itemsPerPage, searchTerm, filterSpecialty, sortField, sortDirection]);
-
+  // Debounce search/filter to reduce query churn
   useEffect(() => {
-    loadCraftsmen();
-  }, [loadCraftsmen]);
+    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+    debounceTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setDebouncedSpecialty(filterSpecialty);
+      setCurrentPage(1);
+    }, 500);
+    return () => {
+      if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+    };
+  }, [searchTerm, filterSpecialty]);
+
+  // Extract craftsmen and pagination from query data
+  const craftsmen = craftsmenData?.craftsmen || [];
+  const totalPages = craftsmenData?.totalPages || 1;
+  const totalCount = craftsmenData?.totalCount || 0;
+
+  // Update count when data changes
+  useEffect(() => {
+    if (onCountChange) {
+      onCountChange(totalCount);
+    }
+  }, [totalCount, onCountChange]);
 
   // Reset page when search or filter changes
   useEffect(() => {
@@ -345,24 +347,6 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
     setIsSubmitting(true);
 
     try {
-      // Test backend connection first
-      try {
-        const testResponse = await fetch('http://localhost:5000/api/craftsmen', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-        if (!testResponse.ok) {
-          throw new Error('Backend server is not responding');
-        }
-      } catch (error) {
-        console.error('❌ Backend connection failed:', error);
-        safeNotifyError('Backend server ishlamayapti. Server ni ishga tushiring.');
-        setIsSubmitting(false);
-        return;
-      }
-
       const craftsmanData = {
         name: formData.name,
         phone: formData.phone,
@@ -375,87 +359,50 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
 
       console.log('📤 Yuborilayotgan ma\'lumotlar:', JSON.stringify(craftsmanData, null, 2));
 
-      const url = selectedCraftsman
-        ? `http://localhost:5000/api/craftsmen/${selectedCraftsman._id}`
-        : 'http://localhost:5000/api/craftsmen';
-
-      const method = selectedCraftsman ? 'PUT' : 'POST';
-
-      console.log('🌐 URL:', url, 'Method:', method);
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(craftsmanData),
-      });
-
-      console.log('📡 Response status:', response.status);
-
-      const data = await response.json();
-      console.log('📥 Response data:', JSON.stringify(data, null, 2));
-
-      if (response.ok) {
-        if (selectedCraftsman) {
-          // Tahrirlash - local state ni yangilash
-          console.log('🔄 Local state yangilanmoqda...', JSON.stringify(data, null, 2));
-          setCraftsmen(prevCraftsmen =>
-            prevCraftsmen.map(craftsman =>
-              craftsman._id === selectedCraftsman._id
-                ? { ...craftsman, ...data }
-                : craftsman
-            )
-          );
-          console.log('✅ Local state yangilandi');
-        } else {
-          // Yangi qo'shish - local state ga qo'shish
-          setCraftsmen(prevCraftsmen => [...prevCraftsmen, data]);
-          setTotalCount(prev => {
-            const newCount = prev + 1;
-            // Prevent setState during render by deferring onCountChange
-            if (onCountChange) {
-              setTimeout(() => {
-                onCountChange(newCount);
-              }, 0);
-            }
-            return newCount;
-          });
-        }
-
-        // Reload craftsmen data to ensure persistence
-        await loadCraftsmen();
-
-        // Trigger appropriate notification after state update
-        if (selectedCraftsman) {
-          safeNotifySuccess('Usta muvaffaqiyatli tahrirlandi');
-          
-          // Add real notification for notification bell
-          notifyCraftsmanEdited({
-            _id: data._id || data.id,
-            name: craftsmanData.name,
-            specialty: craftsmanData.specialty
-          }).catch(error => {
-            console.error('Failed to create edit notification:', error);
-          });
-        } else {
-          notifyCraftsmanAdded({
-            _id: data._id || data.id,
-            name: craftsmanData.name,
-            specialty: craftsmanData.specialty
-          });
-        }
-        closeModal();
+      if (selectedCraftsman) {
+        // Update existing craftsman using React Query mutation
+        const updatedCraftsman = await updateCraftsmanMutation.mutateAsync({
+          id: selectedCraftsman._id,
+          ...craftsmanData
+        });
+        
+        console.log('✅ Muvaffaqiyatli yangilandi:', updatedCraftsman);
+        safeNotifySuccess('Usta ma\'lumotlari yangilandi');
+        notifyCraftsmanEdited(updatedCraftsman);
+        
+        // GENTLE: Only basic cache management
+        // Single invalidation without forced refetch
+        queryClient.invalidateQueries({ queryKey: queryKeys.recentActivities.all });
+        
+        // Strategy 3: Custom event for immediate UI update
+        window.dispatchEvent(new CustomEvent('craftsmanUpdated', {
+          detail: { craftsman: updatedCraftsman, action: 'updated' }
+        }));
       } else {
-        // Har qanday xatolik (404 ham) haqiqiy xatolik
-        const errorMessage = data.message || `Server xatoligi: ${response.status}`;
-        console.error('❌ Xatolik:', errorMessage);
-        safeNotifyError(errorMessage);
-        closeModal();
+        // Create new craftsman using React Query mutation
+        const newCraftsman = await createCraftsmanMutation.mutateAsync(craftsmanData);
+        
+        console.log('✅ Muvaffaqiyatli qo\'shildi:', newCraftsman);
+        safeNotifySuccess('Yangi usta qo\'shildi');
+        notifyCraftsmanAdded(newCraftsman);
       }
+
+      closeModal();
     } catch (error) {
-      console.error('Craftsman saqlashda xatolik:', error);
-      safeNotifyError(error.message);
+      console.error('❌ Usta saqlashda xatolik:', error);
+      
+      // Extract error message from different error formats
+      let errorMessage = 'Usta saqlanmadi';
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      
+      safeNotifyError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -473,49 +420,32 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
     const craftsmanSpecialty = craftsmanToDelete?.specialty || 'Noma\'lum mutaxassislik';
 
     try {
-      const response = await fetch(`http://localhost:5000/api/craftsmen/${id}`, {
-        method: 'DELETE',
+      // Delete craftsman using React Query mutation
+      await deleteCraftsmanMutation.mutateAsync(id);
+      
+      // Show deletion notification with craftsman details
+      notifyCraftsmanDeleted({ 
+        _id: id, 
+        name: craftsmanName, 
+        specialty: craftsmanSpecialty 
       });
-
-      if (response.ok) {
-        // Muvaffaqiyatli o'chirish
-        setCraftsmen(prevCraftsmen => prevCraftsmen.filter(craftsman => craftsman._id !== id));
-        setTotalCount(prev => {
-          const newCount = prev - 1;
-          // Prevent setState during render by deferring onCountChange
-          if (onCountChange) {
-            setTimeout(() => {
-              onCountChange(newCount);
-            }, 0);
-          }
-          return newCount;
-        });
-
-        // Show deletion notification with craftsman details
-        notifyCraftsmanDeleted({ 
-          _id: id, 
-          name: craftsmanName, 
-          specialty: craftsmanSpecialty 
-        });
-      } else {
-        // Har qanday xatolik (404 ham) haqiqiy xatolik
-        const data = await response.json();
-        const errorMessage = data.message || `Server xatoligi: ${response.status}`;
-
-        // Local state ni yangilash (agar usta mavjud bo'lsa)
-        setCraftsmen(prevCraftsmen => prevCraftsmen.filter(craftsman => craftsman._id !== id));
-
-        // Xatolik xabarini ko'rsatish
-        safeNotifyError(errorMessage);
-      }
+      
+      safeNotifySuccess('Usta muvaffaqiyatli o\'chirildi');
     } catch (error) {
       console.error('Craftsman o\'chirishda xatolik:', error);
-
-      // Tarmoq xatoligi bo'lsa ham local state ni yangilash
-      setCraftsmen(prevCraftsmen => prevCraftsmen.filter(craftsman => craftsman._id !== id));
-
-      // Tarmoq xatoligi uchun notification
-      safeNotifyError('Server bilan bog\'lanishda xatolik yuz berdi');
+      
+      // Extract error message from different error formats
+      let errorMessage = 'Ustani o\'chirishda xatolik yuz berdi';
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      
+      safeNotifyError(errorMessage);
     }
   };
 
@@ -680,9 +610,15 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
           <div className="bg-white rounded-xl shadow-sm">
             {/* Table wrapper without scroll */}
             <div className="overflow-hidden">
-              {loading ? (
+              {/* Enhanced loading overlay */}
+              {isLoading && craftsmen.length === 0 ? (
                 <div className="p-3 sm:p-6">
-                  <LoadingCard count={5} type="craftsman" />
+                  <LoadingCard count={8} type="craftsman" />
+                </div>
+              ) : isFetching && craftsmen.length > 0 ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center m-3 sm:m-6">
+                  <i className="fas fa-spinner fa-spin text-blue-600 mr-2"></i>
+                  <span className="text-blue-700 text-sm">Ustalar yangilanmoqda...</span>
                 </div>
               ) : craftsmen.length === 0 ? (
                 <div className="p-8 text-center">

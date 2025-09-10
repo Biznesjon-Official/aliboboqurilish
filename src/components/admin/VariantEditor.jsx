@@ -134,7 +134,7 @@ const VariantEditor = ({
               <div className="flex-1">
                 <input
                   type="text"
-                  value={localVariant.name}
+                  value={localVariant.name || ''}
                   onChange={(e) => updateVariantName(e.target.value)}
                   placeholder="Variant nomi (masalan: Rang, O'lcham, Xotira)"
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent ${
@@ -212,7 +212,7 @@ const VariantEditor = ({
                   </label>
                   <input
                     type="text"
-                    value={option.value}
+                    value={option.value || ''}
                     onChange={(e) => updateOption(optionIndex, 'value', e.target.value)}
                     placeholder="Masalan: Qizil, Katta, 64GB"
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent ${
@@ -232,7 +232,7 @@ const VariantEditor = ({
                   </label>
                   <input
                     type="number"
-                    value={option.price}
+                    value={option.price || ''}
                     onChange={(e) => updateOption(optionIndex, 'price', e.target.value)}
                     placeholder="0"
                     min="0"
@@ -262,7 +262,7 @@ const VariantEditor = ({
                   </label>
                   <input
                     type="number"
-                    value={option.oldPrice}
+                    value={option.oldPrice || ''}
                     onChange={(e) => updateOption(optionIndex, 'oldPrice', e.target.value)}
                     placeholder="0"
                     min="0"
@@ -286,7 +286,7 @@ const VariantEditor = ({
                   </label>
                   <input
                     type="number"
-                    value={option.stock}
+                    value={option.stock || ''}
                     onChange={(e) => updateOption(optionIndex, 'stock', e.target.value)}
                     placeholder="0"
                     min="0"

@@ -1,11 +1,12 @@
 const Craftsman = require('../models/Craftsman');
+const { addActivity } = require('../routes/recentActivitiesRoutes');
 
 // GET all craftsmen with pagination, search, and filtering
 const getCraftsmen = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '', specialty = '', sortBy = 'joinDate', sortOrder = 'desc' } = req.query;
+    const { page = 1, limit = 10, search = '', specialty = '', status = 'active', sortBy = 'joinDate', sortOrder = 'desc' } = req.query;
     
-    const query = {};
+    const query = { status };
     
     if (search) {
       query.$or = [
@@ -66,6 +67,25 @@ const createCraftsman = async (req, res) => {
   try {
     const craftsman = new Craftsman(req.body);
     const newCraftsman = await craftsman.save();
+    
+    // Add to recent activities
+    try {
+      addActivity({
+        category: 'ustalar',
+        icon: 'fa-user-plus',
+        iconBg: 'bg-green-100',
+        iconColor: 'text-green-600',
+        title: 'Yangi usta qo\'shildi',
+        desc: `${newCraftsman.name} - ${newCraftsman.specialty}`,
+        time: 'Hozir',
+        entityType: 'craftsman',
+        entityId: newCraftsman._id,
+        entityName: newCraftsman.name,
+      });
+    } catch (activityError) {
+      console.error('⚠️ Recent activity error (non-critical):', activityError.message);
+    }
+    
     res.status(201).json(newCraftsman);
   } catch (error) {
     console.error('Error creating craftsman:', error);
@@ -89,6 +109,24 @@ const updateCraftsman = async (req, res) => {
       return res.status(404).json({ message: 'Usta topilmadi' });
     }
     
+    // Add to recent activities
+    try {
+      addActivity({
+        category: 'ustalar',
+        icon: 'fa-user-edit',
+        iconBg: 'bg-blue-100',
+        iconColor: 'text-blue-600',
+        title: 'Usta tahrirlandi',
+        desc: `${craftsman.name} - ${craftsman.specialty}`,
+        time: 'Hozir',
+        entityType: 'craftsman',
+        entityId: craftsman._id,
+        entityName: craftsman.name,
+      });
+    } catch (activityError) {
+      console.error('⚠️ Recent activity error (non-critical):', activityError.message);
+    }
+    
     res.json(craftsman);
   } catch (error) {
     console.error('Error updating craftsman:', error);
@@ -106,6 +144,24 @@ const deleteCraftsman = async (req, res) => {
     
     if (!craftsman) {
       return res.status(404).json({ message: 'Usta topilmadi' });
+    }
+    
+    // Add to recent activities
+    try {
+      addActivity({
+        category: 'ustalar',
+        icon: 'fa-user-times',
+        iconBg: 'bg-red-100',
+        iconColor: 'text-red-600',
+        title: 'Usta o\'chirildi',
+        desc: `${craftsman.name} - ${craftsman.specialty}`,
+        time: 'Hozir',
+        entityType: 'craftsman',
+        entityId: craftsman._id,
+        entityName: craftsman.name,
+      });
+    } catch (activityError) {
+      console.error('⚠️ Recent activity error (non-critical):', activityError.message);
     }
     
     res.json({ message: 'Usta muvaffaqiyatli o\'chirildi' });

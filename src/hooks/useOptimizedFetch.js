@@ -20,8 +20,8 @@ setInterval(cleanCache, 5 * 60 * 1000);
 export const useParallelFetch = (urls, options = {}) => {
   const {
     enabled = true,
-    cacheTime = 5 * 60 * 1000,
-    staleTime = 2 * 60 * 1000,
+    cacheTime = 60 * 1000, // Reduced to 1 minute
+    staleTime = 30 * 1000, // Reduced to 30 seconds
   } = options;
   
   const [data, setData] = useState({});

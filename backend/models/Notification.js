@@ -45,7 +45,8 @@ const notificationSchema = new mongoose.Schema({
     required: false
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  suppressReservedKeysWarning: true
 });
 
 // Index for efficient queries

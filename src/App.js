@@ -1,26 +1,45 @@
-import { useState, useCallback, Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './lib/queryClient';
 import socketService from './services/SocketService'; // Real-time updates
+import { useStockMonitor } from './hooks/useRealTimeStock'; // Real-time stock monitoring
+import { useGlobalStockListener } from './hooks/useGlobalStock'; // Global stock state
 import DiagnosticPanel from './components/DiagnosticPanel'; // Diagnostic panel for monitoring
-import './App.css';
-
 import AdminLoadingLayout from './components/skeletons/AdminLoadingLayout';
- // Real-time status
+import './App.css';
+import './utils/browserStockSync'; // Browser-based stock sync
+import './utils/forceRefresh'; // Force refresh utility
+import './utils/stockUpdateDebugger'; // Stock update debugging tool
+import './utils/stockNotification'; // Visual stock notifications
 
 const MainPage = lazy(() => import('./components/MainPage'));
 const ProductDetailPage = lazy(() => import('./components/ProductDetailPage'));
 // Lazy load the entire admin section to keep it out of main bundle
 const AdminRoutes = lazy(() => import('./components/AdminRoutes'));
 
-function App() {
+// App content component that uses QueryClient context
+function AppContent() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [craftsmenCount, setCraftsmenCount] = useState(5); // Initialize with 5 craftsmen
   const [productsCount, setProductsCount] = useState(5); // Initialize with 5 products
   const [ordersCount, setOrdersCount] = useState(5); // Initialize with 5 orders (total count)
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Authentication state
   const [showDiagnostics, setShowDiagnostics] = useState(false); // Diagnostic panel state
+
+  // Initialize real-time stock monitoring for the entire app (now inside QueryClientProvider)
+  const { isConnected, connectionStatus } = useStockMonitor(true); // Enable debug mode
+  
+  // CRITICAL: Initialize global stock listener for immediate UI updates
+  useGlobalStockListener();
+  
+  // CRITICAL: Expose queryClient to window for debugging and force refresh
+  useEffect(() => {
+    window.queryClient = queryClient;
+    return () => {
+      delete window.queryClient;
+    };
+  }, []);
 
   // CRITICAL: Initialize Socket.IO for real-time stock updates
   useEffect(() => {
@@ -88,13 +107,12 @@ function App() {
   };
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true
-        }}
-      >
+    <Router
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true
+      }}
+    >
       <Routes>
         <Route path="/" element={
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="text-lg">Yuklanmoqda...</div></div>}>
@@ -125,7 +143,48 @@ function App() {
           </ProtectedRoute>
         } />
       </Routes>
-      </Router>
+    </Router>
+  );
+}
+
+// Main App component with QueryClientProvider
+function App() {
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+
+  // CRITICAL: Initialize Socket.IO for real-time stock updates
+  useEffect(() => {
+    console.log('🔗 Initializing Socket.IO for real-time stock synchronization');
+    socketService.initialize();
+    
+    // Diagnostic panel toggle with keyboard shortcut (Dev only)
+    if (process.env.NODE_ENV === 'development') {
+      const handleKeyDown = (e) => {
+        // Ctrl+Shift+D to toggle diagnostics
+        if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+          e.preventDefault();
+          setShowDiagnostics(prev => !prev);
+          console.log('🔧 Diagnostic panel toggled:', !showDiagnostics);
+        }
+      };
+      
+      document.addEventListener('keydown', handleKeyDown);
+      console.log('🔧 Diagnostic panel available (Ctrl+Shift+D)');
+      
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+        socketService.disconnect();
+      };
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      socketService.disconnect();
+    };
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppContent />
       
       {/* CRITICAL: Real-time Diagnostic Panel (Development only) */}
       {process.env.NODE_ENV === 'development' && (
@@ -134,8 +193,6 @@ function App() {
           onToggle={() => setShowDiagnostics(!showDiagnostics)} 
         />
       )}
-
-    
     </QueryClientProvider>
   );
 }

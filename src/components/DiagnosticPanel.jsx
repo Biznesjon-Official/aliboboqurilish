@@ -6,16 +6,18 @@ const DiagnosticPanel = ({ isVisible, onToggle }) => {
   const [socketStatus, setSocketStatus] = useState({});
   const [queryCache, setQueryCache] = useState({});
   const [systemMetrics, setSystemMetrics] = useState({});
-  const [refreshInterval, setRefreshInterval] = useState(5000);
+  const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds instead of 5 seconds
+  const [healthCheckResult, setHealthCheckResult] = useState(null);
+  const [isTestingHealth, setIsTestingHealth] = useState(false);
 
-  // Update socket status
+  // Update socket status (reduced frequency)
   useEffect(() => {
     const updateSocketStatus = () => {
       setSocketStatus(socketService.getConnectionStatus());
     };
 
     updateSocketStatus();
-    const interval = setInterval(updateSocketStatus, 1000);
+    const interval = setInterval(updateSocketStatus, 10000); // 10 seconds instead of 1 second
     return () => clearInterval(interval);
   }, []);
 
@@ -76,6 +78,28 @@ const DiagnosticPanel = ({ isVisible, onToggle }) => {
     console.log('🔗 Socket reconnecting...');
   };
 
+  const testHealthCheck = async () => {
+    setIsTestingHealth(true);
+    setHealthCheckResult(null);
+    
+    try {
+      const result = await socketService.performHealthCheck();
+      setHealthCheckResult({
+        success: true,
+        latency: result.latency,
+        timestamp: new Date().toLocaleTimeString()
+      });
+    } catch (error) {
+      setHealthCheckResult({
+        success: false,
+        error: error.message,
+        timestamp: new Date().toLocaleTimeString()
+      });
+    } finally {
+      setIsTestingHealth(false);
+    }
+  };
+
   if (!isVisible) return null;
 
   return (
@@ -109,12 +133,46 @@ const DiagnosticPanel = ({ isVisible, onToggle }) => {
             <span>Socket ID:</span>
             <span className="text-xs">{socketStatus.socketId || 'N/A'}</span>
           </div>
-          <button
-            onClick={reconnectSocket}
-            className="mt-2 px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs"
-          >
-            🔄 Reconnect
-          </button>
+          <div className="flex justify-between">
+            <span>Transport:</span>
+            <span className="text-xs">{socketStatus.transport || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Upgraded:</span>
+            <span className={socketStatus.upgraded ? 'text-green-400' : 'text-yellow-400'}>
+              {socketStatus.upgraded ? '✅ Yes' : '⚠️ No'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>Max Attempts:</span>
+            <span>{socketStatus.maxReconnectAttempts}</span>
+          </div>
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={reconnectSocket}
+              className="px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs"
+            >
+              🔄 Reconnect
+            </button>
+            <button
+              onClick={testHealthCheck}
+              disabled={isTestingHealth || !socketStatus.isConnected}
+              className="px-2 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded text-xs"
+            >
+              {isTestingHealth ? '⏳ Testing...' : '🏓 Ping Test'}
+            </button>
+          </div>
+          {healthCheckResult && (
+            <div className={`mt-2 p-2 rounded text-xs ${
+              healthCheckResult.success ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'
+            }`}>
+              {healthCheckResult.success ? (
+                <span>✅ Healthy ({healthCheckResult.latency}ms) at {healthCheckResult.timestamp}</span>
+              ) : (
+                <span>❌ Error: {healthCheckResult.error} at {healthCheckResult.timestamp}</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

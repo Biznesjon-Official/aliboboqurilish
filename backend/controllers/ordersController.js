@@ -2,6 +2,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const NotificationService = require('../services/NotificationService');
 const socketService = require('../services/SocketService'); // Real-time updates
+const { addActivity } = require('../routes/recentActivitiesRoutes');
 const mongoose = require('mongoose');
 
 // Simple in-memory cache with TTL
@@ -238,13 +239,33 @@ const createOrder = async (req, res) => {
         
         // Handle variant products
         if (product.hasVariants && product.variants && product.variants.length > 0) {
-          if (!item.variantOption) {
-            throw new Error(`Variant tanlanmagan: ${product.name}`);
+          let selectedVariantOption = item.variantOption;
+          
+          // If no variant is provided, auto-select the first available variant (fallback)
+          if (!selectedVariantOption) {
+            console.warn(`No variant selected for ${product.name}, auto-selecting first available variant`);
+            
+            // Find the first variant with available options
+            for (const variant of product.variants) {
+              if (variant.options && variant.options.length > 0) {
+                const firstOption = variant.options.find(opt => (opt.stock || 0) > 0);
+                if (firstOption) {
+                  selectedVariantOption = firstOption.value;
+                  console.log(`Auto-selected variant: ${selectedVariantOption} for ${product.name}`);
+                  break;
+                }
+              }
+            }
+            
+            // If still no variant found, throw error
+            if (!selectedVariantOption) {
+              throw new Error(`Variant tanlanmagan va avtomatik tanlash mumkin emas: ${product.name}`);
+            }
           }
           
           let variantFound = false;
           for (const variant of product.variants) {
-            const option = variant.options.find(opt => opt.value === item.variantOption);
+            const option = variant.options.find(opt => opt.value === selectedVariantOption);
             if (option) {
               variantFound = true;
               availableStock = option.stock || 0;
@@ -253,25 +274,28 @@ const createOrder = async (req, res) => {
               stockUpdateQuery = {
                 filter: { 
                   _id: product._id,
-                  'variants.options.value': item.variantOption 
+                  'variants.options.value': selectedVariantOption 
                 },
                 update: { 
                   $inc: { 'variants.$[variant].options.$[option].stock': -item.quantity } 
                 },
                 options: {
                   arrayFilters: [
-                    { 'variant.options.value': item.variantOption },
-                    { 'option.value': item.variantOption }
+                    { 'variant.options.value': selectedVariantOption },
+                    { 'option.value': selectedVariantOption }
                   ],
                   session
                 }
               };
+              
+              // Update the item's variantOption for tracking
+              item.variantOption = selectedVariantOption;
               break;
             }
           }
           
           if (!variantFound) {
-            throw new Error(`Variant topilmadi: ${item.variantOption} - ${product.name}`);
+            throw new Error(`Variant topilmadi: ${selectedVariantOption} - ${product.name}`);
           }
         } else {
           // Handle regular products
@@ -346,14 +370,19 @@ const createOrder = async (req, res) => {
       // CRITICAL: Prepare post-commit events (but don't emit yet)
       postCommitEvents = [
         { type: 'order:updated', data: { orderId: savedOrder._id, status: 'created' } },
-        ...stockUpdates.map(({ productId, delta, newStock }) => ({
+        ...stockUpdates.map(({ productId, delta, newStock, variantOption }) => ({
           type: 'stock:updated',
-          data: { productId, delta, newQuantity: newStock, orderId: savedOrder._id }
+          data: { productId, delta, newQuantity: newStock, variantOption, orderId: savedOrder._id }
         })),
         { 
           type: 'stock:bulk_updated', 
           data: { 
-            updates: stockUpdates.map(({ productId, delta, newStock }) => ({ productId, delta, newQuantity: newStock })),
+            updates: stockUpdates.map(({ productId, delta, newStock, variantOption }) => ({ 
+              productId, 
+              stockDelta: delta, 
+              newQuantity: newStock, 
+              variantOption 
+            })),
             orderId: savedOrder._id 
           } 
         }
@@ -376,7 +405,12 @@ const createOrder = async (req, res) => {
           socketService.emitOrderUpdate(data.orderId, data.status, data.ts);
           break;
         case 'stock:updated':
-          socketService.emitStockUpdate(data.productId, data.delta, data.newQuantity, data.orderId);
+          socketService.emitStockUpdate(data.productId, data.delta, data.newQuantity, data.orderId, data.variantOption);
+          // Check for low stock alert
+          if (data.newQuantity <= 5 && data.newQuantity > 0) {
+            // We'd need to get product name for the alert - for now just log
+            console.log(`⚠️ Low stock alert: Product ${data.productId} has ${data.newQuantity} items left`);
+          }
           break;
         case 'stock:bulk_updated':
           socketService.emitBulkStockUpdate(data.updates, data.orderId);
@@ -396,6 +430,24 @@ const createOrder = async (req, res) => {
     
     // Invalidate cache after successful order creation
     invalidateCache();
+    
+    // Add to recent activities
+    try {
+      addActivity({
+        category: 'buyurtmalar',
+        icon: 'fa-shopping-cart',
+        iconBg: 'bg-orange-100',
+        iconColor: 'text-orange-600',
+        title: 'Yangi buyurtma',
+        desc: `${result.customerName} - ${result.totalAmount.toLocaleString()} so'm`,
+        time: 'Hozir',
+        entityType: 'order',
+        entityId: result._id,
+        entityName: `Buyurtma #${result._id.toString().slice(-6)}`,
+      });
+    } catch (activityError) {
+      console.error('⚠️ Recent activity error (non-critical):', activityError.message);
+    }
     
     res.status(201).json({
       success: true,
@@ -668,13 +720,15 @@ const getOrderStats = async (req, res) => {
 // PUT cancel order and restore inventory with optimized synchronization
 const cancelOrder = async (req, res) => {
   const session = await mongoose.startSession();
+  let productMap = new Map(); // Declare here to use outside transaction
+  let order = null; // Declare here to use outside transaction
   
   try {
     const result = await session.withTransaction(async () => {
       const orderId = req.params.id;
       
       // Step 1: Find and validate the order
-      const order = await Order.findById(orderId).session(session);
+      order = await Order.findById(orderId).session(session);
       
       if (!order) {
         throw new Error('Buyurtma topilmadi');
@@ -695,7 +749,6 @@ const cancelOrder = async (req, res) => {
       }).session(session);
       
       // Create product lookup map
-      const productMap = new Map();
       products.forEach(product => {
         productMap.set(product._id.toString(), product);
       });
@@ -795,8 +848,44 @@ const cancelOrder = async (req, res) => {
       maxCommitTimeMS: 10000 // 10 second timeout
     });
     
-    // Step 6: Generate notification and clear cache (outside transaction)
+    // Step 6: Emit stock restoration events and notifications (outside transaction)
     try {
+      // Emit stock restoration events for real-time updates
+      if (result && order && order.items) {
+        const stockRestorationEvents = [];
+        for (const item of order.items) {
+          const product = productMap.get(item.productId.toString());
+          if (product) {
+            let newQuantity = 0;
+            // Calculate new stock quantity after restoration
+            if (product.hasVariants && item.variantOption) {
+              for (const variant of product.variants) {
+                const option = variant.options.find(opt => opt.value === item.variantOption);
+                if (option) {
+                  newQuantity = (option.stock || 0) + item.quantity;
+                  break;
+                }
+              }
+            } else {
+              newQuantity = (product.stock || 0) + item.quantity;
+            }
+            
+            stockRestorationEvents.push({
+              productId: product._id,
+              stockDelta: item.quantity, // Positive for restoration
+              newQuantity,
+              variantOption: item.variantOption || null
+            });
+          }
+        }
+        
+        // Emit bulk stock update for all restored items
+        if (stockRestorationEvents.length > 0) {
+          socketService.emitBulkStockUpdate(stockRestorationEvents, result._id);
+          console.log(`📦 Stock restoration events emitted for cancelled order ${result._id}`);
+        }
+      }
+      
       await NotificationService.createOrderNotification('deleted', result, 'Admin');
     } catch (notificationError) {
       console.error('Failed to create order cancellation notification:', notificationError);

@@ -10,6 +10,8 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
   // Fetch dashboard statistics
   const fetchDashboardStats = useCallback(async () => {
     try {
+      // NOTE: Using direct backend URL instead of proxy due to setupProxy.js issues
+      // This ensures statistics work reliably in development environment
       const response = await fetch('http://localhost:5000/api/statistics/dashboard');
 
       if (!response.ok) {
@@ -60,6 +62,7 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
   // Fetch edit statistics
   const fetchEditStats = useCallback(async (days = 30) => {
     try {
+      // NOTE: Using direct backend URL instead of proxy due to setupProxy.js issues
       const response = await fetch(`http://localhost:5000/api/statistics/edits?days=${days}`);
 
       if (!response.ok) {

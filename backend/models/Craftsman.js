@@ -64,7 +64,8 @@ const craftsmanSchema = new mongoose.Schema({
     default: ''
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  suppressReservedKeysWarning: true
 });
 
 // Indexes for better performance

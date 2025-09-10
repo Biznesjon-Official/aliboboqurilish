@@ -66,7 +66,8 @@ const orderSchema = new mongoose.Schema({
     default: ''
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  suppressReservedKeysWarning: true
 });
 
 // Comprehensive indexing for order management and analytics

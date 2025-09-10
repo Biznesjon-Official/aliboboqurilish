@@ -51,6 +51,17 @@ export const useCreateOrder = () => {
   return useMutation({
     mutationFn: (orderData) => ordersAPI.create(orderData),
     onSuccess: (newOrder) => {
+      // AGGRESSIVE: Clear ALL product caches immediately
+      queryClient.removeQueries({ queryKey: ['products'], exact: false });
+      queryClient.removeQueries({ queryKey: ['search'], exact: false });
+      
+      // Force immediate refetch of all product data
+      queryClient.refetchQueries({ 
+        queryKey: ['products'], 
+        exact: false,
+        type: 'all'
+      });
+      
       // Invalidate and refetch orders list
       queryClient.invalidateQueries({ queryKey: queryKeys.orders.all });
       
@@ -59,6 +70,11 @@ export const useCreateOrder = () => {
       
       // Update orders count
       queryClient.invalidateQueries({ queryKey: queryKeys.orders.stats() });
+      
+      // Force global stock refresh
+      if (window.forceRefreshAllStocks) {
+        window.forceRefreshAllStocks();
+      }
       
       console.log('✅ Order created successfully:', newOrder);
     },

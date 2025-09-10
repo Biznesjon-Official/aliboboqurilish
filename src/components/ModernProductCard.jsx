@@ -1,5 +1,7 @@
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, memo, useEffect } from 'react';
 import { ShoppingCartIcon, EyeIcon } from './Icons';
+import Base64Image from './Base64Image';
+import { useStockMonitor } from '../hooks/useRealTimeStock';
 
 const ModernProductCard = memo(({
   product,
@@ -15,7 +17,22 @@ const ModernProductCard = memo(({
   const [imageLoading, setImageLoading] = useState(true);
   const [internalCurrentImageIndex, setInternalCurrentImageIndex] = useState(0);
   const [internalLastHoverTime, setInternalLastHoverTime] = useState(0);
+  const [localStock, setLocalStock] = useState(product?.stock || 0);
+  const [stockUpdateAnimation, setStockUpdateAnimation] = useState(false);
 
+  // Initialize real-time stock monitoring
+  const { isConnected } = useStockMonitor();
+
+  // Update local stock when product prop changes
+  useEffect(() => {
+    if (product?.stock !== undefined && product.stock !== localStock) {
+      setLocalStock(product.stock);
+      // Trigger animation for stock changes
+      setStockUpdateAnimation(true);
+      const timer = setTimeout(() => setStockUpdateAnimation(false), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [product?.stock, localStock]);
 
   // Helper function to format price safely
   const formatPrice = (price) => {
@@ -59,7 +76,7 @@ const ModernProductCard = memo(({
     
     // Remove duplicates and ensure at least one image
     const uniqueImages = [...new Set(allImages)];
-    return uniqueImages.length > 0 ? uniqueImages : ['/assets/default-product.png'];
+    return uniqueImages.length > 0 ? uniqueImages : ['/assets/default-product.svg'];
   };
 
   const productImages = getAllProductImages();
@@ -176,7 +193,7 @@ const ModernProductCard = memo(({
 
   // Badge/chegirma borligini tekshirish
   const hasBadges = product.isNew || product.isPopular || (product.badge && product.badge !== 'Yo\'q') || 
-                   (product.stock !== undefined && product.stock < 5 && product.stock > 0) || discount > 0;
+                   (localStock !== undefined && localStock < 5 && localStock > 0) || discount > 0;
 
   return (
     <div
@@ -188,7 +205,7 @@ const ModernProductCard = memo(({
       {/* Image Container - Dinamik height */}
       <div className="relative cursor-pointer overflow-hidden rounded-lg mb-2 sm:mb-3 border border-gray-100" onClick={handleOpenDetail}>
         <div
-          className={`relative w-full bg-white rounded-lg ${
+          className={`relative w-full bg-white rounded-lg overflow-hidden ${
             hasBadges 
               ? 'h-40 sm:h-48 lg:h-56' // Badge bor bo'lsa kichikroq
               : 'h-44 sm:h-52 lg:h-60' // Badge yo'q bo'lsa kattaroq
@@ -198,17 +215,23 @@ const ModernProductCard = memo(({
           onTouchStart={handleTouchStart}
         >
           {/* Main Image */}
-          <img
-            src={currentImage}
-            alt={product.name}
-            className={`w-full h-full object-contain transition-all duration-500 ${isHovered ? 'scale-105' : 'scale-100'
-              } ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
-            loading="lazy"
-            onLoad={() => setImageLoading(false)}
-            onError={() => {
-              setImageLoading(false);
-            }}
-          />
+          <div className="w-full h-full overflow-hidden rounded-lg flex items-center justify-center">
+            <Base64Image
+              src={currentImage || '/assets/default-product.svg'}
+              alt={product.name}
+              className={`w-full h-full object-contain transition-all duration-500 ${isHovered ? 'scale-105' : 'scale-100'
+                } ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+              fallbackSrc="/assets/default-product.svg"
+              onLoad={() => setImageLoading(false)}
+              onError={() => setImageLoading(false)}
+              style={{
+                transition: 'opacity 0.3s ease-in-out, transform 0.5s ease-in-out',
+                maxWidth: '100%',
+                maxHeight: '100%',
+                objectFit: 'contain'
+              }}
+            />
+          </div>
 
           {/* Loading Skeleton */}
           {imageLoading && (
@@ -268,9 +291,11 @@ const ModernProductCard = memo(({
               </span>
             )}
 
-            {/* Stock Badge - Telefon uchun kichik */}
-            {product.stock !== undefined && product.stock < 5 && product.stock > 0 && (
-              <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 rounded font-normal">
+            {/* Stock Badge - Telefon uchun kichik with real-time updates */}
+            {localStock !== undefined && localStock < 5 && localStock > 0 && (
+              <span className={`bg-orange-500 text-white text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 rounded font-normal transition-all duration-300 ${
+                stockUpdateAnimation ? 'animate-bounce' : ''
+              }`}>
                 Kam qoldi
               </span>
             )}
@@ -344,20 +369,26 @@ const ModernProductCard = memo(({
             </div>
           </div>
           
-          {/* Stock Info - Kichraytirilgan */}
+          {/* Stock Info - Kichraytirilgan with real-time updates */}
           <div className="flex items-center justify-between text-[10px] sm:text-xs">
             <div className="flex items-center gap-1">
-              <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${product.stock > 10 ? 'bg-green-500' : product.stock > 0 ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+              <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-all duration-300 ${
+                localStock > 10 ? 'bg-green-500' : localStock > 0 ? 'bg-yellow-500' : 'bg-red-500'
+              } ${stockUpdateAnimation ? 'animate-pulse scale-125' : ''}`}></div>
               <span className="text-gray-600 font-medium">Mavjud:</span>
+              {/* Real-time connection indicator */}
+              {isConnected && (
+                <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" title="Real-time yangilanish"></div>
+              )}
             </div>
-            <span className={`font-semibold ${
-              product.stock > 10 
+            <span className={`font-semibold transition-all duration-300 ${
+              localStock > 10 
                 ? 'text-green-600' 
-                : product.stock > 0 
+                : localStock > 0 
                   ? 'text-yellow-600' 
                   : 'text-red-600'
-            }`}>
-              {product.stock > 0 ? `${product.stock} ${product.unit || 'dona'}` : 'Tugagan'}
+            } ${stockUpdateAnimation ? 'scale-110 font-bold' : ''}`}>
+              {localStock > 0 ? `${localStock} ${product.unit || 'dona'}` : 'Tugagan'}
             </span>
           </div>
         </div>
@@ -365,14 +396,14 @@ const ModernProductCard = memo(({
         {/* Button - Kichraytirilgan */}
         <button
           onClick={handleAddToCart}
-          disabled={product.stock === 0}
+          disabled={localStock === 0}
           className={`w-full py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-200 mt-2 sm:mt-3 ${
-            product.stock === 0
+            localStock === 0
               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
               : 'bg-gradient-to-r from-primary-orange to-orange-500 text-white hover:from-orange-600 hover:to-orange-600 hover:shadow-lg active:scale-[0.98] shadow-md'
           }`}
         >
-          {product.stock === 0 ? (
+          {localStock === 0 ? (
             'Tugagan'
           ) : (
             <div className="flex items-center justify-center gap-2">

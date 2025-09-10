@@ -44,7 +44,7 @@ const Header = ({
     const controller = new AbortController();
     const fetchSuggestions = async () => {
       try {
-        const url = `/api/products?search=${encodeURIComponent(q)}&limit=20`;
+        const url = `/api/products?search=${encodeURIComponent(q)}&limit=40`;
         const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error('Failed to load suggestions');
         const data = await res.json();
@@ -177,7 +177,7 @@ const Header = ({
                   alt="Logo"
                   loading="eager"
                   decoding="async"
-                  fetchPriority="high"
+                  fetchpriority="high"
                   className="w-12 h-12 object-cover rounded-lg"
                 />
                 <img
@@ -185,7 +185,7 @@ const Header = ({
                   alt="Alibobo"
                   loading="eager"
                   decoding="async"
-                  fetchPriority="high"
+                  fetchpriority="high"
                   className="h-14 w-36 object-cover"
                 />
               </div>
@@ -277,7 +277,7 @@ const Header = ({
                 alt="Logo"
                 loading="eager"
                 decoding="async"
-                fetchPriority="high"
+                fetchpriority="high"
                 className="w-8 h-8 object-cover rounded-lg"
               />
               <img
@@ -285,7 +285,7 @@ const Header = ({
                 alt="Alibobo"
                 loading="eager"
                 decoding="async"
-                fetchPriority="high"
+                fetchpriority="high"
                 className="h-8 w-24 object-cover"
               />
             </div>

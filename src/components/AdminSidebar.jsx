@@ -39,8 +39,23 @@ const AdminSidebar = ({ active = 'dashboard', counts = defaultCounts, onLogout, 
   const navigate = useNavigate();
   
   const handleSectionChange = (key) => {
-    if (key === 'dashboard') navigate('/admin');
-    else navigate(`/admin/${key}`);
+    // Yangi navigatsiya logikasi
+    switch(key) {
+      case 'dashboard':
+        navigate('/admin');
+        break;
+      case 'craftsmen':
+        navigate('/admin/craftsmen');
+        break;
+      case 'products':
+        navigate('/admin/products');
+        break;
+      case 'orders':
+        navigate('/admin/orders');
+        break;
+      default:
+        navigate('/admin');
+    }
     // Mobil sidebar yopish
     if (onMobileToggle) onMobileToggle();
   };
@@ -145,4 +160,4 @@ const AdminSidebar = ({ active = 'dashboard', counts = defaultCounts, onLogout, 
   );
 };
 
-export default AdminSidebar; 
+export default AdminSidebar;

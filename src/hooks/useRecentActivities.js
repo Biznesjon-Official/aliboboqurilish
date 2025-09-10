@@ -7,9 +7,13 @@ export const useRecentActivities = (page = 1, limit = 20, filter = 'all') => {
   return useQuery({
     queryKey: queryKeys.recentActivities.list(page, limit, filter),
     queryFn: () => recentActivitiesAPI.getAll({ page, limit, filter }),
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 2 * 60 * 1000, // 2 minutes - prevent excessive refetching
     cacheTime: 5 * 60 * 1000, // 5 minutes
     keepPreviousData: true,
+    refetchOnWindowFocus: false, // Disable refetch on window focus
+    refetchOnMount: false, // Disable refetch on component mount
+    refetchInterval: false, // Disable automatic polling
+    refetchIntervalInBackground: false, // Disable background polling
   });
 };
 
@@ -200,6 +204,10 @@ export const useRecentActivitiesCache = () => {
     });
   };
 
+  const refreshAll = () => {
+    invalidateActivities();
+  };
+
   return {
     invalidateActivities,
     invalidateActivity,
@@ -212,5 +220,6 @@ export const useRecentActivitiesCache = () => {
     setActivitiesInCache,
     addActivityToCache,
     updateActivityInCache,
+    refreshAll,
   };
 };

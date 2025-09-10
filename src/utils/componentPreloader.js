@@ -13,7 +13,7 @@ class ComponentPreloader {
 
     const promise = componentImport().then(module => {
       this.preloadedComponents.add(componentName);
-      console.log(`✅ Preloaded component: ${componentName}`);
+      // console.log(`✅ Preloaded component: ${componentName}`);
       return module;
     }).catch(error => {
       console.error(`❌ Failed to preload component ${componentName}:`, error);

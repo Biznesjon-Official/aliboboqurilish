@@ -39,38 +39,9 @@ const useNotifications = () => {
 
   // Add new notification - matching index.html addNotification function
   const addNotification = useCallback((notification) => {
-    const newNotification = {
-      id: Date.now(),
-      time: 'Hozir',
-      read: false,
-      timestamp: Date.now(),
-      ...notification
-    };
-    setNotifications(prev => {
-      const updated = [newNotification, ...prev];
-      // Keep only last 50 notifications like index.html
-      return updated.slice(0, 50);
-    });
-    
-    // Update notification badge - matching index.html behavior
-    const unreadCount = [newNotification, ...notifications].filter(n => !n.read).length;
-    const badgeElement = document.getElementById('notificationBadge');
-    if (badgeElement) {
-      badgeElement.textContent = unreadCount;
-      badgeElement.style.display = unreadCount > 0 ? 'flex' : 'none';
-      
-      // Add bounce animation for new notification - matching index.html
-      if (unreadCount > 0) {
-        badgeElement.classList.remove('animate-bounce');
-        setTimeout(() => {
-          badgeElement.classList.add('animate-bounce');
-          setTimeout(() => {
-            badgeElement.classList.remove('animate-bounce');
-          }, 2000);
-        }, 100);
-      }
-    }
-  }, [notifications]);
+    // Notifications disabled
+    return;
+  }, []);
 
   // Mark notification as read
   const markAsRead = useCallback((id) => {

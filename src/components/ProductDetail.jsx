@@ -132,7 +132,27 @@ const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
     product.variants.every(variant => selectedVariants[variant.name]);
 
   const handleAddToCart = () => {
-    // Auto-selection ensures all variants are always selected, no need for validation
+    // Ensure all variants are selected before adding to cart
+    if (product.hasVariants && product.variants && product.variants.length > 0) {
+      // Check if all variants have been selected
+      const missingVariants = product.variants.filter(variant => 
+        !selectedVariants[variant.name] || selectedVariants[variant.name] === ''
+      );
+      
+      if (missingVariants.length > 0) {
+        console.warn('Missing variants detected:', missingVariants.map(v => v.name));
+        console.log('Current selectedVariants:', selectedVariants);
+        // Auto-select missing variants (fallback)
+        const autoCompleted = { ...selectedVariants };
+        missingVariants.forEach(variant => {
+          if (variant.options && variant.options.length > 0) {
+            autoCompleted[variant.name] = variant.options[0].value;
+          }
+        });
+        setSelectedVariants(autoCompleted);
+        console.log('Auto-completed variants:', autoCompleted);
+      }
+    }
 
     // Create display name with variant info
     let displayName = product.name;
@@ -149,7 +169,7 @@ const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
       quantity,
       // Override price with variant price
       price: product.hasVariants ? variantPrice : product.price,
-      // Add variant information
+      // Add variant information - ensure it's populated
       selectedVariants: product.hasVariants ? selectedVariants : {},
       finalPrice: product.hasVariants ? variantPrice : product.price,
       finalStock: product.hasVariants ? variantStock : (product.stock || product.quantity),
@@ -159,6 +179,16 @@ const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
         ? `${product.id || product._id}-${Object.values(selectedVariants).join('-')}`
         : (product.id || product._id)
     };
+    
+    console.log('Adding to cart with variants:', {
+      productName: product.name,
+      hasVariants: product.hasVariants,
+      selectedVariants,
+      variantKeys: Object.keys(selectedVariants),
+      variantValues: Object.values(selectedVariants),
+      cartId: productToAdd.cartId
+    });
+    
     onAddToCart(productToAdd);
 
     // Show notification

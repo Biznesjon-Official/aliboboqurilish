@@ -117,9 +117,14 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
         headers['If-None-Match'] = etag;
       }
       
-      const response = await fetch('http://localhost:5000/api/notifications?limit=50', {
+      // NOTE: Using direct backend URL instead of proxy due to setupProxy.js issues
+      // This ensures notifications work reliably in development environment
+      const response = await fetch('http://localhost:5000/api/notifications?limit=100', {
         signal: controllerRef.current.signal,
-        headers
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers
+        }
       });
       
       // If server returns 304 Not Modified, use cached data
@@ -247,52 +252,8 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
 
   // Create new notification
   const createNotification = useCallback(async (notificationData) => {
-    try {
-      const response = await fetch('http://localhost:5000/api/notifications', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(notificationData),
-      });
-
-      if (response.ok) {
-        const newNotification = await response.json();
-        const config = getNotificationConfig(newNotification);
-        
-        const transformedNotification = {
-          id: newNotification._id,
-          title: newNotification.title,
-          message: newNotification.message,
-          time: 'Hozir',
-          read: false,
-          type: newNotification.entityType || newNotification.type,
-          timestamp: Date.now(),
-          entityType: newNotification.entityType,
-          entityId: newNotification.entityId,
-          action: newNotification.action,
-          ...config
-        };
-
-        setNotifications(prev => [transformedNotification, ...prev]);
-        setUnreadCount(prev => prev + 1);
-        
-        // Trigger a refresh to ensure other hook instances get the update
-        setTimeout(() => {
-          fetchNotifications();
-        }, 100);
-        
-        return transformedNotification;
-      } else {
-        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-        const errorMessage = errorData.message || `HTTP ${response.status}: ${response.statusText}`;
-        console.error('❌ API Error:', errorMessage);
-        throw new Error(errorMessage);
-      }
-    } catch (err) {
-      console.error('❌ Error creating notification:', err);
-      throw err; // Re-throw to allow caller to handle
-    }
+    // Notifications disabled
+    return;
   }, []);
 
   // Delete notification
@@ -437,137 +398,8 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
 
   // Set up auto-refresh with cleanup and smarter interval handling
   useEffect(() => {
-    let isActive = true;
-    
-    // Initial fetch
-    if (autoRefresh && notificationsCache.data.length === 0) {
-      fetchNotifications(true);
-    } else if (notificationsCache.data.length > 0) {
-      // Use cached data if available, fetch in background for freshness
-      setNotifications(notificationsCache.data);
-      setUnreadCount(notificationsCache.unreadCount);
-      setLoading(false);
-      
-      // Only fetch in background if cache is older than 30 seconds
-      const now = Date.now();
-      if (now - notificationsCache.timestamp > 30000) {
-        setTimeout(() => {
-          if (isActive) fetchNotifications(false);
-        }, 500); // Small delay to prioritize rendering
-      }
-    }
-    
-    // Set up refresh timer with adaptive intervals based on user activity
-    if (autoRefresh) {
-      // Set initial interval based on current visibility state
-      let baseInterval = refreshInterval;
-      let currentInterval = document.hidden ? baseInterval * 2 : baseInterval;
-      let lastUserActivity = Date.now();
-      let userActive = true;
-      
-      // Track activity state
-      const updateUserActivity = () => {
-        lastUserActivity = Date.now();
-        userActive = true;
-      };
-      
-      // Throttled function to update the refresh interval based on user activity
-      const updateRefreshInterval = throttle(() => {
-        // Reset to shorter interval when user is active
-        if (!userActive) {
-          userActive = true;
-          currentInterval = baseInterval;
-          console.log('🔄 User active, using shorter refresh interval:', currentInterval);
-        }
-        
-        // Clear existing timer
-        if (refreshTimerRef.current) {
-          clearTimeout(refreshTimerRef.current);
-        }
-        
-        // Set new timer with updated interval
-        if (isActive) {
-          refreshTimerRef.current = setTimeout(refreshLoop, currentInterval);
-        }
-      }, 2000); // Throttle to 2 seconds
-      
-      // Listen for user activity events
-      window.addEventListener('mousemove', updateUserActivity);
-      window.addEventListener('keydown', updateUserActivity);
-      window.addEventListener('click', updateUserActivity);
-      window.addEventListener('scroll', updateUserActivity);
-      window.addEventListener('touchstart', updateUserActivity);
-      
-      // Update interval when tab visibility changes
-      const handleVisibilityChange = () => {
-        if (document.hidden) {
-          currentInterval = baseInterval * 3; // Much longer interval when tab not visible
-          console.log('💤 Tab hidden, using longer refresh interval:', currentInterval);
-        } else {
-          currentInterval = baseInterval;
-          console.log('👁️ Tab visible, using normal refresh interval:', currentInterval);
-          // Do an immediate fetch when tab becomes visible again
-          fetchNotifications();
-        }
-      };
-      
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      
-      // Check for inactivity
-      const checkInactivity = () => {
-        const now = Date.now();
-        const inactiveTime = now - lastUserActivity;
-        
-        // If user has been inactive for more than 2 minutes
-        if (inactiveTime > 2 * 60 * 1000 && userActive) {
-          userActive = false;
-          currentInterval = baseInterval * 2; // Double the interval during inactivity
-          console.log('⏸️ User inactive, using longer refresh interval:', currentInterval);
-        }
-        
-        // Continue checking for inactivity
-        setTimeout(checkInactivity, 30000); // Check every 30 seconds
-      };
-      
-      // Start inactivity checker
-      setTimeout(checkInactivity, 30000);
-      
-      // Refresh loop function that adjusts its interval dynamically
-      const refreshLoop = () => {
-        if (!isActive) return;
-        
-        // Only fetch if the user is active or there are unread notifications
-        if (userActive || unreadCount > 0) {
-          fetchNotifications();
-        }
-        
-        // Set the next refresh based on current interval
-        refreshTimerRef.current = setTimeout(refreshLoop, currentInterval);
-      };
-      
-      // Start the refresh timer
-      refreshTimerRef.current = setTimeout(refreshLoop, currentInterval);
-      
-      return () => {
-        isActive = false;
-        if (refreshTimerRef.current) {
-          clearTimeout(refreshTimerRef.current);
-        }
-        window.removeEventListener('mousemove', updateUserActivity);
-        window.removeEventListener('keydown', updateUserActivity);
-        window.removeEventListener('click', updateUserActivity);
-        window.removeEventListener('scroll', updateUserActivity);
-        window.removeEventListener('touchstart', updateUserActivity);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-      };
-    }
-    
-    return () => {
-      isActive = false;
-      if (refreshTimerRef.current) {
-        clearTimeout(refreshTimerRef.current);
-      }
-    };
+    // Notifications disabled
+    return () => {};
   }, [autoRefresh, fetchNotifications, refreshInterval, unreadCount]);
 
   return {

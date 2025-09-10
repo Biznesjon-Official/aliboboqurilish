@@ -55,7 +55,7 @@ const ProductCard = memo(({
 
     // Remove duplicates and ensure at least one image
     const uniqueImages = [...new Set(allImages)];
-    return uniqueImages.length > 0 ? uniqueImages : ['/assets/default-product.png'];
+    return uniqueImages.length > 0 ? uniqueImages : ['/assets/default-product.svg'];
   };
 
   const productImages = getAllProductImages();
@@ -146,7 +146,8 @@ const ProductCard = memo(({
           aspectRatio="1"
           objectFit="contain"
           placeholder="skeleton"
-          priority={false}
+          priority={true}
+          fallbackSrc="/assets/default-product.svg"
           onLoad={() => setImageLoading(false)}
           onError={() => setImageLoading(false)}
         />

@@ -34,6 +34,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     handlePromptResponse,
     safeNotifySuccess,
     safeNotifyError,
+    safeNotifyWarning,
     addNotification
   } = useNotifications();
 
@@ -58,6 +59,10 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
   // Modal states - simplified with new notification system
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  
+  // Selection mode states
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState(new Set());
   
   // Status change notification states
   const [showStatusNotification, setShowStatusNotification] = useState(false);
@@ -132,11 +137,11 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     loadOrders();
   }, [loadOrders]);
 
-  // Auto refresh every 30 seconds
+  // Auto refresh every 2 minutes (reduced frequency)
   useEffect(() => {
     const interval = setInterval(() => {
       loadOrders();
-    }, 30000);
+    }, 120000); // 2 minutes instead of 30 seconds
     
     return () => clearInterval(interval);
   }, [loadOrders]);
@@ -249,6 +254,157 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
   const openViewModal = (order) => {
     setSelectedOrder(order);
     setIsViewModalOpen(true);
+  };
+
+  // Selection functions
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+    setSelectedOrders(new Set());
+  };
+
+  const selectAll = () => {
+    const orderIds = paginatedOrders.map(order => order._id);
+    setSelectedOrders(new Set(orderIds));
+  };
+
+  const handleOrderClick = (order) => {
+    if (selectionMode) {
+      // In selection mode, toggle selection
+      const newSelected = new Set(selectedOrders);
+      if (newSelected.has(order._id)) {
+        newSelected.delete(order._id);
+      } else {
+        newSelected.add(order._id);
+      }
+      setSelectedOrders(newSelected);
+    } else {
+      // Normal mode: open view modal
+      openViewModal(order);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedOrders.size === 0) {
+      return;
+    }
+    
+    const orderCount = selectedOrders.size;
+    const message = `${orderCount} ta buyurtmani o'chirmoqchimisiz?`;
+    
+    showConfirm(
+      'Buyurtmalarni o\'chirish',
+      message,
+      async () => {
+        try {
+          // Get current order IDs to avoid stale data
+          const currentOrderIds = Array.from(selectedOrders);
+          let deletedCount = 0;
+          let errorCount = 0;
+          
+          // Delete orders one by one with visual feedback
+          for (const orderId of currentOrderIds) {
+            try {
+              // Check if order still exists in current state before attempting deletion
+              const orderExists = orders.find(order => order._id === orderId);
+              if (!orderExists) {
+                console.warn(`Order ${orderId} not found in current state, skipping`);
+                continue;
+              }
+              
+              // Update UI to show this order is being deleted
+              setOrders(prevOrders => 
+                prevOrders.map(order => 
+                  order._id === orderId 
+                    ? { ...order, isDeleting: true }
+                    : order
+                )
+              );
+              
+              const response = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+              });
+              
+              if (!response.ok) {
+                const errorData = await response.json();
+                // If order was already deleted (404), count as success
+                if (response.status === 404) {
+                  console.warn(`Order ${orderId} was already deleted`);
+                  // Remove from UI as it's already gone
+                  setOrders(prevOrders => prevOrders.filter(order => order._id !== orderId));
+                  deletedCount++;
+                } else {
+                  throw new Error(errorData.message || 'Buyurtmani o\'chirishda xatolik');
+                }
+              } else {
+                // Successful deletion
+                setOrders(prevOrders => prevOrders.filter(order => order._id !== orderId));
+                deletedCount++;
+              }
+              
+              // Small delay to show visual feedback
+              await new Promise(resolve => setTimeout(resolve, 300));
+              
+            } catch (error) {
+              console.error(`Error deleting order ${orderId}:`, error);
+              errorCount++;
+              
+              // Remove loading state on error
+              setOrders(prevOrders => 
+                prevOrders.map(order => 
+                  order._id === orderId 
+                    ? { ...order, isDeleting: false }
+                    : order
+                )
+              );
+              
+              // Continue with next order instead of stopping the entire process
+              continue;
+            }
+          }
+          
+          // Update count based on actually deleted orders
+          setTotalCount(prevCount => {
+            const newCount = prevCount - deletedCount;
+            onCountChange(newCount);
+            return newCount;
+          });
+          
+          setSelectedOrders(new Set());
+          setSelectionMode(false);
+          
+          // Show summary notification
+          if (deletedCount > 0 && errorCount === 0) {
+            safeNotifySuccess(
+              'Muvaffaqiyat', 
+              `${deletedCount} ta buyurtma muvaffaqiyatli o'chirildi`
+            );
+          } else if (deletedCount > 0 && errorCount > 0) {
+            safeNotifyWarning(
+              'Qisman muvaffaqiyat', 
+              `${deletedCount} ta buyurtma o'chirildi, ${errorCount} ta xatolik yuz berdi`
+            );
+          } else if (errorCount > 0) {
+            safeNotifyError(
+              'Xatolik', 
+              `Buyurtmalarni o'chirishda ${errorCount} ta xatolik yuz berdi`
+            );
+          }
+          
+          // Reload orders to ensure consistency
+          loadOrders();
+        } catch (error) {
+          console.error('Error in bulk deletion process:', error);
+          safeNotifyError('Xatolik', 'Buyurtmalarni o\'chirishda xatolik yuz berdi');
+        }
+      },
+      () => {
+        // Bulk deletion cancelled - no action needed
+      },
+      'danger'
+    );
   };
 
   const openDeleteConfirm = (order) => {
@@ -464,67 +620,109 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     
     // OrderCard component for better mobile experience
     const OrderCard = ({ order, orderNumber }) => (
-      <div className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200">
+      <div 
+        className={`bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer ${
+          selectionMode && selectedOrders.has(order._id) ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+        } ${
+          order.isDeleting ? 'opacity-50 pointer-events-none bg-red-50' : ''
+        }`}
+        onClick={() => !order.isDeleting && handleOrderClick(order)}
+      >
         <div className="p-3 sm:p-4">
           {/* Mobile Layout */}
           <div className="sm:hidden">
             <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <i className="fas fa-shopping-cart text-orange-600 text-xs"></i>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded font-medium">#{orderNumber}</span>
+              <div className="flex items-center space-x-2">
+                {selectionMode && (
+                  <div className="flex items-center justify-center flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={selectedOrders.has(order._id)}
+                      onChange={() => handleOrderClick(order)}
+                      className="w-4 h-4 text-orange-500 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 touch-manipulation"
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   </div>
-                  <span className="text-xs text-gray-500">{formatDate(order.createdAt || order.orderDate)}</span>
+                )}
+                <div className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  {order.isDeleting ? (
+                    <i className="fas fa-spinner fa-spin text-red-600 text-xs"></i>
+                  ) : (
+                    <i className="fas fa-shopping-cart text-orange-600 text-xs"></i>
+                  )}
                 </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                        order.isDeleting 
+                          ? 'bg-red-100 text-red-800' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        #{orderNumber}{order.isDeleting ? ' - O\'chirilmoqda...' : ''}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500 block">{formatDate(order.createdAt || order.orderDate)}</span>
+                  </div>
               </div>
-              <div className="flex gap-1">
-                <button 
-                  onClick={() => openViewModal(order)}
-                  className="w-7 h-7 bg-gray-50 hover:bg-green-50 text-gray-600 hover:text-green-600 rounded-md transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-green-200"
-                  title="Ko'rish"
-                >
-                  <i className="fas fa-eye text-xs"></i>
-                </button>
-                <button 
-                  onClick={() => openDeleteConfirm(order)}
-                  className="w-7 h-7 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-md transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-red-200"
-                  title="O'chirish"
-                >
-                  <i className="fas fa-trash text-xs"></i>
-                </button>
-              </div>
+              {!selectionMode && (
+                <div className="flex gap-1 flex-shrink-0">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openViewModal(order);
+                    }}
+                    className="w-6 h-6 bg-gray-50 hover:bg-green-50 text-gray-600 hover:text-green-600 rounded-md transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-green-200"
+                    title="Ko'rish"
+                  >
+                    <i className="fas fa-eye text-xs"></i>
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openDeleteConfirm(order);
+                    }}
+                    className="w-6 h-6 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-md transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-red-200"
+                    title="O'chirish"
+                  >
+                    <i className="fas fa-trash text-xs"></i>
+                  </button>
+                </div>
+              )}
             </div>
             
             <div className="space-y-2">
               <div>
-                <p className="font-medium text-gray-900 text-sm">{order.customerName}</p>
-                <p className="text-xs text-blue-600 font-medium">{formatPhoneNumber(order.customerPhone)}</p>
+                <p className="font-medium text-gray-900 text-sm truncate">{order.customerName}</p>
+                <p className="text-xs text-blue-600 font-medium truncate">{formatPhoneNumber(order.customerPhone)}</p>
               </div>
               
               <div className="flex items-center justify-between">
-                <div>
-                  <select
-                    value={order.status}
-                    onChange={(e) => updateOrderStatus(order._id, e.target.value)}
-                    disabled={order.isUpdating}
-                    className={`px-3 py-2 rounded text-sm font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 mobile-friendly-options ${statusMap[order.status]?.class} ${order.isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {order.isUpdating ? (
-                      <option value={order.status}>Yuklanmoqda...</option>
-                    ) : (
-                      statusOptions.slice(1).map(option => (
-                        <option key={option.value} value={option.value}>
-                          {statusMap[option.value]?.text}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-                <div className="text-right">
-                  <div className="text-base font-bold text-orange-600">
+                {!selectionMode && (
+                  <div className="flex-shrink-0">
+                    <select
+                      value={order.status}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        updateOrderStatus(order._id, e.target.value);
+                      }}
+                      disabled={order.isUpdating}
+                      className={`px-2 py-1 rounded text-xs font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 mobile-friendly-options ${statusMap[order.status]?.class} ${order.isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {order.isUpdating ? (
+                        <option value={order.status}>Yuklanmoqda...</option>
+                      ) : (
+                        statusOptions.slice(1).map(option => (
+                          <option key={option.value} value={option.value}>
+                            {statusMap[option.value]?.text}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+                )}
+                <div className="text-right flex-shrink-0">
+                  <div className="text-sm font-bold text-orange-600">
                     {formatCurrency(order.totalAmount)}
                   </div>
                   <div className="text-xs text-gray-500">
@@ -537,14 +735,37 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
 
           {/* Desktop Layout */}
           <div className="hidden sm:flex items-center gap-4">
+            {/* Checkbox for selection mode */}
+            {selectionMode && (
+              <div className="flex items-center justify-center flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={selectedOrders.has(order._id)}
+                  onChange={() => handleOrderClick(order)}
+                 className="w-4 h-4 text-orange-500 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 touch-manipulation"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            )}
+            
             {/* Left: Order Icon & Info */}
             <div className="flex items-center space-x-3 flex-shrink-0">
               <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <i className="fas fa-shopping-cart text-orange-600 text-sm"></i>
+                {order.isDeleting ? (
+                  <i className="fas fa-spinner fa-spin text-red-600 text-sm"></i>
+                ) : (
+                  <i className="fas fa-shopping-cart text-orange-600 text-sm"></i>
+                )}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded font-medium">#{orderNumber}</span>
+                  <span className={`text-sm px-3 py-1 rounded font-medium ${
+                    order.isDeleting 
+                      ? 'bg-red-100 text-red-800' 
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    #{orderNumber}{order.isDeleting ? ' - O\'chirilmoqda...' : ''}
+                  </span>
                 </div>
                 <span className="text-xs text-gray-500">{formatDate(order.createdAt || order.orderDate)}</span>
               </div>
@@ -577,24 +798,30 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
             </div>
 
             {/* Status */}
-            <div className="flex-shrink-0">
-              <select
-                value={order.status}
-                onChange={(e) => updateOrderStatus(order._id, e.target.value)}
-                disabled={order.isUpdating}
-                className={`px-3 py-2 rounded text-sm font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 ${statusMap[order.status]?.class} ${order.isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {order.isUpdating ? (
-                  <option value={order.status}>Yuklanmoqda...</option>
-                ) : (
-                  statusOptions.slice(1).map(option => (
-                    <option key={option.value} value={option.value}>
-                      {statusMap[option.value]?.text}
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
+            {!selectionMode && (
+              <div className="flex-shrink-0">
+                <select
+                  value={order.status}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    updateOrderStatus(order._id, e.target.value);
+                  }}
+                  disabled={order.isUpdating}
+                  className={`px-3 py-2 rounded text-sm font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 ${statusMap[order.status]?.class} ${order.isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {order.isUpdating ? (
+                    <option value={order.status}>Yuklanmoqda...</option>
+                  ) : (
+                    statusOptions.slice(1).map(option => (
+                      <option key={option.value} value={option.value}>
+                        {statusMap[option.value]?.text}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+            )}
 
             {/* Amount */}
             <div className="flex-shrink-0 text-right">
@@ -604,22 +831,30 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
             </div>
 
             {/* Action Buttons - Icon Only */}
-            <div className="flex gap-1 flex-shrink-0">
-              <button 
-                onClick={() => openViewModal(order)}
-                className="w-8 h-8 bg-gray-50 hover:bg-green-50 text-gray-600 hover:text-green-600 rounded-lg transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-green-200"
-                title="Ko'rish"
-              >
-                <i className="fas fa-eye text-xs"></i>
-              </button>
-              <button 
-                onClick={() => openDeleteConfirm(order)}
-                className="w-8 h-8 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-lg transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-red-200"
-                title="O'chirish"
-              >
-                <i className="fas fa-trash text-xs"></i>
-              </button>
-            </div>
+            {!selectionMode && (
+              <div className="flex gap-1 flex-shrink-0">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openViewModal(order);
+                  }}
+                  className="w-8 h-8 bg-gray-50 hover:bg-green-50 text-gray-600 hover:text-green-600 rounded-lg transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-green-200"
+                  title="Ko'rish"
+                >
+                  <i className="fas fa-eye text-xs"></i>
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openDeleteConfirm(order);
+                  }}
+                  className="w-8 h-8 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-lg transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-red-200"
+                  title="O'chirish"
+                >
+                  <i className="fas fa-trash text-xs"></i>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -739,15 +974,46 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
             </div>
           </div>
 
-          {/* Orders Count */}
-          <div className="mb-3 sm:mb-4">
+          {/* Orders Count and Selection Controls */}
+          <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-xs sm:text-sm text-gray-600">
               {searchTerm || filterStatus ? 
                 `Qidiruv natijalari: ${filteredOrders.length} ta buyurtma` : 
                 `Jami ${totalCount} ta buyurtma`
               }
             </p>
+            
+            {/* Selection controls */}
+            {paginatedOrders.length > 0 && (
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={toggleSelectionMode}
+                  className="text-sm text-orange-500 hover:text-orange-600 transition-colors px-3 py-1.5 rounded-lg border border-orange-500 hover:bg-orange-50 font-medium"
+                >
+                  {selectionMode ? 'Bekor qilish' : 'Tanlash'}
+                </button>
+              </div>
+            )}
           </div>
+          
+          {/* Selection action buttons */}
+          {selectionMode && paginatedOrders.length > 0 && (
+            <div className="flex gap-2 mb-4 justify-end">
+              <button
+                onClick={selectAll}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm touch-manipulation min-w-[120px]"
+              >
+                Hammasini tanlash
+              </button>
+              <button
+                onClick={handleDeleteSelected}
+                disabled={selectedOrders.size === 0}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium text-sm touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]"
+              >
+                {selectedOrders.size > 0 ? `O'chirish (${selectedOrders.size})` : "O'chirish"}
+              </button>
+            </div>
+          )}
 
           {/* Orders List */}
           {renderOrdersLayout}

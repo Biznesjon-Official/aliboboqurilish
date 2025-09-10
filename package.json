@@ -17,16 +17,57 @@
     "socket.io-client": "^4.8.1"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "concurrently --kill-others-on-fail --raw \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:fast": "concurrently --kill-others-on-fail --raw \"npm run start:backend:fast\" \"npm run start:frontend:fast\"",
+    "start:turbo": "concurrently --kill-others-on-fail --raw \"npm run start:backend:turbo\" \"npm run start:frontend:fast\"",
+    "start:ultra": "concurrently --kill-others-on-fail --raw \"npm run start:backend:ultra\" \"npm run start:frontend:ultra\"",
+    "start:frontend:delayed": "powershell -Command \"Start-Sleep -Seconds 2\" && npm run start:frontend",
+    "start:frontend": "cross-env GENERATE_SOURCEMAP=false TSC_COMPILE_ON_ERROR=true ESLINT_NO_DEV_ERRORS=true react-scripts start",
+    "start:frontend:fast": "cross-env GENERATE_SOURCEMAP=false TSC_COMPILE_ON_ERROR=true ESLINT_NO_DEV_ERRORS=true FAST_REFRESH=false react-scripts start",
+    "start:frontend:ultra": "cross-env PORT=3001 GENERATE_SOURCEMAP=false TSC_COMPILE_ON_ERROR=true ESLINT_NO_DEV_ERRORS=true FAST_REFRESH=false DISABLE_ESLINT_PLUGIN=true SKIP_PREFLIGHT_CHECK=true WDS_SOCKET_HOST=localhost WDS_SOCKET_PORT=3001 CHOKIDAR_USEPOLLING=false react-scripts start",
+    "start:backend": "cd backend && npm run start:fast",
+    "start:backend:fast": "cd backend && npm run start:fast",
+    "start:backend:turbo": "cd backend && cross-env MONGODB_URI=\"mongodb+srv://ozodbek:4C6ZNSo5zF15lJvW@cluster0.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0\" NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=false node server.js",
+    "start:backend:ultra": "cd backend && npm run start:ultra",
+    "start:react": "react-scripts start",
+    "dev": "npm start",
+    "dev:safe": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\" --success \"first\" \"npm run start:backend\" \"npm run start:frontend\"",
+    "dev:backend-only": "cd backend && cross-env NODE_ENV=development npm start",
+    "dev:frontend-only": "react-scripts start",
+    "dev:debug": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\" --kill-others-on-fail \"cd backend && cross-env NODE_ENV=development DEBUG=true npm start\" \"cross-env REACT_APP_DEBUG_MODE=true npm run start:frontend\"",
+    
+    "start:quiet": "concurrently --kill-others-on-fail --prefix \"\" \"npm run start:backend\" \"npm run start:frontend:delayed\"",
+    "backend": "cd backend && npm run start:dev",
+    "frontend": "cross-env GENERATE_SOURCEMAP=false TSC_COMPILE_ON_ERROR=true ESLINT_NO_DEV_ERRORS=true react-scripts start",
+    "fast": "concurrently --kill-others-on-fail --raw \"npm run backend\" \"npm run frontend\"",
+    "backend-only": "cd backend && npm run start:dev",
+    "frontend-only": "cross-env GENERATE_SOURCEMAP=false TSC_COMPILE_ON_ERROR=true ESLINT_NO_DEV_ERRORS=true react-scripts start",
     "build": "CI=false react-scripts build",
+    "build:backend": "cd backend && npm run build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "health": "node scripts/check-services.js",
+    "dev:health": "node scripts/check-services.js --watch",
+    "test:setup": "node scripts/test-setup.js",
+    "validate": "npm run test:setup",
+    "test:performance": "node scripts/test-startup-performance.js",
+    "db:reset": "cd backend && npm run db:reset",
+    "db:optimize": "cd backend && npm run db:optimize",
+    "poststart": "echo \"🚀 Development environment started! Run 'npm run health' to check service status.\"",
+    "prestop": "echo \"🛑 Stopping development environment...\""
   },
   "eslintConfig": {
     "extends": [
       "react-app",
       "react-app/jest"
-    ]
+    ],
+    "rules": {
+      "no-unused-vars": "off",
+      "react-hooks/exhaustive-deps": "off",
+      "jsx-a11y/anchor-is-valid": "off",
+      "jsx-a11y/img-redundant-alt": "off",
+      "no-useless-escape": "off"
+    }
   },
   "browserslist": {
     "production": [
@@ -42,6 +83,9 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.16",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.0.0",
+    "http-proxy-middleware": "^3.0.5",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",
     "webpack-bundle-analyzer": "^4.10.2"

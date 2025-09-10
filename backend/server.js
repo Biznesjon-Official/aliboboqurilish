@@ -1,7 +1,16 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config({ path: './config.env' });
+// Load environment configuration (optimized for development speed)
+const path = require('path');
+if (process.env.NODE_ENV === 'development') {
+  // Skip dotenv loading if critical env vars are already set (for faster startup)
+  if (!process.env.MONGODB_URI && !process.env.MONGO_URI) {
+    require('dotenv').config({ path: path.join(__dirname, '.env.development') });
+  }
+} else {
+  require('dotenv').config({ path: path.join(__dirname, 'config.env') });
+}
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
@@ -12,8 +21,8 @@ const os = require('os');
 const http = require('http'); // For Socket.IO integration
 const socketService = require('./services/SocketService'); // Real-time updates
 
-// Use clustering to take advantage of multi-core systems
-const enableClustering = process.env.ENABLE_CLUSTERING === 'true';
+// Use clustering to take advantage of multi-core systems (disabled in development for faster startup)
+const enableClustering = process.env.ENABLE_CLUSTERING === 'true' && process.env.NODE_ENV !== 'development';
 
 if (enableClustering && cluster.isPrimary) {
   const numCPUs = os.cpus().length;
@@ -85,14 +94,31 @@ const app = express();
 app.set('trust proxy', process.env.TRUST_PROXY === 'true');
 
 // Performance middleware
+const corsOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+  : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001'];
+
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: corsOrigins,
   credentials: true,
   maxAge: 86400 // CORS pre-flight results are cached for 1 day
 }));
 
-// Security middleware
-app.use(helmet());
+// Log CORS configuration in development (only if debug enabled)
+if (process.env.NODE_ENV === 'development' && process.env.DEBUG === 'true') {
+  console.log('🌐 CORS enabled for origins:', corsOrigins);
+}
+
+// Security middleware (simplified in development for faster startup)
+if (process.env.NODE_ENV === 'production') {
+  app.use(helmet());
+} else {
+  // Minimal helmet config for development
+  app.use(helmet({ 
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false 
+  }));
+}
 
 // Compression middleware - prioritize speed
 app.use(compression({
@@ -164,14 +190,63 @@ app.use((req, res, next) => {
   next();
 });
 
+// Ensure uploads directory exists
+const fs = require('fs');
+const uploadsDir = 'uploads/products';
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log(`✅ Created uploads directory: ${uploadsDir}`);
+} else {
+  console.log(`✅ Uploads directory exists: ${uploadsDir}`);
+}
+
 // Static file serving for uploads
 app.use('/uploads', express.static('uploads', {
-  maxAge: '7d', // 7 days cache for uploaded files
+  maxAge: process.env.NODE_ENV === 'development' ? '0' : '7d', // No cache in development, 7 days in production
   etag: true, // Generate ETags for caching
-  setHeaders: (res) => {
-    res.setHeader('Cache-Control', 'public, max-age=604800'); // 7 days
+  setHeaders: (res, path, stat) => {
+    if (process.env.NODE_ENV === 'development') {
+      // Development: No caching for easier debugging
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      if (process.env.DEBUG === 'true') {
+        console.log(`[STATIC] Serving image: ${path}`);
+      }
+    } else {
+      // Production: 7 days cache
+      res.setHeader('Cache-Control', 'public, max-age=604800');
+    }
   }
 }));
+
+// Add logging middleware for image requests in development
+if (process.env.NODE_ENV === 'development') {
+  app.use('/uploads', (req, res, next) => {
+    const origin = req.get('Origin') || req.get('Referer') || 'direct';
+    const startTime = Date.now();
+    
+    if (process.env.DEBUG === 'true') {
+      console.log(`[IMAGE REQUEST] ${req.method} ${req.url} from ${origin}`);
+    }
+    
+    // Log response after it's sent
+    res.on('finish', () => {
+      const duration = Date.now() - startTime;
+      const status = res.statusCode;
+      const statusEmoji = status >= 200 && status < 300 ? '✅' : status >= 400 ? '❌' : '⚠️';
+      
+      if (process.env.DEBUG === 'true') {
+        console.log(`[IMAGE RESPONSE] ${statusEmoji} ${status} ${req.url} (${duration}ms)`);
+      }
+    });
+    
+    // Add development-specific headers for better debugging
+    res.setHeader('X-Served-By', 'alibobo-backend');
+    res.setHeader('X-Environment', 'development');
+    next();
+  });
+}
 
 // Routes
 const productRoutes = require('./routes/productRoutes');
@@ -180,9 +255,10 @@ const notificationsRoutes = require('./routes/notificationsRoutes');
 const ordersRoutes = require('./routes/ordersRoutes');
 const statisticsRoutes = require('./routes/statisticsRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
-const recentActivitiesRoutes = require('./routes/recentActivitiesRoutes');
+const { router: recentActivitiesRoutes } = require('./routes/recentActivitiesRoutes');
 
-app.use('/api/products', productRoutes);
+app.use('/api/products', productRoutes); // This now includes the fast endpoint
+app.use('/api/base64', require('./routes/base64Routes'));
 app.use('/api/craftsmen', craftsmenRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/orders', ordersRoutes);
@@ -241,50 +317,81 @@ const connectDB = async () => {
       return process.exit(1);
     }
 
-    const usedVar = process.env.MONGODB_URI ? 'MONGODB_URI' : 'MONGO_URI';
-    console.log(`ℹ️ Using ${usedVar} for MongoDB connection (value hidden)`);
-
-    // Extra diagnostics
-    mongoose.connection.on('connecting', () => console.log('⏳ MongoDB: connecting...'));
+    // Reduced logging for cleaner development experience
+    if (process.env.DEBUG === 'true') {
+      const usedVar = process.env.MONGODB_URI ? 'MONGODB_URI' : 'MONGO_URI';
+      console.log(`ℹ️ Using ${usedVar} for MongoDB connection`);
+      
+      // Extra diagnostics only in debug mode
+      mongoose.connection.on('connecting', () => console.log('⏳ MongoDB: connecting...'));
+      mongoose.connection.on('disconnected', () => console.log('⚠️ MongoDB: disconnected'));
+      mongoose.connection.on('reconnectFailed', () => console.log('❌ MongoDB: reconnect failed'));
+    }
+    
+    // Always log successful connection and errors
     mongoose.connection.on('connected', () => console.log('✅ MongoDB: connected'));
-    mongoose.connection.on('disconnected', () => console.log('⚠️ MongoDB: disconnected'));
-    mongoose.connection.on('reconnectFailed', () => console.log('❌ MongoDB: reconnect failed'));
-    mongoose.connection.on('error', (err) => console.error('❌ MongoDB connection error event:', err?.message || err));
+    mongoose.connection.on('error', (err) => {
+      // Suppress common development warnings
+      if (err.message.includes('Index already exists') || 
+          err.message.includes('suppressreservedkeyswarning') ||
+          err.message.includes('isNew')) {
+        return;
+      }
+      console.error('❌ MongoDB connection error:', err?.message || err);
+    });
 
-    // Performance optimized connection options
+    // Performance optimized connection options with increased timeouts for network latency
+    const isDevelopment = process.env.NODE_ENV === 'development';
     const conn = await mongoose.connect(uri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 15000, // 15s to find a server
-      connectTimeoutMS: 15000, // 15s network timeout
-      socketTimeoutMS: 45000, // Longer socket timeout for operations
-      maxPoolSize: 50, // Increased pool for concurrent requests
-      minPoolSize: 5,  // Maintain minimum pool for faster response
-      family: 4,       // Prefer IPv4 to avoid certain DNS/IPv6 issues on Windows
-      // Add heartbeat mechanism to detect and prevent stale connections
-      heartbeatFrequencyMS: 10000, // 10 seconds between heartbeats
-      // Connection pool monitoring for diagnostics
-      monitorCommands: process.env.NODE_ENV !== 'production',
-      // Add buffer command options to improve performance during connection issues
+      serverSelectionTimeoutMS: isDevelopment ? 30000 : 8000, // Increased from 5000 to 30000 for high latency
+      connectTimeoutMS: isDevelopment ? 30000 : 8000, // Increased from 5000 to 30000 for high latency
+      socketTimeoutMS: isDevelopment ? 45000 : 20000, // Increased from 15000 to 45000 for high latency
+      maxPoolSize: isDevelopment ? 5 : 15, // Much smaller pool for development
+      minPoolSize: isDevelopment ? 1 : 2,  // Smaller minimum pool in dev
+      family: 4,       // Prefer IPv4
+      heartbeatFrequencyMS: isDevelopment ? 60000 : 30000, // Less frequent heartbeats in dev
+      monitorCommands: false, // Disable command monitoring
       bufferCommands: true
     });
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    if (process.env.DEBUG === 'true') {
+      console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    }
     
-    // Create indexes if they don't exist (in development)
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('🔍 Ensuring indexes...');
+    // Create indexes if they don't exist (skip in development for faster startup)
+    if (process.env.NODE_ENV !== 'production' && process.env.SKIP_INDEX_CREATION !== 'true') {
+      if (process.env.DEBUG === 'true') {
+        console.log('🔍 Ensuring indexes...');
+      }
       const models = Object.values(mongoose.models);
       for (const model of models) {
-        await model.ensureIndexes();
+        try {
+          await model.ensureIndexes();
+        } catch (err) {
+          // Silently ignore index already exists errors
+          if (!err.message.includes('Index already exists')) {
+            console.error('Index creation error:', err.message);
+          }
+        }
+      }
+    } else if (process.env.NODE_ENV === 'development') {
+      if (process.env.DEBUG === 'true') {
+        console.log('⚡ Skipping index creation for faster development startup');
       }
     }
   } catch (err) {
-    console.error('❌ MongoDB connection error:', err.message || err);
-    
-    // Implement exponential backoff for connection retries
-    const retryDelay = parseInt(process.env.MONGO_RETRY_DELAY || 5000, 10);
-    console.log(`🔄 Retrying connection in ${retryDelay/1000} seconds...`);
-    setTimeout(connectDB, retryDelay);
+    // Only log connection errors if not index-related
+    if (!err.message.includes('Index already exists')) {
+      console.error('❌ MongoDB connection error:', err.message || err);
+      
+      // Implement exponential backoff for connection retries
+      const retryDelay = parseInt(process.env.MONGO_RETRY_DELAY || 10000, 10);
+      if (process.env.DEBUG === 'true') {
+        console.log(`🔄 Retrying connection in ${retryDelay/1000} seconds...`);
+      }
+      setTimeout(connectDB, retryDelay);
+    }
   }
 };
 
@@ -301,12 +408,7 @@ const startServer = async () => {
   // Initialize Socket.IO for real-time stock updates
   socketService.initialize(httpServer);
   
-  console.log(`📡 Socket.IO initialized with standardized events:`);
-  console.log(`  - stock:updated (productId, delta, newQuantity, orderId, ts)`);
-  console.log(`  - order:updated (orderId, status, ts)`);
-  console.log(`  - stock:bulk_updated (updates[], orderId, ts)`);
-  console.log(`  - product:availability_changed (productId, isAvailable, reason, ts)`);
-  console.log(`  - admin:notification (notification data + ts)`);
+  // Socket.IO events available: stock:updated, order:updated, stock:bulk_updated, product:availability_changed, admin:notification
   
   if (process.env.REDIS_URL && process.env.NODE_ENV === 'production') {
     console.log(`⚠️  Redis adapter available for clustering: ${process.env.REDIS_URL}`);
@@ -314,12 +416,10 @@ const startServer = async () => {
   }
   
   server = httpServer.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT} (${process.pid})`);
-    console.log(`📡 API endpoints available`);
-    console.log(`🔗 Socket.IO ready for real-time updates`);
-    console.log(`📊 Cache-Control: API responses set to no-cache for real-time data`);
+    console.log(`🚀 Backend ready on port ${PORT}`);
+    console.log(`🌐 Server accessible at http://localhost:${PORT}`);
     
-    if (enableClustering) {
+    if (enableClustering && process.env.DEBUG === 'true') {
       console.log(`📏 Worker ${process.pid} ready in cluster mode`);
     }
   });

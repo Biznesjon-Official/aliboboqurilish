@@ -1,16 +1,17 @@
 import { useQuery, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys, invalidateQueries, queryClient } from '../lib/queryClient';
 
-// API base URL
+// API base URL - Direct connection to backend
 const API_BASE = 'http://localhost:5000/api';
 
 // Fetch functions
-const fetchProducts = async ({ category, search, page = 1, limit = 20, signal }) => {
+const fetchProducts = async ({ category, search, page = 1, limit = 40, signal }) => {
   const params = new URLSearchParams({
     limit: limit.toString(),
     page: page.toString(),
     sortBy: 'updatedAt',
     sortOrder: 'desc',
+    includeImages: 'true', // Always include images for better UX
   });
   
   if (category && category !== '') {
@@ -21,16 +22,26 @@ const fetchProducts = async ({ category, search, page = 1, limit = 20, signal })
     params.append('search', search.trim());
   }
   
-  const response = await fetch(`${API_BASE}/products?${params.toString()}`, {
-    signal,
-    headers: { 'Content-Type': 'application/json' },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout (faster)
   
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+  try {
+    const response = await fetch(`${API_BASE}/products?${params.toString()}`, {
+      signal: signal || controller.signal,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-  
-  return response.json();
 };
 
 const fetchProduct = async (id, signal) => {
@@ -46,38 +57,50 @@ const fetchProduct = async (id, signal) => {
   return response.json();
 };
 
-// Hook for fetching products list with caching and background sync
+// Hook for fetching products list with optimized caching for admin interface
 export const useProducts = (category, search, page = 1, limit = 20) => {
   return useQuery({
     queryKey: queryKeys.products.list(category, search, page, limit),
     queryFn: ({ signal }) => fetchProducts({ category, search, page, limit, signal }),
-    keepPreviousData: true, // Keep previous data while fetching new data
-    staleTime: 30 * 1000, // OPTIMIZED: 30 seconds cache - balance between freshness and performance
-    cacheTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: true, // Enable for stock updates
-    refetchOnReconnect: true, // Enable for real-time updates
-    // Socket.IO provides instant updates, so we don't need aggressive polling
+    keepPreviousData: true, // Enable to prevent loading states between pages
+    staleTime: 30 * 1000, // Reduced to 30 seconds for faster updates
+    gcTime: 5 * 60 * 1000, // Reduced to 5 minutes for memory efficiency
+    refetchOnWindowFocus: false, // Disable to prevent unnecessary refetches
+    refetchOnReconnect: false, // Disable for faster loading
+    refetchOnMount: false, // Don't force fresh data on every mount
+    // Optimized retry settings for speed
+    retry: 1, // Reduced retries for faster failure handling
+    retryDelay: 500, // Faster retry delay
+    // Remove automatic refetch interval to prevent constant loading
+    refetchInterval: false, // Disabled automatic refetching
+    refetchIntervalInBackground: false, // Disabled background refetching
+    // Performance optimizations
+    networkMode: 'online', // Only fetch when online
+    notifyOnChangeProps: ['data', 'error'], // Only notify on data/error changes
   });
 };
 
-// Hook for infinite scrolling products (for load more functionality)
-export const useInfiniteProducts = (category, search, limit = 20) => {
+// Hook for infinite scrolling products (optimized for incremental loading)
+export const useInfiniteProducts = (category, search, limit = 40) => {
   return useInfiniteQuery({
     queryKey: queryKeys.products.list(category, search, 'infinite', limit),
     queryFn: ({ pageParam = 1, signal }) => 
       fetchProducts({ category, search, page: pageParam, limit, signal }),
-    getNextPageParam: (lastPage) => {
+    getNextPageParam: (lastPage, allPages) => {
       const p = lastPage?.pagination;
-      if (p?.hasNextPage) {
+      // Allow up to 3 pages (40 products per page = 120 products total, but we'll limit to 100)
+      if (p?.hasNextPage && allPages.length < 3) {
         return (p.currentPage || 1) + 1;
       }
       return undefined;
     },
-    keepPreviousData: true,
-    staleTime: 30 * 1000, // FIXED: Same as regular products - 30 seconds for real-time updates
-    cacheTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true, // ADDED: Enable for stock updates
-    refetchOnReconnect: true, // ADDED: Enable for real-time updates
+    keepPreviousData: false, // Disable to match useProducts behavior
+    staleTime: 15 * 1000, // Reduced to 15 seconds for faster updates (faster)
+    cacheTime: 2 * 60 * 1000, // Keep cache for 2 minutes (faster)
+    refetchOnWindowFocus: false, // Disable for faster loading
+    refetchOnReconnect: false, // Disable for faster loading
+    retry: 1, // Reduced retries for faster failure handling
+    retryDelay: 100, // Faster retry delay (faster)
   });
 };
 
@@ -121,23 +144,50 @@ export const useSearchProducts = (query, page = 1, enabled = true) => {
 export const useCreateProduct = () => {
   return useMutation({
     mutationFn: async (productData) => {
+      // console.log('🔄 Sending product data to backend:', productData);
+      
       const response = await fetch(`${API_BASE}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(productData),
       });
       
+      // console.log('📡 Backend response status:', response.status, response.statusText);
+      
+      // Check if response is successful (200-299 range)
       if (!response.ok) {
-        throw new Error('Failed to create product');
+        const errorText = await response.text();
+        console.error('❌ Backend error response (raw):', errorText);
+        let errorData = {};
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          console.error('❌ Failed to parse error response as JSON');
+        }
+        console.error('❌ Backend error response (parsed):', errorData);
+        const errorMessage = errorData.message || errorData.error || errorText || `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
       }
       
-      return response.json();
+      const responseData = await response.json();
+      // console.log('✅ Backend success response:', responseData);
+      return responseData;
     },
-    onSuccess: async () => {
-      // OPTIMIZED: Less aggressive - let Socket.IO handle most updates
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products.all, exact: false });
-      // Don't force immediate refetch - let staleTime handle it
+    onSuccess: async (data) => {
+      // console.log('✅ Product created successfully:', data);
+      // OPTIMIZED: Only invalidate specific query patterns, no await
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.lists(), exact: false });
+      // GENTLE: Only invalidate recent activities, don't force immediate refetch
+      queryClient.invalidateQueries({ queryKey: queryKeys.recentActivities.all });
+      
+      // Don't wait for invalidation - let it happen in background
     },
+    onError: (error) => {
+      console.error('❌ Product creation failed:', error);
+    },
+    // Performance optimizations
+    retry: false, // Don't retry failed mutations to save time
+    networkMode: 'always', // Always attempt the request
   });
 };
 
@@ -157,36 +207,55 @@ export const useUpdateProduct = () => {
       return response.json();
     },
     onSuccess: async (data, variables) => {
-      // Update the specific product in cache
+      // OPTIMIZED: Immediate cache update + gentle background invalidation
       queryClient.setQueryData(
         queryKeys.products.detail(variables.id),
         data
       );
-      // OPTIMIZED: Less aggressive - let Socket.IO handle most updates
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products.all, exact: false });
-      // Don't force immediate refetch - let staleTime handle it
+      // Background invalidation without waiting
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.lists(), exact: false });
+      // GENTLE: Only invalidate recent activities, don't force immediate refetch
+      queryClient.invalidateQueries({ queryKey: queryKeys.recentActivities.all });
     },
+    // Performance optimizations
+    retry: false, // Don't retry to save time
+    networkMode: 'always',
   });
 };
 
 export const useDeleteProduct = () => {
   return useMutation({
     mutationFn: async (id) => {
+      console.log('🗑️ Deleting product:', id);
+      
       const response = await fetch(`${API_BASE}/products/${id}`, {
         method: 'DELETE',
       });
       
+      console.log('📡 Delete response status:', response.status, response.statusText);
+      
       if (!response.ok) {
-        throw new Error('Failed to delete product');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Delete error response:', errorData);
+        const errorMessage = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
       }
       
-      return response.json();
+      const responseData = await response.json();
+      console.log('✅ Delete success response:', responseData);
+      return responseData;
     },
     onSuccess: (data, id) => {
+      console.log('✅ Product deleted successfully:', id);
       // Remove from cache
       queryClient.removeQueries({ queryKey: queryKeys.products.detail(id) });
       // Invalidate products list
       invalidateQueries.products();
+      // GENTLE: Only invalidate recent activities, don't force immediate refetch
+      queryClient.invalidateQueries({ queryKey: queryKeys.recentActivities.all });
+    },
+    onError: (error) => {
+      console.error('❌ Product deletion failed:', error);
     },
   });
 };

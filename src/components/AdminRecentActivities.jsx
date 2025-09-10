@@ -16,6 +16,65 @@ const AdminRecentActivities = ({ onNavigate, isLoading = false }) => {
   const deleteAllActivitiesMutation = useDeleteAllRecentActivities();
   const activitiesCache = useRecentActivitiesCache();
   
+  // Debug log when activities data changes (throttled to prevent spam)
+  useEffect(() => {
+    if (activitiesData && process.env.NODE_ENV === 'development') {
+      // Only log if the data actually changed
+      const currentDataHash = JSON.stringify({
+        totalCount: activitiesData.totalCount,
+        activitiesCount: activitiesData.activities?.length
+      });
+      
+      if (currentDataHash !== window.lastActivitiesDataHash) {
+        console.log('🔄 Recent activities data updated:', {
+          totalCount: activitiesData.totalCount,
+          activitiesCount: activitiesData.activities?.length,
+          activities: activitiesData.activities?.slice(0, 3).map(a => ({ title: a.title, desc: a.desc })) // Show first 3 for debugging
+        });
+        window.lastActivitiesDataHash = currentDataHash;
+      }
+    }
+  }, [activitiesData]);
+  
+  // Listen for update events with throttling to prevent excessive refreshes
+  useEffect(() => {
+    let refreshTimer = null;
+    
+    const throttledRefresh = () => {
+      if (refreshTimer) return; // Already scheduled
+      refreshTimer = setTimeout(() => {
+        activitiesCache.refreshAll();
+        refreshTimer = null;
+      }, 1000); // Throttle to max once per second
+    };
+    
+    const handleCraftsmanUpdate = (event) => {
+      console.log('🔔 Received craftsman update event, refreshing activities...', event.detail);
+      throttledRefresh();
+    };
+    
+    const handleProductUpdate = (event) => {
+      console.log('🔔 Received product update event, refreshing activities...', event.detail);
+      throttledRefresh();
+    };
+    
+    const handleProductAdded = (event) => {
+      console.log('🔔 Received product added event, refreshing activities...', event.detail);
+      throttledRefresh();
+    };
+    
+    window.addEventListener('craftsmanUpdated', handleCraftsmanUpdate);
+    window.addEventListener('productUpdated', handleProductUpdate);
+    window.addEventListener('productAdded', handleProductAdded);
+    
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      window.removeEventListener('craftsmanUpdated', handleCraftsmanUpdate);
+      window.removeEventListener('productUpdated', handleProductUpdate);
+      window.removeEventListener('productAdded', handleProductAdded);
+    };
+  }, [activitiesCache]);
+  
   // Extract activities from the API response
   const activities = activitiesData?.activities || [];
   const totalCount = activitiesData?.totalCount || 0;

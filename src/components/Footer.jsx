@@ -11,7 +11,7 @@ const Footer = () => {
   };
 
   return (
-    <footer id="footer" className="bg-primary-dark text-white py-6 md:py-16">
+    <footer id="footer" className="bg-primary-dark text-white py-6 md:py-166">
       <div className="container mx-auto px-4">
         {/* Mobile Layout - Simplified */}
         <div className="block md:hidden">
@@ -30,7 +30,7 @@ const Footer = () => {
           <div className="border-b border-gray-600 pb-4 mb-4">
             <button 
               onClick={() => toggleSection('about')}
-              className="flex items-center justify-between w-full text-left py-3"
+              className="flex items-center justify-between w-full text-left py-0"
             >
               <span className="text-base font-semibold text-white">Biz haqimizda</span>
               <svg 
@@ -74,7 +74,7 @@ const Footer = () => {
           <div className="border-b border-gray-600 pb-4 mb-4">
             <button 
               onClick={() => toggleSection('contact')}
-              className="flex items-center justify-between w-full text-left py-3"
+              className="flex items-center justify-between w-full text-left py-0"
             >
               <span className="text-base font-semibold text-white">Aloqa</span>
               <svg 

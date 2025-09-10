@@ -5,8 +5,11 @@ class SocketService {
     this.socket = null;
     this.isConnected = false;
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
+    this.maxReconnectAttempts = 10; // Increased from 5
     this.listeners = new Map();
+    this.healthCheckInterval = null;
+    this.lastSuccessfulPing = null;
+    this.previousHealthCheckFailed = false; // Track health check failures
   }
 
   initialize() {
@@ -16,17 +19,25 @@ class SocketService {
     }
 
     try {
-      // Connect to backend socket server
-      this.socket = io('http://localhost:5000', {
-        transports: ['websocket', 'polling'],
-        timeout: 20000,
+      // Connect directly to backend socket server on port 5000
+      const socketUrl = 'http://localhost:5000';
+      
+      this.socket = io(socketUrl, {
+        transports: ['polling', 'websocket'],
+        timeout: 60000, // Increased from 20s to 60s
         reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: this.maxReconnectAttempts,
+        reconnectionDelay: 2000, // Increased from 1s to 2s
+        reconnectionDelayMax: 10000, // Max delay between reconnection attempts
+        maxReconnectionAttempts: 10, // Increased from 5 to 10
+        randomizationFactor: 0.5, // Randomize reconnection delay
+        forceNew: false,
+        upgrade: true,
+        rememberUpgrade: true,
       });
 
       this.setupEventListeners();
-      console.log('🔗 Socket.IO initialized');
+      this.startHealthMonitoring();
+      // console.log('🔗 Socket.IO initialized');
     } catch (error) {
       console.error('❌ Failed to initialize Socket.IO:', error);
     }
@@ -39,22 +50,48 @@ class SocketService {
       this.isConnected = true;
       this.reconnectAttempts = 0;
       console.log('✅ Connected to Socket.IO server');
+      
+      // Send a ping to verify connection health
+      this.socket.emit('ping', (response) => {
+        if (response === 'pong') {
+          console.log('🏓 Socket connection verified with ping/pong');
+        }
+      });
     });
 
     this.socket.on('disconnect', (reason) => {
       this.isConnected = false;
       console.log('❌ Disconnected from Socket.IO server:', reason);
+      
+      // Reset reconnect attempts on clean disconnect
+      if (reason === 'io server disconnect' || reason === 'io client disconnect') {
+        this.reconnectAttempts = 0;
+      }
     });
 
     this.socket.on('connect_error', (error) => {
       console.error('❌ Socket connection error:', error);
       this.reconnectAttempts++;
+      
+      // Implement exponential backoff for connection errors
+      if (this.reconnectAttempts <= this.maxReconnectAttempts) {
+        const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+        console.log(`🔄 Retrying connection in ${delay/1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+      } else {
+        console.warn('⚠️ Max reconnection attempts reached. Socket will retry automatically.');
+      }
     });
 
     // Stock update events
     this.socket.on('stockUpdate', (data) => {
       console.log('📦 Stock update received:', data);
       this.emit('stockUpdate', data);
+    });
+
+    // Low stock alerts (admin only)
+    this.socket.on('lowStockAlert', (data) => {
+      console.log('⚠️ Low stock alert received:', data);
+      this.emit('lowStockAlert', data);
     });
 
     // Order events
@@ -68,9 +105,14 @@ class SocketService {
       this.emit('orderStatusUpdate', data);
     });
 
+    this.socket.on('orderUpdate', (data) => {
+      console.log('📋 Order update received:', data);
+      this.emit('orderUpdate', data);
+    });
+
     // Product events
     this.socket.on('productUpdate', (data) => {
-      console.log('📦 Product updated:', data);
+      // console.log('📦 Product updated:', data);
       this.emit('productUpdate', data);
     });
 
@@ -113,6 +155,22 @@ class SocketService {
     }
   }
 
+  // Join admin room for admin-specific events
+  joinAdminRoom() {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('join_admin');
+      console.log('👨‍💼 Joined admin room');
+    }
+  }
+
+  // Leave admin room
+  leaveAdminRoom() {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('leave_admin');
+      console.log('👨‍💼 Left admin room');
+    }
+  }
+
   // Emit event to server
   send(event, data) {
     if (this.socket && this.isConnected) {
@@ -122,27 +180,105 @@ class SocketService {
     }
   }
 
-  // Get connection status
+  // Get connection status with health check
   getConnectionStatus() {
     return {
       isConnected: this.isConnected,
       reconnectAttempts: this.reconnectAttempts,
+      maxReconnectAttempts: this.maxReconnectAttempts,
       socketId: this.socket?.id || null,
+      transport: this.socket?.io?.engine?.transport?.name || null,
+      upgraded: this.socket?.io?.engine?.upgraded || false,
     };
+  }
+
+  // Perform health check
+  performHealthCheck() {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.isConnected) {
+        reject(new Error('Socket not connected'));
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        reject(new Error('Health check timeout'));
+      }, 5000);
+
+      this.socket.emit('ping', (response) => {
+        clearTimeout(timeout);
+        if (response === 'pong') {
+          resolve({ status: 'healthy', latency: Date.now() - startTime });
+        } else {
+          reject(new Error('Invalid ping response'));
+        }
+      });
+
+      const startTime = Date.now();
+    });
+  }
+
+  // Start periodic health monitoring
+  startHealthMonitoring() {
+    // Clear any existing interval
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+    }
+
+    // Start health check every 5 minutes instead of 30 seconds
+    this.healthCheckInterval = setInterval(() => {
+      if (this.isConnected) {
+        this.performHealthCheck()
+          .then((result) => {
+            this.lastSuccessfulPing = Date.now();
+            // Only log health checks if there was a previous failure
+            if (process.env.NODE_ENV === 'development' && this.previousHealthCheckFailed) {
+              console.log(`🟢 Socket health check recovered (${result.latency}ms latency)`);
+              this.previousHealthCheckFailed = false;
+            }
+          })
+          .catch((error) => {
+            if (!this.previousHealthCheckFailed) {
+              console.warn('⚠️ Socket health check failed:', error.message);
+              this.previousHealthCheckFailed = true;
+            }
+            // If health check fails multiple times, force reconnection
+            if (this.lastSuccessfulPing && Date.now() - this.lastSuccessfulPing > 120000) {
+              console.log('🔄 Forcing socket reconnection due to failed health checks');
+              this.socket?.disconnect();
+              this.socket?.connect();
+            }
+          });
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes instead of 30 seconds
+  }
+
+  // Stop health monitoring
+  stopHealthMonitoring() {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+    }
   }
 
   // Disconnect socket
   disconnect() {
+    this.stopHealthMonitoring();
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
       this.isConnected = false;
       this.listeners.clear();
-      console.log('🔗 Socket disconnected');
+      // console.log('🔗 Socket disconnected');
     }
   }
 }
 
 // Export singleton instance
 const socketService = new SocketService();
+
+// Expose to window for debugging
+if (typeof window !== 'undefined') {
+  window.socketService = socketService;
+}
+
 export default socketService;

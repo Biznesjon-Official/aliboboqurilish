@@ -136,6 +136,27 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
       return;
     }
 
+    // Validate cart items have valid product IDs
+    const invalidItems = cart.filter(item => {
+      const productId = item._id || item.id;
+      if (!productId) return true;
+      
+      // Extract actual MongoDB ID if it's a cartId
+      const extractedId = typeof productId === 'string' && productId.includes('-') 
+        ? productId.split('-')[0] 
+        : productId;
+      
+      // Check if it looks like a valid MongoDB ObjectId (24 hex characters)
+      return !(typeof extractedId === 'string' && /^[a-fA-F0-9]{24}$/.test(extractedId));
+    });
+    
+    if (invalidItems.length > 0) {
+      console.error('Invalid cart items found:', invalidItems);
+      setErrorMessage(`Savatchada noto\'g\'ri mahsulotlar bor: ${invalidItems.map(item => item.name).join(', ')}. Iltimos, savatchani tozalang va qayta urinib ko\'ring.`);
+      setShowErrorModal(true);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -144,30 +165,77 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
         customerName: customerData.name.trim(),
         customerPhone: customerData.phone.trim(),
         customerAddress: customerData.address.trim(),
-        items: cart.map(item => ({
-          productId: item._id || item.id, // Product ID for inventory tracking
-          name: item.name,
-          quantity: parseInt(item.quantity) || 1,
-          price: parseInt(item.price?.toString().replace(/[^\d]/g, '') || '0'),
-          variantOption: item.selectedVariants ? Object.values(item.selectedVariants).join(', ') : undefined
-        })),
+        items: cart.map(item => {
+          // Extract proper MongoDB ObjectId
+          let productId = item._id || item.id;
+          
+          // If productId is a cartId (contains hyphens), extract the actual MongoDB ID
+          if (typeof productId === 'string' && productId.includes('-')) {
+            productId = productId.split('-')[0];
+          }
+          
+          // Log for debugging
+          console.log('Processing cart item:');
+          console.table({
+            name: item.name,
+            originalId: item._id,
+            itemId: item.id,
+            extractedProductId: productId,
+            selectedVariants: JSON.stringify(item.selectedVariants),
+            hasSelectedVariants: item.selectedVariants && typeof item.selectedVariants === 'object' && Object.keys(item.selectedVariants).length > 0,
+            variantOptionToSend: (
+              item.selectedVariants && 
+              typeof item.selectedVariants === 'object' && 
+              Object.keys(item.selectedVariants).length > 0
+            ) ? Object.values(item.selectedVariants).join(', ') : undefined
+          });
+          
+          return {
+            productId: productId, // Product ID for inventory tracking
+            name: item.name,
+            quantity: parseInt(item.quantity) || 1,
+            price: parseInt(item.price?.toString().replace(/[^\d]/g, '') || '0'),
+            variantOption: (
+              item.selectedVariants && 
+              typeof item.selectedVariants === 'object' && 
+              Object.keys(item.selectedVariants).length > 0
+            ) ? Object.values(item.selectedVariants).join(', ') : undefined
+          };
+        }),
         totalAmount: calculateTotal(),
         status: 'pending',
         orderDate: new Date().toISOString()
       };
 
-      console.log('Buyurtma ma\'lumotlari yuborilmoqda:', orderData);
-      console.log('Cart items with productIds:', cart.map(item => ({ 
+      console.log('Buyurtma ma\'lumotlari yuborilmoqda:');
+      console.table(orderData);
+      console.log('Cart items with corrected productIds:');
+      console.table(orderData.items.map(item => ({ 
         name: item.name, 
-        productId: item._id || item.id, 
+        productId: item.productId, 
         quantity: item.quantity,
-        selectedVariants: item.selectedVariants 
+        variantOption: item.variantOption
       })));
 
       // Use React Query mutation for automatic cache invalidation
       const savedOrder = await createOrderMutation.mutateAsync(orderData);
       
       console.log('Buyurtma muvaffaqiyatli saqlandi:', savedOrder);
+      
+      // IMMEDIATE: Force aggressive cache refresh for real-time updates
+      queryClient.removeQueries({ queryKey: ['products'], exact: false });
+      queryClient.refetchQueries({ queryKey: ['products'], exact: false, type: 'all' });
+      
+      // Force refresh all stocks globally
+      if (window.forceRefreshAllStocks) {
+        console.log('🔄 Triggering force refresh after order creation');
+        window.forceRefreshAllStocks();
+      }
+      
+      // Force DOM events for immediate UI updates
+      window.dispatchEvent(new CustomEvent('forceStockRefresh', {
+        detail: { reason: 'order_created', orderId: savedOrder._id }
+      }));
 
       // Reset form data
       setCustomerData({

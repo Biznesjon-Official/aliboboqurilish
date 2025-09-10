@@ -1,5 +1,40 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 
+// Validate and process base64 images
+const processImageSrc = (baseSrc, fallbackSrc) => {
+  if (!baseSrc) return fallbackSrc || null;
+  
+  // Handle base64 images
+  if (baseSrc.startsWith('data:')) {
+    // Check if base64 data is complete
+    if (baseSrc.length < 100) {
+      if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+        console.warn('[OptimizedImage] Base64 image data is too short, likely incomplete:', baseSrc.substring(0, 50) + '...');
+      }
+      return fallbackSrc;
+    }
+    
+    // Validate base64 format
+    const base64Pattern = /^data:image\/(jpeg|jpg|png|gif|webp);base64,([A-Za-z0-9+/=]+)$/;
+    if (!base64Pattern.test(baseSrc)) {
+      if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+        console.warn('[OptimizedImage] Invalid base64 image format:', baseSrc.substring(0, 50) + '...');
+      }
+      return fallbackSrc;
+    }
+    
+    return baseSrc;
+  }
+  
+  // Handle file paths - convert to full localhost:5000 URLs
+  if (baseSrc.startsWith('/uploads/')) {
+    return `http://localhost:5000${baseSrc}`;
+  }
+  
+  // Handle regular URLs
+  return baseSrc;
+};
+
 // Optimized image component with lazy loading, error handling, and performance features
 const OptimizedImage = ({
   src,
@@ -13,7 +48,7 @@ const OptimizedImage = ({
   blurDataURL,
   onLoad,
   onError,
-  fallbackSrc = '/assets/default-product.png',
+  fallbackSrc = '/assets/default-product.svg',
   aspectRatio,
   objectFit = 'cover',
   quality = 80,
@@ -22,7 +57,7 @@ const OptimizedImage = ({
   const [imageState, setImageState] = useState({
     loaded: false,
     error: false,
-    src: priority ? src : null // Load immediately if priority
+    src: priority ? processImageSrc(src, fallbackSrc) : null // Load immediately if priority
   });
   const [isInView, setIsInView] = useState(priority);
   const imgRef = useRef(null);
@@ -42,8 +77,8 @@ const OptimizedImage = ({
         });
       },
       {
-        rootMargin: '50px', // Start loading 50px before image enters viewport
-        threshold: 0.1
+        rootMargin: '200px', // Increased from 100px to 200px for even earlier loading
+        threshold: 0.01 // Reduced from 0.05 to 0.01 for ultra-fast triggering
       }
     );
 
@@ -62,18 +97,61 @@ const OptimizedImage = ({
   // Load image when in view
   useEffect(() => {
     if (isInView && !imageState.src) {
-      setImageState(prev => ({ ...prev, src }));
+      const processedSrc = processImageSrc(src, fallbackSrc);
+      setImageState(prev => ({ ...prev, src: processedSrc }));
     }
-  }, [isInView, src, imageState.src]);
+  }, [isInView, src, imageState.src, fallbackSrc]);
 
   // Handle image load
   const handleLoad = useCallback((e) => {
+    // Development-specific success logging (only if debug enabled)
+    if (process.env.REACT_APP_DEBUG_MODE === 'true' && src && src.startsWith('/uploads/')) {
+      console.log(`[OptimizedImage] Successfully loaded image: ${src}`);
+    }
+    
     setImageState(prev => ({ ...prev, loaded: true, error: false }));
     if (onLoad) onLoad(e);
-  }, [onLoad]);
+  }, [onLoad, src]);
 
   // Handle image error
   const handleError = useCallback((e) => {
+    // Development-specific error logging (only if debug enabled)
+    if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+      console.warn(`[OptimizedImage] Failed to load image: ${src}`);
+      console.warn(`[OptimizedImage] Error details:`, {
+        originalSrc: src,
+        fallbackSrc: fallbackSrc,
+        error: e.type,
+        target: e.target?.src,
+        isBase64: src?.startsWith('data:'),
+        isIncompleteBase64: src?.startsWith('data:') && src.length < 100
+      });
+      
+      // Special handling for base64 images
+      if (src && src.startsWith('data:')) {
+        if (src.length < 100) {
+          console.warn('[OptimizedImage] Base64 image data appears to be incomplete or truncated');
+        } else {
+          console.warn('[OptimizedImage] Base64 image failed to load - data may be corrupted');
+        }
+      }
+      
+      // Check if backend is available
+      if (src && src.startsWith('/uploads/')) {
+        fetch('/api/health')
+          .then(response => {
+            if (!response.ok) {
+              console.warn('[OptimizedImage] Backend health check failed - server may be down');
+            } else {
+              console.log('[OptimizedImage] Backend health check passed - server is responding');
+            }
+          })
+          .catch(() => {
+            console.warn('[OptimizedImage] Backend is not responding - ensure backend server is running on port 5000');
+          });
+      }
+    }
+
     setImageState(prev => ({ 
       ...prev, 
       error: true, 
@@ -81,7 +159,9 @@ const OptimizedImage = ({
       src: fallbackSrc 
     }));
     if (onError) onError(e);
-  }, [onError, fallbackSrc]);
+  }, [onError, fallbackSrc, src]);
+
+
 
   // Generate responsive image URLs (if using a CDN or image service)
   const generateResponsiveUrls = useCallback((baseSrc) => {
