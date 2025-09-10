@@ -35,12 +35,13 @@ const MainPage = ({ onSuccessfulLogin }) => {
   const [activeSection, setActiveSection] = useState('products');
 
   // Parallel data loading for initial page load - Ultra-optimized for speed
-  const craftsmenUrl = 'http://localhost:5000/api/craftsmen?limit=20&status=active'; // Reduced from 50 to 20
-  const productsUrl = 'http://localhost:5000/api/products/fast?limit=20&page=1';
+  const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+  const craftsmenUrl = `${API_BASE}/craftsmen?limit=20&status=active`; // Reduced from 50 to 20
+  const productsUrl = `${API_BASE}/products/fast?limit=20&page=1`;
   const { data: parallelData, loading: parallelLoading } = useParallelFetch([
     craftsmenUrl,
     productsUrl
-  ]);
+  ], { fetchOptions: { cache: 'no-store' } });
 
   // Update craftsmen data when parallel fetch completes
   useEffect(() => {

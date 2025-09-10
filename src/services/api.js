@@ -1,5 +1,5 @@
-// API base URL - Direct connection to backend in development
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'http://localhost:5000/api' : 'http://localhost:5000/api';
+// API base URL from env
+const API_BASE_URL = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
 
 // Generic API call function
 const apiCall = async (endpoint, options = {}) => {
@@ -192,7 +192,8 @@ export const ordersAPI = {
 // Health check
 export const healthCheck = async () => {
   try {
-    const response = await fetch('http://localhost:5000/api/health');
+    const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+    const response = await fetch(`${base}/health`);
     return response.ok;
   } catch (error) {
     console.error('Health check failed:', error);

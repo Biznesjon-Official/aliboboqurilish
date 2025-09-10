@@ -3,7 +3,8 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 // Add a simple health check function
 const checkBackendHealth = async () => {
   try {
-    const response = await fetch('http://localhost:5000/api/health');
+    const base = process.env.REACT_APP_API_BASE || 'http://localhost:5000/api';
+    const response = await fetch(`${base}/health`);
     return response.ok;
   } catch (error) {
     console.log('⚠️ Backend not yet ready:', error.message);

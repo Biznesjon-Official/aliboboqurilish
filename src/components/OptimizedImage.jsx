@@ -26,9 +26,11 @@ const processImageSrc = (baseSrc, fallbackSrc) => {
     return baseSrc;
   }
   
-  // Handle file paths - convert to full localhost:5000 URLs
+  // Handle file paths - convert to full backend base URL
   if (baseSrc.startsWith('/uploads/')) {
-    return `http://localhost:5000${baseSrc}`;
+    const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+    const baseNoApi = API_BASE.replace(/\/api$/, '');
+    return `${baseNoApi}${baseSrc}`;
   }
   
   // Handle regular URLs

@@ -180,7 +180,8 @@ export const prefetchQueries = {
           const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
           
           // Direct connection to backend
-          const response = await fetch(`http://localhost:5000/api/products?${params.toString()}`, { 
+          const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+          const response = await fetch(`${base}/products?${params.toString()}`, { 
             signal: AbortSignal.any([signal, controller.signal]), 
             headers: { 'Cache-Control': 'max-age=3600' } // Enable HTTP cache
           });

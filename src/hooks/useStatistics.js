@@ -12,7 +12,8 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
     try {
       // NOTE: Using direct backend URL instead of proxy due to setupProxy.js issues
       // This ensures statistics work reliably in development environment
-      const response = await fetch('http://localhost:5000/api/statistics/dashboard');
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const response = await fetch(`${base}/statistics/dashboard`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -63,7 +64,8 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
   const fetchEditStats = useCallback(async (days = 30) => {
     try {
       // NOTE: Using direct backend URL instead of proxy due to setupProxy.js issues
-      const response = await fetch(`http://localhost:5000/api/statistics/edits?days=${days}`);
+      const base2 = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const response = await fetch(`${base2}/statistics/edits?days=${days}`);
 
       if (!response.ok) {
         const errorText = await response.text();

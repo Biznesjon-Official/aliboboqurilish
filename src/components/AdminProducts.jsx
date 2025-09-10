@@ -18,6 +18,8 @@ import OptimizedImage from './OptimizedImage';
 import Base64Image from './Base64Image';
 import '../styles/select-styles.css';
 
+const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+
 const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // Real notification system for notification bell
   const {
@@ -124,7 +126,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // Load categories from API with fallback to main categories
   const loadCategories = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/products/categories/list');
+      const response = await fetch(`${API_BASE}/products/categories/list`);
       if (response.ok) {
         const data = await response.json();
         // console.log('📋 Loaded categories from API:', data);
@@ -353,7 +355,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       if (debouncedSearch) params.append('search', debouncedSearch);
       queryClient.prefetchQuery({
         queryKey: key,
-        queryFn: ({ signal }) => fetch(`http://localhost:5000/api/products?${params.toString()}`, { signal }).then(r => r.json()),
+        queryFn: ({ signal }) => fetch(`${API_BASE}/products?${params.toString()}`, { signal }).then(r => r.json()),
         staleTime: 2 * 60 * 1000,
       });
     }

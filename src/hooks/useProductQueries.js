@@ -2,7 +2,7 @@ import { useQuery, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys, invalidateQueries, queryClient } from '../lib/queryClient';
 
 // API base URL - Direct connection to backend
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
 
 // Fetch functions
 const fetchProducts = async ({ category, search, page = 1, limit = 20, signal }) => {
@@ -28,17 +28,29 @@ const fetchProducts = async ({ category, search, page = 1, limit = 20, signal })
     params.append('includeImages', 'true');
   }
 
-  const path = useFastEndpoint ? 'products/fast' : 'products';
+  const fastPath = `${API_BASE}/products/fast?${params.toString()}`;
+  const normalPath = `${API_BASE}/products?${params.toString()}`;
 
-  const response = await fetch(`${API_BASE}/${path}?${params.toString()}`, {
+  // Prefer fast endpoint, but gracefully fallback to normal on failure
+  const primaryUrl = useFastEndpoint ? fastPath : normalPath;
+  const fallbackUrl = useFastEndpoint ? normalPath : fastPath;
+
+  let response = await fetch(primaryUrl, {
     signal,
     headers: { 'Content-Type': 'application/json' },
   });
-  
+
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[fetchProducts] Primary endpoint failed:', primaryUrl, response.status, response.statusText);
+    }
+    // Try fallback once
+    response = await fetch(fallbackUrl, { signal, headers: { 'Content-Type': 'application/json' } });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
   }
-  
+
   return response.json();
 };
 

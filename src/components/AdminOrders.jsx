@@ -106,7 +106,8 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         limit: '1000', // Load all orders for client-side filtering
       });
       
-      const response = await fetch(`http://localhost:5000/api/orders?${params.toString()}`);
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const response = await fetch(`${base}/orders?${params.toString()}`);
       const data = await response.json();
       
       if (response.ok) {
@@ -320,7 +321,8 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
                 )
               );
               
-              const response = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
+              const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+              const response = await fetch(`${base}/orders/${orderId}`, {
                 method: 'DELETE',
                 headers: {
                   'Content-Type': 'application/json',

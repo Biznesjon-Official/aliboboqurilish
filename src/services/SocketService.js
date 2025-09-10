@@ -19,8 +19,8 @@ class SocketService {
     }
 
     try {
-      // Connect directly to backend socket server on port 5000
-      const socketUrl = 'http://localhost:5000';
+      // Use environment variables for socket URL
+      const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_BASE?.replace(/\/api$/, '') || 'http://localhost:5000';
       
       this.socket = io(socketUrl, {
         transports: ['polling', 'websocket'],
