@@ -5,6 +5,7 @@ const { addActivity } = require('../routes/recentActivitiesRoutes');
 // Performance constants
 const MAX_LIMIT = 1000; // Maximum items per page
 const DEFAULT_LIMIT = 40; // Default items per page (increased from 20 to 40)
+const ALL_PRODUCTS_LIMIT = 10000; // Limit for loading all products
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 
 // Simple in-memory cache for frequently accessed data
@@ -53,9 +54,17 @@ const getProducts = async (req, res) => {
         timestamp: new Date().toISOString()
       });
     }
-    // Validate and sanitize pagination parameters
-    const requestedLimit = parseInt(req.query.limit) || DEFAULT_LIMIT;
-    const limit = Math.min(MAX_LIMIT, Math.max(1, requestedLimit));
+    
+    // Check if we want to load all products
+    let limit;
+    if (req.query.all === 'true') {
+      // Load all products (up to ALL_PRODUCTS_LIMIT)
+      limit = ALL_PRODUCTS_LIMIT;
+    } else {
+      // Validate and sanitize pagination parameters
+      const requestedLimit = parseInt(req.query.limit) || DEFAULT_LIMIT;
+      limit = Math.min(MAX_LIMIT, Math.max(1, requestedLimit));
+    }
 
     // Build optimized query object
     // Include legacy documents that may be missing `status` or `isDeleted`
@@ -1085,3 +1094,5 @@ module.exports = {
   setArchiveStatus,
   convertBase64Images
 };
+
+

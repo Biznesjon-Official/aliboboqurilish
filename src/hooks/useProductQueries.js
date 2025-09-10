@@ -5,7 +5,7 @@ import { queryKeys, invalidateQueries, queryClient } from '../lib/queryClient';
 const API_BASE = 'http://localhost:5000/api';
 
 // Fetch functions
-const fetchProducts = async ({ category, search, page = 1, limit = 40, signal }) => {
+const fetchProducts = async ({ category, search, page = 1, limit = 40, all = false, signal }) => {
   const params = new URLSearchParams({
     limit: limit.toString(),
     page: page.toString(),
@@ -13,6 +13,11 @@ const fetchProducts = async ({ category, search, page = 1, limit = 40, signal })
     sortOrder: 'desc',
     includeImages: 'true', // Always include images for better UX
   });
+  
+  // Add 'all' parameter if we want to load all products
+  if (all) {
+    params.append('all', 'true');
+  }
   
   if (category && category !== '') {
     params.append('category', category);
@@ -57,35 +62,12 @@ const fetchProduct = async (id, signal) => {
   return response.json();
 };
 
-// Hook for fetching products list with optimized caching for admin interface
-export const useProducts = (category, search, page = 1, limit = 20) => {
-  return useQuery({
-    queryKey: queryKeys.products.list(category, search, page, limit),
-    queryFn: ({ signal }) => fetchProducts({ category, search, page, limit, signal }),
-    keepPreviousData: true, // Enable to prevent loading states between pages
-    staleTime: 30 * 1000, // Reduced to 30 seconds for faster updates
-    gcTime: 5 * 60 * 1000, // Reduced to 5 minutes for memory efficiency
-    refetchOnWindowFocus: false, // Disable to prevent unnecessary refetches
-    refetchOnReconnect: false, // Disable for faster loading
-    refetchOnMount: false, // Don't force fresh data on every mount
-    // Optimized retry settings for speed
-    retry: 1, // Reduced retries for faster failure handling
-    retryDelay: 500, // Faster retry delay
-    // Remove automatic refetch interval to prevent constant loading
-    refetchInterval: false, // Disabled automatic refetching
-    refetchIntervalInBackground: false, // Disabled background refetching
-    // Performance optimizations
-    networkMode: 'online', // Only fetch when online
-    notifyOnChangeProps: ['data', 'error'], // Only notify on data/error changes
-  });
-};
-
 // Hook for infinite scrolling products (optimized for incremental loading)
-export const useInfiniteProducts = (category, search, limit = 40) => {
+export const useInfiniteProducts = (category, search, limit = 40, all = false) => {
   return useInfiniteQuery({
-    queryKey: queryKeys.products.list(category, search, 'infinite', limit),
+    queryKey: queryKeys.products.list(category, search, 'infinite', limit, all),
     queryFn: ({ pageParam = 1, signal }) => 
-      fetchProducts({ category, search, page: pageParam, limit, signal }),
+      fetchProducts({ category, search, page: pageParam, limit, all, signal }),
     getNextPageParam: (lastPage, allPages) => {
       const p = lastPage?.pagination;
       // Allow up to 3 pages (40 products per page = 120 products total, but we'll limit to 100)
@@ -101,6 +83,29 @@ export const useInfiniteProducts = (category, search, limit = 40) => {
     refetchOnReconnect: false, // Disable for faster loading
     retry: 1, // Reduced retries for faster failure handling
     retryDelay: 100, // Faster retry delay (faster)
+  });
+};
+
+// Hook for fetching products list with optimized caching for admin interface
+export const useProducts = (category, search, page = 1, limit = 20, all = false) => {
+  return useQuery({
+    queryKey: queryKeys.products.list(category, search, page, limit, all),
+    queryFn: ({ signal }) => fetchProducts({ category, search, page, limit, all, signal }),
+    keepPreviousData: true, // Enable to prevent loading states between pages
+    staleTime: 30 * 1000, // Reduced to 30 seconds for faster updates
+    gcTime: 5 * 60 * 1000, // Reduced to 5 minutes for memory efficiency
+    refetchOnWindowFocus: false, // Disable to prevent unnecessary refetches
+    refetchOnReconnect: false, // Disable for faster loading
+    refetchOnMount: false, // Don't force fresh data on every mount
+    // Optimized retry settings for speed
+    retry: 1, // Reduced retries for faster failure handling
+    retryDelay: 500, // Faster retry delay
+    // Remove automatic refetch interval to prevent constant loading
+    refetchInterval: false, // Disabled automatic refetching
+    refetchIntervalInBackground: false, // Disabled background refetching
+    // Performance optimizations
+    networkMode: 'online', // Only fetch when online
+    notifyOnChangeProps: ['data', 'error'], // Only notify on data/error changes
   });
 };
 
