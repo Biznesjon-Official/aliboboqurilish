@@ -73,7 +73,7 @@ const ProductCardSkeleton = () => (
   </div>
 );
 
-const ProductCardsSkeleton = ({ count = 40 }) => (
+const ProductCardsSkeleton = ({ count = 8 }) => (
   <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
     {[...Array(count)].map((_, index) => (
       <ProductCardSkeleton key={index} />
@@ -82,7 +82,7 @@ const ProductCardsSkeleton = ({ count = 40 }) => (
 );
 
 // Main skeleton component
-const ProductGridSkeleton = ({ count = 40 }) => (
+const ProductGridSkeleton = ({ count = 8 }) => (
   <div className="container mx-auto px-4 lg:px-6 py-4 lg:py-6">
     {/* Category Navigation Skeleton */}
     <CategoryNavigationSkeleton />

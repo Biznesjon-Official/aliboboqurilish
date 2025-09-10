@@ -1,23 +1,21 @@
 import { QueryClient } from '@tanstack/react-query';
 
-// Create query client with ultra-optimized performance settings
+// Create query client with optimized performance settings
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Aggressive staleTime for immediate loading
-      staleTime: 30 * 1000, // Reduced to 30 seconds for faster updates
-      // Data stays in cache for reasonable time
-      gcTime: 5 * 60 * 1000, // Reduced to 5 minutes for better memory management
+      // Balanced staleTime for better user experience
+      staleTime: 2 * 60 * 1000, // 2 minutes - data is fresh for 2 minutes
+      // Data stays in cache longer before garbage collection
+      gcTime: 10 * 60 * 1000, // 10 minutes
       // Disable aggressive refetching to prevent constant loading
       refetchOnWindowFocus: false,
-      // Disable refetch on reconnect for faster startup
-      refetchOnReconnect: false,
-      // Don't force refetch on every mount for speed
+      // Enable refetch on reconnect for real-time data
+      refetchOnReconnect: true,
+      // Don't force refetch on every mount
       refetchOnMount: false,
-      // Ultra-fast retry strategy
-      retry: 1, // Reduced to 1 retry for speed
-      // Don't retry on client errors (404, 400)
-      retryCondition: (failureCount, error) => {
+      // Smart retry strategy to avoid wasting bandwidth
+      retry: (failureCount, error) => {
         // Don't retry on 404 or 400 errors (client errors)
         if (error?.response?.status === 404 || error?.response?.status === 400) {
           return false;
@@ -26,10 +24,15 @@ export const queryClient = new QueryClient({
         if (error?.name === 'AbortError') {
           return false;
         }
-        return failureCount < 1; // Only 1 retry for speed
+        return failureCount < 2; // Reduce max retries to 2 (was 3)
       },
-      // Fast retry delay for immediate response
-      retryDelay: 300, // Reduced to 300ms for faster retry
+      // Exponential backoff with jitter for better distributed retries
+      retryDelay: attemptIndex => {
+        // Base delay shorter for initial retry, capped at 5 seconds for faster updates
+        const delay = Math.min(800 * (2 ** attemptIndex), 5000); // Reduced from 20000 to 5000
+        // More pronounced jitter (up to 25%)
+        return delay + (Math.random() * delay * 0.25);
+      },
       // Keep previous data while fetching new data for smooth UX
       keepPreviousData: false, // Disable to show fresh data immediately
       // Use structural sharing for minimizing re-renders
@@ -52,8 +55,8 @@ export const queryKeys = {
   products: {
     all: ['products'],
     lists: () => [...queryKeys.products.all, 'list'],
-    list: (category, search, page = 1, limit = 200, all = false) => 
-      [...queryKeys.products.lists(), { category, search, page, limit, all }],
+    list: (category, search, page = 1, limit = 200) => 
+      [...queryKeys.products.lists(), { category, search, page, limit }],
     details: () => [...queryKeys.products.all, 'detail'],
     detail: (id) => [...queryKeys.products.details(), id],
   },
@@ -62,35 +65,51 @@ export const queryKeys = {
   craftsmen: {
     all: ['craftsmen'],
     lists: () => [...queryKeys.craftsmen.all, 'list'],
-    list: (specialty, search, page = 1, limit = 50, sortBy = 'joinDate', sortOrder = 'desc') => 
+    list: (specialty, search, page = 1, limit = 50, sortBy = 'joinDate', sortOrder = 'desc') =>
       [...queryKeys.craftsmen.lists(), { specialty, search, page, limit, sortBy, sortOrder }],
     details: () => [...queryKeys.craftsmen.all, 'detail'],
     detail: (id) => [...queryKeys.craftsmen.details(), id],
   },
   
-  // Order-related queries
+  // Orders-related queries
   orders: {
     all: ['orders'],
     lists: () => [...queryKeys.orders.all, 'list'],
-    list: (page = 1, limit = 20, status = '', sortBy = 'createdAt', sortOrder = 'desc') => 
-      [...queryKeys.orders.lists(), { page, limit, status, sortBy, sortOrder }],
+    list: (status, search, page = 1, limit = 50) =>
+      [...queryKeys.orders.lists(), { status, search, page, limit }],
     details: () => [...queryKeys.orders.all, 'detail'],
     detail: (id) => [...queryKeys.orders.details(), id],
+    // FIXED: Stats function for order statistics
     stats: () => [...queryKeys.orders.all, 'stats'],
   },
   
-  // Notification-related queries
-  notifications: {
-    all: ['notifications'],
-    lists: () => [...queryKeys.notifications.all, 'list'],
-    list: (page = 1, limit = 20, read, entityType, search) => 
-      [...queryKeys.notifications.lists(), { page, limit, read, entityType, search }],
-    details: () => [...queryKeys.notifications.all, 'detail'],
-    detail: (id) => [...queryKeys.notifications.details(), id],
-    unreadCount: () => [...queryKeys.notifications.all, 'unreadCount'],
+  // Search-related queries
+  search: {
+    all: ['search'],
+    products: (query, page = 1) => [...queryKeys.search.all, 'products', { query, page }],
   },
   
-  // Recent activities queries
+  // Category-related queries
+  categories: {
+    all: ['categories'],
+    list: () => [...queryKeys.categories.all, 'list'],
+  },
+  
+  // Statistics and admin queries
+  statistics: {
+    all: ['statistics'],
+    dashboard: () => [...queryKeys.statistics.all, 'dashboard'],
+    orders: () => [...queryKeys.statistics.all, 'orders'],
+  },
+
+  // Stock management queries (NEW for real-time updates)
+  stock: {
+    all: ['stock'],
+    product: (id) => [...queryKeys.stock.all, 'product', id],
+    levels: () => [...queryKeys.stock.all, 'levels'],
+  },
+
+  // Recent Activities queries
   recentActivities: {
     all: ['recent-activities'],
     lists: () => [...queryKeys.recentActivities.all, 'list'],
@@ -100,43 +119,37 @@ export const queryKeys = {
     detail: (id) => [...queryKeys.recentActivities.details(), id],
     stats: () => [...queryKeys.recentActivities.all, 'stats'],
   },
-  
-  // Statistics queries
-  statistics: {
-    all: ['statistics'],
-    dashboard: () => [...queryKeys.statistics.all, 'dashboard'],
-    products: () => [...queryKeys.statistics.all, 'products'],
-    orders: () => [...queryKeys.statistics.all, 'orders'],
-    craftsmen: () => [...queryKeys.statistics.all, 'craftsmen'],
-  },
-  
-  // Search queries
-  search: {
-    all: ['search'],
-    products: (query, page = 1) => [...queryKeys.search.all, 'products', query, page],
-    craftsmen: (query, page = 1) => [...queryKeys.search.all, 'craftsmen', query, page],
-  }
 };
 
-// Utility function to invalidate queries
+// Enhanced cache invalidation helpers for real-time stock updates
 export const invalidateQueries = {
   products: () => queryClient.invalidateQueries({ queryKey: queryKeys.products.all }),
+  productDetail: (id) => queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id) }),
+  search: () => queryClient.invalidateQueries({ queryKey: queryKeys.search.all }),
+  categories: () => queryClient.invalidateQueries({ queryKey: queryKeys.categories.all }),
   craftsmen: () => queryClient.invalidateQueries({ queryKey: queryKeys.craftsmen.all }),
   orders: () => queryClient.invalidateQueries({ queryKey: queryKeys.orders.all }),
-  notifications: () => queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all }),
   recentActivities: () => queryClient.invalidateQueries({ queryKey: queryKeys.recentActivities.all }),
-  statistics: () => queryClient.invalidateQueries({ queryKey: queryKeys.statistics.all }),
+  recentActivityDetail: (id) => queryClient.invalidateQueries({ queryKey: queryKeys.recentActivities.detail(id) }),
+  // NEW: Real-time stock invalidation
+  stock: () => queryClient.invalidateQueries({ queryKey: queryKeys.stock.all }),
+  productStock: (id) => queryClient.invalidateQueries({ queryKey: queryKeys.stock.product(id) }),
+  // CRITICAL: Invalidate everything for immediate stock updates
+  allProductData: () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.stock.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.search.all });
+  },
 };
 
-// Prefetch functions for critical data
-export const prefetch = {
-  // Prefetch product by ID
-  product: async (id) => {
+// Enhanced prefetch helpers for intelligent data preloading
+export const prefetchQueries = {
+  productDetail: (id) => {
     return queryClient.prefetchQuery({
       queryKey: queryKeys.products.detail(id),
       queryFn: async ({ signal }) => {
         try {
-          const response = await fetch(`http://localhost:5000/api/products/${id}`, { signal });
+          const response = await fetch(`/api/products/${id}`, { signal });
           if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
           return await response.json();
         } catch (error) {
@@ -148,9 +161,9 @@ export const prefetch = {
     });
   },
   
-  productsList: (category, search, limit = 20, all = false) => {
+  productsList: (category, search, limit = 20) => {
     return queryClient.prefetchQuery({
-      queryKey: queryKeys.products.list(category, search, 1, limit, all),
+      queryKey: queryKeys.products.list(category, search, 1, limit),
       queryFn: async ({ signal }) => {
         try {
           const params = new URLSearchParams({
@@ -159,11 +172,6 @@ export const prefetch = {
             sortBy: 'updatedAt',
             sortOrder: 'desc',
           });
-          
-          // Add 'all' parameter if needed
-          if (all) {
-            params.append('all', 'true');
-          }
           
           if (category) params.append('category', category);
           if (search) params.append('search', search);
@@ -204,7 +212,7 @@ export const prefetch = {
       queryKey: queryKeys.craftsmen.lists(),
       queryFn: async ({ signal }) => {
         try {
-          const response = await fetch(`/api/craftsmen?limit=40&page=1`, { signal });
+          const response = await fetch(`/api/craftsmen?limit=20&page=1`, { signal });
           if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
           return await response.json();
         } catch (error) {
@@ -222,7 +230,7 @@ export const prefetch = {
       queryKey: queryKeys.statistics.dashboard(),
       queryFn: async ({ signal }) => {
         try {
-          const response = await fetch(`/api/statistics/dashboard`, { signal });
+          const response = await fetch('/api/statistics/dashboard', { signal });
           if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
           return await response.json();
         } catch (error) {
@@ -230,9 +238,124 @@ export const prefetch = {
           throw error;
         }
       },
-      staleTime: 30 * 1000, // 30 seconds
+      staleTime: 1 * 60 * 1000, // Stats are more dynamic, 1 minute stale time
     });
   },
 };
 
-export default queryClient;
+// NEW: Optimistic update helpers for real-time stock management
+export const optimisticUpdates = {
+  // Update product stock optimistically
+  updateProductStock: (productId, newStock, variantOption = null) => {
+    const productKey = queryKeys.products.detail(productId);
+    const currentData = queryClient.getQueryData(productKey);
+    
+    if (currentData) {
+      const updatedProduct = { ...currentData };
+      
+      if (variantOption && updatedProduct.hasVariants && updatedProduct.variants) {
+        // Update variant stock
+        updatedProduct.variants = updatedProduct.variants.map(variant => ({
+          ...variant,
+          options: variant.options.map(option => {
+            if (option.value === variantOption) {
+              return { ...option, stock: newStock };
+            }
+            return option;
+          })
+        }));
+      } else {
+        // Update main product stock
+        updatedProduct.stock = newStock;
+      }
+      
+      // Apply optimistic update to product detail cache
+      queryClient.setQueryData(productKey, updatedProduct);
+      
+      // FORCE IMMEDIATE REFETCH: This ensures UI updates immediately
+      setTimeout(() => {
+        queryClient.refetchQueries({ 
+          queryKey: queryKeys.products.detail(productId),
+          type: 'active'
+        });
+      }, 100);
+      
+      // CRITICAL: Also update in ALL product lists that contain this product
+      const allQueries = queryClient.getQueryCache().getAll();
+      allQueries.forEach(query => {
+        if (query.queryKey[0] === 'products' && 
+            (query.queryKey.includes('list') || query.queryKey[1] === 'list')) {
+          const queryData = query.state?.data;
+          if (queryData?.products && Array.isArray(queryData.products)) {
+            const productIndex = queryData.products.findIndex(p => p._id === productId);
+            if (productIndex !== -1) {
+              const updatedProducts = [...queryData.products];
+              updatedProducts[productIndex] = {
+                ...updatedProducts[productIndex],
+                stock: variantOption ? updatedProducts[productIndex].stock : newStock
+              };
+              queryClient.setQueryData(query.queryKey, {
+                ...queryData,
+                products: updatedProducts
+              });
+              
+              // Force refetch of this list too
+              setTimeout(() => {
+                queryClient.refetchQueries({ 
+                  queryKey: query.queryKey,
+                  type: 'active'
+                });
+              }, 150);
+            }
+          }
+        }
+      });
+      
+      // Also update search results
+      const searchQueries = queryClient.getQueriesData({
+        queryKey: queryKeys.search.all,
+        exact: false
+      });
+      
+      searchQueries.forEach(([queryKey, queryData]) => {
+        if (queryData?.products && Array.isArray(queryData.products)) {
+          const productIndex = queryData.products.findIndex(p => p._id === productId);
+          if (productIndex !== -1) {
+            const updatedProducts = [...queryData.products];
+            updatedProducts[productIndex] = {
+              ...updatedProducts[productIndex],
+              stock: variantOption ? updatedProducts[productIndex].stock : newStock
+            };
+            queryClient.setQueryData(queryKey, {
+              ...queryData,
+              products: updatedProducts
+            });
+          }
+        }
+      });
+      
+      return updatedProduct;
+    }
+    
+    return null;
+  },
+  
+  // Rollback optimistic update if needed
+  rollbackProductStock: (productId, originalStock, variantOption = null) => {
+    return optimisticUpdates.updateProductStock(productId, originalStock, variantOption);
+  },
+  
+  // Bulk update multiple products
+  updateMultipleProductsStock: (updates) => {
+    const results = [];
+    
+    updates.forEach(({ productId, newStock, variantOption }) => {
+      const result = optimisticUpdates.updateProductStock(productId, newStock, variantOption);
+      if (result) {
+        results.push({ productId, updatedProduct: result });
+      }
+    });
+    
+    return results;
+  },
+};

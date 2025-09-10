@@ -1,4 +1,5 @@
 import React from 'react';
+import { prefetchQueries } from '../lib/queryClient';
 
 const CategoryNavigation = ({ 
   categories = [], 
@@ -25,6 +26,13 @@ const CategoryNavigation = ({
     }
   };
 
+  const handleCategoryHover = (category) => {
+    try {
+      // Warm the first page for this category for instant switch
+      prefetchQueries.productsList(category.name || '', '', 20);
+    } catch {}
+  };
+
   return (
     <div className={`w-full border-b border-gray-200 ${className}`}>
       {/* Horizontal scrollable container */}
@@ -38,6 +46,7 @@ const CategoryNavigation = ({
               <button
                 key={category.id}
                 onClick={() => handleCategoryClick(category)}
+                onMouseEnter={() => handleCategoryHover(category)}
                 className={`
                   relative px-4 py-3 text-sm font-medium whitespace-nowrap transition-all duration-300
                   hover:text-gray-900 group overflow-hidden

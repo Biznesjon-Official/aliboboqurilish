@@ -20,26 +20,25 @@ const Base64Image = ({
   // Memoize base64 validation to avoid re-computation
   const imageValidation = useMemo(() => {
     if (!src) {
-      return { isValid: false, reason: 'No source provided' };
+      return { isValid: false, reason: 'No source provided', isBase64: false };
     }
     
-    // Check if it's base64 format
+    // If not base64, treat as valid URL/path and render directly
     if (!src.startsWith('data:image/')) {
-      return { isValid: false, reason: 'Not a base64 image' };
+      return { isValid: true, reason: null, isBase64: false };
     }
     
-    // Check minimum length (base64 header + some data)
+    // Base64-specific validations
     if (src.length < 100) {
-      return { isValid: false, reason: 'Base64 data too short' };
+      return { isValid: false, reason: 'Base64 data too short', isBase64: true };
     }
     
-    // Validate base64 format
     const base64Pattern = /^data:image\/(jpeg|jpg|png|gif|webp|bmp);base64,([A-Za-z0-9+/=]+)$/;
     if (!base64Pattern.test(src)) {
-      return { isValid: false, reason: 'Invalid base64 format' };
+      return { isValid: false, reason: 'Invalid base64 format', isBase64: true };
     }
     
-    return { isValid: true, reason: null };
+    return { isValid: true, reason: null, isBase64: true };
   }, [src]);
   
   const handleLoad = useCallback((e) => {
@@ -73,8 +72,8 @@ const Base64Image = ({
     return null;
   }
   
-  // Show fallback for invalid base64 (but not for empty src)
-  if (!imageValidation.isValid && imageValidation.reason !== 'No source provided') {
+  // Show fallback only for invalid base64 cases
+  if (imageValidation.isBase64 && !imageValidation.isValid && imageValidation.reason !== 'No source provided') {
     if (process.env.REACT_APP_DEBUG_MODE === 'true') {
       console.warn('[Base64Image] Invalid base64 image:', imageValidation.reason);
     }

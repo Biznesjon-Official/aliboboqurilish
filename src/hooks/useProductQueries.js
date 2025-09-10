@@ -5,48 +5,41 @@ import { queryKeys, invalidateQueries, queryClient } from '../lib/queryClient';
 const API_BASE = 'http://localhost:5000/api';
 
 // Fetch functions
-const fetchProducts = async ({ category, search, page = 1, limit = 40, all = false, signal }) => {
+const fetchProducts = async ({ category, search, page = 1, limit = 20, signal }) => {
+  const useFastEndpoint = page === 1 && (!search || search.trim() === '');
+
   const params = new URLSearchParams({
     limit: limit.toString(),
     page: page.toString(),
     sortBy: 'updatedAt',
     sortOrder: 'desc',
-    includeImages: 'true', // Always include images for better UX
   });
-  
-  // Add 'all' parameter if we want to load all products
-  if (all) {
-    params.append('all', 'true');
-  }
-  
+
   if (category && category !== '') {
     params.append('category', category);
   }
-  
+
   if (search && search.trim() !== '') {
     params.append('search', search.trim());
   }
-  
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout (faster)
-  
-  try {
-    const response = await fetch(`${API_BASE}/products?${params.toString()}`, {
-      signal: signal || controller.signal,
-      headers: { 'Content-Type': 'application/json' },
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    return response.json();
-  } catch (error) {
-    clearTimeout(timeoutId);
-    throw error;
+
+  // Include images on the standard endpoint so subsequent pages have thumbnails
+  if (!useFastEndpoint) {
+    params.append('includeImages', 'true');
   }
+
+  const path = useFastEndpoint ? 'products/fast' : 'products';
+
+  const response = await fetch(`${API_BASE}/${path}?${params.toString()}`, {
+    signal,
+    headers: { 'Content-Type': 'application/json' },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  return response.json();
 };
 
 const fetchProduct = async (id, signal) => {
@@ -62,50 +55,44 @@ const fetchProduct = async (id, signal) => {
   return response.json();
 };
 
-// Hook for infinite scrolling products (optimized for incremental loading)
-export const useInfiniteProducts = (category, search, limit = 40, all = false) => {
+// Hook for fetching products list with balanced caching for admin interface
+export const useProducts = (category, search, page = 1, limit = 20) => {
+  return useQuery({
+    queryKey: queryKeys.products.list(category, search, page, limit),
+    queryFn: ({ signal }) => fetchProducts({ category, search, page, limit, signal }),
+    keepPreviousData: false, // Disable to prevent showing stale data from different pages
+    staleTime: 2 * 60 * 1000, // 2 minutes - reasonable for admin interface
+    cacheTime: 10 * 60 * 1000, // 10 minutes cache time
+    refetchOnWindowFocus: false, // Disable to prevent unnecessary refetches
+    refetchOnReconnect: true, // Enable for real-time updates on reconnect
+    refetchOnMount: false, // Don't force fresh data on every mount
+    // Balanced retry settings
+    retry: 2,
+    retryDelay: 1000, // 1 second retry delay
+    // Remove automatic refetch interval to prevent constant loading
+    refetchInterval: false, // Disabled automatic refetching
+    refetchIntervalInBackground: false, // Disabled background refetching
+  });
+};
+
+// Hook for infinite scrolling products (optimized for fast initial load)
+export const useInfiniteProducts = (category, search, limit = 20) => {
   return useInfiniteQuery({
-    queryKey: queryKeys.products.list(category, search, 'infinite', limit, all),
+    queryKey: queryKeys.products.list(category, search, 'infinite', limit),
     queryFn: ({ pageParam = 1, signal }) => 
-      fetchProducts({ category, search, page: pageParam, limit, all, signal }),
-    getNextPageParam: (lastPage, allPages) => {
+      fetchProducts({ category, search, page: pageParam, limit, signal }),
+    getNextPageParam: (lastPage) => {
       const p = lastPage?.pagination;
-      // Allow up to 3 pages (40 products per page = 120 products total, but we'll limit to 100)
-      if (p?.hasNextPage && allPages.length < 3) {
+      if (p?.hasNextPage) {
         return (p.currentPage || 1) + 1;
       }
       return undefined;
     },
     keepPreviousData: false, // Disable to match useProducts behavior
-    staleTime: 15 * 1000, // Reduced to 15 seconds for faster updates (faster)
-    cacheTime: 2 * 60 * 1000, // Keep cache for 2 minutes (faster)
-    refetchOnWindowFocus: false, // Disable for faster loading
-    refetchOnReconnect: false, // Disable for faster loading
-    retry: 1, // Reduced retries for faster failure handling
-    retryDelay: 100, // Faster retry delay (faster)
-  });
-};
-
-// Hook for fetching products list with optimized caching for admin interface
-export const useProducts = (category, search, page = 1, limit = 20, all = false) => {
-  return useQuery({
-    queryKey: queryKeys.products.list(category, search, page, limit, all),
-    queryFn: ({ signal }) => fetchProducts({ category, search, page, limit, all, signal }),
-    keepPreviousData: true, // Enable to prevent loading states between pages
-    staleTime: 30 * 1000, // Reduced to 30 seconds for faster updates
-    gcTime: 5 * 60 * 1000, // Reduced to 5 minutes for memory efficiency
-    refetchOnWindowFocus: false, // Disable to prevent unnecessary refetches
-    refetchOnReconnect: false, // Disable for faster loading
-    refetchOnMount: false, // Don't force fresh data on every mount
-    // Optimized retry settings for speed
-    retry: 1, // Reduced retries for faster failure handling
-    retryDelay: 500, // Faster retry delay
-    // Remove automatic refetch interval to prevent constant loading
-    refetchInterval: false, // Disabled automatic refetching
-    refetchIntervalInBackground: false, // Disabled background refetching
-    // Performance optimizations
-    networkMode: 'online', // Only fetch when online
-    notifyOnChangeProps: ['data', 'error'], // Only notify on data/error changes
+    staleTime: 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 };
 

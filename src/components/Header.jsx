@@ -44,7 +44,7 @@ const Header = ({
     const controller = new AbortController();
     const fetchSuggestions = async () => {
       try {
-        const url = `/api/products?search=${encodeURIComponent(q)}&limit=40`;
+        const url = `/api/products?search=${encodeURIComponent(q)}&limit=20`;
         const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error('Failed to load suggestions');
         const data = await res.json();

@@ -4,7 +4,7 @@ async function testBase64API() {
 
     // Test 1: Regular products endpoint (should have null images)
     console.log('1. Testing regular /api/products endpoint:');
-    const regularResponse = await fetch('http://localhost:5000/api/products?limit=40');
+    const regularResponse = await fetch('http://localhost:5000/api/products?limit=2');
     const regularData = await regularResponse.json();
     const regularProduct = regularData.products[0];
     console.log(`   Product: ${regularProduct.name}`);
@@ -15,7 +15,7 @@ async function testBase64API() {
     // Test 2: Products with includeImages parameter (should have base64 images)
     console.log('2. Testing /api/products?includeImages=true endpoint:');
     try {
-      const base64Response = await fetch('http://localhost:5000/api/products?includeImages=true&limit=40');
+      const base64Response = await fetch('http://localhost:5000/api/products?includeImages=true&limit=2');
       const base64Data = await base64Response.json();
       const base64Product = base64Data.products[0];
       console.log(`   Product: ${base64Product.name}`);

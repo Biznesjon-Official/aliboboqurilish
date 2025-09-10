@@ -24,10 +24,9 @@ const ProductsGrid = ({
   onCategorySelect,
   onSearch
 }) => {
-  // State for tracking product loading
-  const [totalLoadedProducts, setTotalLoadedProducts] = useState(0);
-  const [allProductsLoaded, setAllProductsLoaded] = useState(false);
-  // State management
+  // console.log('ProductsGrid rendered with props:', { selectedCategory, searchQuery });
+
+
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [currentCategory, setCurrentCategory] = useState('all');
@@ -84,7 +83,7 @@ const ProductsGrid = ({
     hasNextPage,
     isFetchingNextPage,
     refetch
-  } = useInfiniteProducts(mappedCategory, searchQuery || '', 40, true); // Load all products
+  } = useInfiniteProducts(mappedCategory, searchQuery || '', 20); // Reduced from 60 to 20 for faster initial load
 
   // Flatten pages into a single list with deduplication to prevent React key warnings
   const fetchedProducts = useMemo(() => {
@@ -96,17 +95,9 @@ const ProductsGrid = ({
       index === self.findIndex(p => p._id === product._id)
     );
     
-    // No need to limit to 100 products since we're loading all
     return deduplicatedProducts;
   }, [data]);
 
-  // Update total loaded products count when fetchedProducts changes
-  useEffect(() => {
-    const newTotal = fetchedProducts.length;
-    setTotalLoadedProducts(newTotal);
-    // Set all products loaded to true since we're loading all at once
-    setAllProductsLoaded(true);
-  }, [fetchedProducts]);
 
   // Hide skeleton once the first response arrives (even if empty)
   useEffect(() => {
@@ -116,21 +107,46 @@ const ProductsGrid = ({
     }
   }, [data, isLoading, isFetching]);
 
-  // Update total loaded products count when fetchedProducts changes
+  // Background prefetch: after first success, prefetch more pages to reach ~600 items
   useEffect(() => {
-    if (!isInitialLoad && data) {
-      const newTotal = data.pages.reduce((total, page) => {
-        return total + (page.products?.length || 0);
-      }, 0);
-      
-      setTotalLoadedProducts(prev => {
-        const updated = newTotal;
-        // Set all products loaded to true since we're loading all at once
-        setAllProductsLoaded(true);
-        return updated;
-      });
+    // Only run when we have first page and there are more pages
+    if (!data || !hasNextPage || !fetchNextPage) return;
+
+    let cancelled = false;
+    const start = Date.now();
+    const MAX_TIME_MS = 500; // Reduced from 2000ms to 500ms for faster UI response
+    const MAX_PAGES = 3; // Reduced from 12 to 3 pages for faster initial load
+
+    // Helper to fetch next pages sequentially with micro-delays to yield to UI
+    const prefetchMore = async () => {
+      try {
+        let pagesFetched = 0;
+        while (!cancelled && hasNextPage && pagesFetched < MAX_PAGES && (Date.now() - start) < MAX_TIME_MS) {
+          // Very small delay to keep UI ultra-responsive
+          await new Promise((r) => setTimeout(r, 10)); // Reduced from 50ms to 10ms
+          const res = await fetchNextPage();
+          pagesFetched += 1;
+          // If react-query indicates no more next page after fetch, break
+          if (!res?.hasNextPage) break;
+        }
+      } catch (_) {
+        // ignore background prefetch errors
+      }
+    };
+
+    // Schedule prefetch during idle if available, else immediate
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(prefetchMore, { timeout: 500 }); // Reduced from 1500ms to 500ms
+      return () => {
+        cancelled = true;
+        try { window.cancelIdleCallback && window.cancelIdleCallback(idleId); } catch {}
+      };
+    } else {
+      prefetchMore();
+      return () => { cancelled = true; };
     }
-  }, [data, isInitialLoad]);
+  }, [data, hasNextPage, fetchNextPage]);
+
 
   // Handle API errors - hide skeleton and show error state
   useEffect(() => {
@@ -156,9 +172,6 @@ const ProductsGrid = ({
 
     if (filtersChanged && !isInitialLoad) {
       setShowSkeleton(true);
-      // Reset product tracking when filters change
-      setTotalLoadedProducts(0);
-      setAllProductsLoaded(false);
       // Reset to first page by refetching
       if (refetch) refetch();
     }
@@ -322,23 +335,6 @@ const ProductsGrid = ({
     }
   };
 
-  // Custom load more function that respects 100 product limit
-  const loadMoreProducts = () => {
-    if (isFetchingNextPage || allProductsLoaded) return;
-    
-    // Only fetch next page if we haven't reached 100 products
-    if (totalLoadedProducts < 100 && hasNextPage) {
-      fetchNextPage();
-    }
-  };
-
-  // Show skeleton loaders while fetching products
-  const showSkeletonLoaders = isFetchingNextPage || (isLoading && fetchedProducts.length === 0);
-
-  // Show load more button only if we have less than 100 products and there are more pages
-  // Make sure to show the button even when background prefetching is happening
-  const showLoadMoreButton = !allProductsLoaded && (totalLoadedProducts < 100) && hasNextPage;
-
 
   // Manual refresh function
 
@@ -431,7 +427,7 @@ const ProductsGrid = ({
 
   // Show skeleton when appropriate
   if (shouldShowSkeleton) {
-    return <ProductGridSkeleton count={40} />;
+    return <ProductGridSkeleton count={8} />;
   }
 
   // Show error state if there's an API error and no products
@@ -468,62 +464,6 @@ const ProductsGrid = ({
 
   return (
     <div className="container mx-auto px-4 lg:px-6 py-4 lg:py-6 pb-28 lg:pb-6">
-      {/* Add CSS for smooth product animations */}
-      <style>{`
-        .product-grid-item {
-          animation: slideInUp 0.3s ease-out;
-        }
-        
-        @keyframes slideInUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .loading-shimmer {
-          animation: shimmer 1.5s infinite;
-        }
-        
-        @keyframes shimmer {
-          0% {
-            background-position: -200px 0;
-          }
-          100% {
-            background-position: calc(200px + 100%) 0;
-          }
-        }
-        
-        .animate-pulse {
-          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.5;
-          }
-        }
-        
-        .animate-shimmer {
-          animation: shimmer 1.5s infinite linear;
-        }
-        
-        @keyframes shimmer {
-          0% {
-            transform: translateX(-100%);
-          }
-          100% {
-            transform: translateX(100%);
-          }
-        }
-      `}</style>
 
       {/* Category Navigation - Mobile and Desktop */}
       <div className="mb-2">
@@ -649,76 +589,16 @@ const ProductsGrid = ({
             loading={isLoading && filteredProducts.length === 0}
           />
 
-          {/* Skeleton loaders while fetching */}
-          {showSkeletonLoaders && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-4">
-              {Array.from({ length: 40 }).map((_, index) => (
-                <div key={`skeleton-${index}`} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
-                  <div className="aspect-square bg-gradient-to-r from-gray-100 to-gray-200 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-shimmer"></div>
-                  </div>
-                  <div className="p-3">
-                    <div className="h-4 bg-gradient-to-r from-gray-100 to-gray-200 rounded mb-2 animate-pulse"></div>
-                    <div className="h-3 bg-gradient-to-r from-gray-100 to-gray-200 rounded w-3/4 mb-3 animate-pulse"></div>
-                    <div className="h-4 bg-gradient-to-r from-gray-100 to-gray-200 rounded w-1/2 animate-pulse"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
           {/* Load More Button */}
-          {showLoadMoreButton && (
-            <div className="flex justify-center mt-8 mb-8">
+          {(hasNextPage || isFetchingNextPage) && (
+            <div className="flex justify-start mt-8">
               <button
-                onClick={loadMoreProducts}
+                onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
-                className="px-8 py-3 bg-primary-orange hover:bg-orange-600 disabled:bg-orange-300 text-white rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2"
+                className="px-8 py-3 bg-primary-orange hover:bg-orange-600 disabled:bg-orange-300 text-white rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
-                {isFetchingNextPage ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Yuklanmoqda...
-                  </>
-                ) : (
-                  <>
-                    <span>Ko'proq ko'rish</span>
-                    <span className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">
-                      {totalLoadedProducts}/100
-                    </span>
-                  </>
-                )}
+                {isFetchingNextPage ? "Yuklanmoqda..." : "Ko'proq ko'rish"}
               </button>
-            </div>
-          )}
-
-          {/* All products loaded message */}
-          {allProductsLoaded && totalLoadedProducts >= 100 && (
-            <div className="flex justify-center mt-8">
-              <div className="bg-green-100 text-green-800 px-6 py-3 rounded-xl font-medium flex items-center gap-2">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                100 ta mahsulot yuklandi
-              </div>
-            </div>
-          )}
-
-          {/* Show skeleton loaders at the bottom while loading more */}
-          {isFetchingNextPage && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-4">
-              {Array.from({ length: 40 }).map((_, index) => (
-                <div key={`bottom-skeleton-${index}`} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 animate-pulse">
-                  <div className="aspect-square bg-gradient-to-r from-gray-100 to-gray-200 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-shimmer"></div>
-                  </div>
-                  <div className="p-3">
-                    <div className="h-4 bg-gradient-to-r from-gray-100 to-gray-200 rounded mb-2 animate-pulse"></div>
-                    <div className="h-3 bg-gradient-to-r from-gray-100 to-gray-200 rounded w-3/4 mb-3 animate-pulse"></div>
-                    <div className="h-4 bg-gradient-to-r from-gray-100 to-gray-200 rounded w-1/2 animate-pulse"></div>
-                  </div>
-                </div>
-              ))}
             </div>
           )}
         </>

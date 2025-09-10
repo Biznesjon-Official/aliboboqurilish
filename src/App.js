@@ -12,6 +12,7 @@ import './utils/browserStockSync'; // Browser-based stock sync
 import './utils/forceRefresh'; // Force refresh utility
 import './utils/stockUpdateDebugger'; // Stock update debugging tool
 import './utils/stockNotification'; // Visual stock notifications
+import './testOptimisticUpdates'; // Test optimisticUpdates import
 
 const MainPage = lazy(() => import('./components/MainPage'));
 const ProductDetailPage = lazy(() => import('./components/ProductDetailPage'));

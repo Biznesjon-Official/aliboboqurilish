@@ -1,5 +1,13 @@
 const Product = require('../models/Product');
 
+// Simple in-memory cache to speed up repeated fast queries
+const fastCache = new Map();
+const FAST_CACHE_TTL = 15 * 1000; // 15s – enough to coalesce bursty first loads
+
+const getFastCacheKey = (query, page, limit, sort) => {
+  return JSON.stringify({ q: query, p: page, l: limit, s: sort });
+};
+
 // Optimized product controller for faster loading
 const getProductsFast = async (req, res) => {
   try {
@@ -31,14 +39,31 @@ const getProductsFast = async (req, res) => {
       sort = { price: req.query.sortOrder === 'asc' ? 1 : -1 };
     }
     
-    // Ultra-fast query with minimal data - fetch only essential fields
+    // Serve from cache if available
+    const cacheKey = getFastCacheKey(query, page, limit, sort);
+    const cached = fastCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < FAST_CACHE_TTL) {
+      if (debug) console.log('[getProductsFast] Served from cache');
+      return res.json(cached.payload);
+    }
+
+    // Ultra-fast query with minimal data - fetch only essential fields (including images)
     const products = await Product.find(query)
+      .select('name price oldPrice category stock unit badge rating isNew isPopular image images updatedAt createdAt')
       .sort(sort)
       .skip(skip)
       .limit(limit)
       .lean(); // Use lean() for faster queries
     
-    // Process products to include only essential fields and add default image
+    // Choose a safe primary image: prefer product.image, else first from images
+    const getPrimaryImage = (p) => {
+      const imgs = Array.isArray(p.images) ? p.images : [];
+      if (p.image && typeof p.image === 'string' && p.image.length > 0) return p.image;
+      if (imgs.length > 0 && typeof imgs[0] === 'string' && imgs[0].length > 0) return imgs[0];
+      return '/assets/default-product.svg';
+    };
+
+    // Process products to include only essential fields and keep very small image payload
     const productsWithImages = products.map(product => ({
       _id: product._id,
       name: product.name,
@@ -51,14 +76,17 @@ const getProductsFast = async (req, res) => {
       rating: product.rating,
       isNew: product.isNew,
       isPopular: product.isPopular,
-      image: '/assets/default-product.png', // Use default image for speed
-      images: []
+      image: getPrimaryImage(product),
+      // Limit images array to at most 3 to avoid huge payloads
+      images: Array.isArray(product.images) ? product.images.slice(0, 3) : [],
+      updatedAt: product.updatedAt,
+      createdAt: product.createdAt
     }));
     
     const duration = Date.now() - startTime;
     if (debug) console.log(`[getProductsFast] Completed in ${duration}ms, returned ${products.length} products`);
     
-    res.json({
+    const payload = {
       products: productsWithImages,
       pagination: {
         currentPage: page,
@@ -70,7 +98,12 @@ const getProductsFast = async (req, res) => {
         queryTime: duration,
         optimized: true
       }
-    });
+    };
+
+    // Save to cache
+    fastCache.set(cacheKey, { payload, timestamp: Date.now() });
+
+    res.json(payload);
     
   } catch (error) {
     console.error('[getProductsFast] Detailed Error:', {

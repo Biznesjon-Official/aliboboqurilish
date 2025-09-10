@@ -35,8 +35,8 @@ const MainPage = ({ onSuccessfulLogin }) => {
   const [activeSection, setActiveSection] = useState('products');
 
   // Parallel data loading for initial page load - Ultra-optimized for speed
-  const craftsmenUrl = 'http://localhost:5000/api/craftsmen?limit=40&status=active'; // Increased to 40 for faster loading
-  const productsUrl = 'http://localhost:5000/api/products?limit=40&page=1&includeImages=true'; // Use regular endpoint with images
+  const craftsmenUrl = 'http://localhost:5000/api/craftsmen?limit=20&status=active'; // Reduced from 50 to 20
+  const productsUrl = 'http://localhost:5000/api/products/fast?limit=20&page=1';
   const { data: parallelData, loading: parallelLoading } = useParallelFetch([
     craftsmenUrl,
     productsUrl

@@ -7,7 +7,6 @@
     "start": "node server.js",
     "start:dev": "cross-env NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=false node server.js",
     "start:fast": "cross-env NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=false node server.js",
-    "start:ultra": "cross-env NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=false DISABLE_LOGGING=true MONGODB_BUFFER_COMMANDS=false MONGODB_SOCKET_TIMEOUT=5000 MONGODB_SERVER_SELECTION_TIMEOUT=3000 EXPRESS_TRUST_PROXY=false node server.js",
     "dev": "nodemon server.js",
     "optimize-db": "node scripts/optimize-database.js",
     "db:reset": "node scripts/reset-database.js",
@@ -34,7 +33,6 @@
     "hpp": "^0.2.3",
     "mongoose": "^7.5.0",
     "multer": "^2.0.2",
-    "node-fetch": "^3.3.2",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {

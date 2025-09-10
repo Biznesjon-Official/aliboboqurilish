@@ -4,8 +4,7 @@ const { addActivity } = require('../routes/recentActivitiesRoutes');
 
 // Performance constants
 const MAX_LIMIT = 1000; // Maximum items per page
-const DEFAULT_LIMIT = 40; // Default items per page (increased from 20 to 40)
-const ALL_PRODUCTS_LIMIT = 10000; // Limit for loading all products
+const DEFAULT_LIMIT = 20; // Default items per page
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 
 // Simple in-memory cache for frequently accessed data
@@ -54,24 +53,18 @@ const getProducts = async (req, res) => {
         timestamp: new Date().toISOString()
       });
     }
-    
-    // Check if we want to load all products
-    let limit;
-    if (req.query.all === 'true') {
-      // Load all products (up to ALL_PRODUCTS_LIMIT)
-      limit = ALL_PRODUCTS_LIMIT;
-    } else {
-      // Validate and sanitize pagination parameters
-      const requestedLimit = parseInt(req.query.limit) || DEFAULT_LIMIT;
-      limit = Math.min(MAX_LIMIT, Math.max(1, requestedLimit));
-    }
+    // Validate and sanitize pagination parameters
+    const requestedLimit = parseInt(req.query.limit) || DEFAULT_LIMIT;
+    const limit = Math.min(MAX_LIMIT, Math.max(1, requestedLimit));
 
     // Build optimized query object
     // Include legacy documents that may be missing `status` or `isDeleted`
     let query = {
-      status: 'active',
-      isDeleted: { $ne: true }
-    }; // Active and not deleted
+      $and: [
+        { $or: [{ status: 'active' }, { status: { $exists: false } }] },
+        { $or: [{ isDeleted: false }, { isDeleted: { $exists: false } }] }
+      ]
+    }; // Active or missing status, not-deleted or missing flag by default
 
     // Category filter - use exact match for better index usage
     if (req.query.category && req.query.category.trim() !== '') {
@@ -206,9 +199,7 @@ const getProducts = async (req, res) => {
                 : (doc.image || '/assets/default-product.svg')),
           images: req.query.includeImages === 'true'
             ? (doc.images || [])
-            : (doc.images
-                ? doc.images.filter(img => !img.startsWith('data:image/'))
-                : [])
+            : (doc.images || [])
         }));
 
         const hasNext = filteredDocs.length > limit;
@@ -753,30 +744,8 @@ const updateProduct = async (req, res) => {
     // OPTIMIZED: Minimal cache operations for speed
     cache.clear(); // Quick cache clear
 
-    // Add to recent activities
-    console.log('🔄 About to call addActivity for product update:', updatedProduct._id);
-    try {
-      const activityData = {
-        category: 'mahsulotlar',
-        icon: 'fa-edit',
-        iconBg: 'bg-blue-100',
-        iconColor: 'text-blue-600',
-        title: 'Mahsulot tahrirlandi',
-        desc: `${updatedProduct.name} - ${updatedProduct.price.toLocaleString()} so'm`,
-        time: 'Hozir',
-        entityType: 'product',
-        entityId: updatedProduct._id,
-        entityName: updatedProduct.name,
-      };
-      console.log('📝 Product activity data:', activityData);
-      const result = addActivity(activityData);
-      console.log('✅ Product activity added successfully:', result);
-    } catch (activityError) {
-      console.error('⚠️ Recent activity error (non-critical):', activityError.message);
-      console.error('⚠️ Full error:', activityError);
-    }
-
     // OPTIMIZED: Skip heavy operations for speed
+    // addActivity() - skip for faster response
     // NotificationService - skip for faster response
 
     console.log('✅ Product updated:', updatedProduct._id);
@@ -840,30 +809,8 @@ const createProduct = async (req, res) => {
     // OPTIMIZED: Minimal cache operations for speed
     cache.clear(); // Quick cache clear
 
-    // Add to recent activities
-    console.log('🔄 About to call addActivity for product creation:', savedProduct._id);
-    try {
-      const activityData = {
-        category: 'mahsulotlar',
-        icon: 'fa-plus',
-        iconBg: 'bg-green-100',
-        iconColor: 'text-green-600',
-        title: 'Yangi mahsulot qo\'shildi',
-        desc: `${savedProduct.name} - ${savedProduct.price.toLocaleString()} so'm`,
-        time: 'Hozir',
-        entityType: 'product',
-        entityId: savedProduct._id,
-        entityName: savedProduct.name,
-      };
-      console.log('📝 Product creation activity data:', activityData);
-      const result = addActivity(activityData);
-      console.log('✅ Product creation activity added successfully:', result);
-    } catch (activityError) {
-      console.error('⚠️ Recent activity error (non-critical):', activityError.message);
-      console.error('⚠️ Full error:', activityError);
-    }
-
     // OPTIMIZED: Skip heavy operations for speed
+    // addActivity() - skip for faster response
     // NotificationService - skip for faster response
 
     console.log('✅ Product created:', savedProduct._id);
@@ -1094,5 +1041,3 @@ module.exports = {
   setArchiveStatus,
   convertBase64Images
 };
-
-
