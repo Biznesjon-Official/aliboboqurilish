@@ -52,12 +52,13 @@ class SocketService {
               if (isAllowed) {
                 callback(null, true);
               } else {
-                callback(null, true); // Be more permissive in production
+                callback(new Error('Not allowed by CORS')); // Be strict in production
               }
             }
           },
           methods: ['GET', 'POST'],
           credentials: true,
+          optionsSuccessStatus: 200
         },
         transports: ['polling', 'websocket'],
         allowEIO3: true, // Support older clients

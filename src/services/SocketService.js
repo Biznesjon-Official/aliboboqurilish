@@ -36,7 +36,8 @@ class SocketService {
         forceNew: false,
         upgrade: true,
         rememberUpgrade: true,
-        withCredentials: true // Ensure credentials are sent with requests
+        withCredentials: true, // Ensure credentials are sent with requests
+        rejectUnauthorized: false // Accept self-signed certificates in development
         // Removed extraHeaders as they can cause CORS issues
       });
 

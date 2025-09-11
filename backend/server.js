@@ -136,7 +136,8 @@ app.use(cors({
     }
   },
   credentials: true,
-  maxAge: 86400 // CORS pre-flight results are cached for 1 day
+  maxAge: 86400, // CORS pre-flight results are cached for 1 day
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
 
 // Log CORS configuration in development (only if debug enabled)
@@ -194,39 +195,72 @@ app.use(mongoSanitize());
 // Prevent HTTP parameter pollution
 app.use(hpp());
 
-// Rate limiting for API endpoints - more appropriate for production
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 2000 : parseInt(process.env.RATE_LIMIT_MAX || '50000'),
-  standardHeaders: true,
-  legacyHeaders: false,
-  // Skip rate limiting for some trusted IPs
-  skip: (req) => {
-    const trustedIps = (process.env.TRUSTED_IPS || '').split(',');
-    return trustedIps.includes(req.ip);
-  },
-  message: {
-    error: 'Too many requests',
-    message: 'You have exceeded the rate limit. Please try again later.'
-  }
-});
-app.use('/api', limiter);
+// Rate limiting for API endpoints - disable in development
+if (process.env.NODE_ENV !== 'development') {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: parseInt(process.env.RATE_LIMIT_MAX || '50000'),
+    standardHeaders: true,
+    legacyHeaders: false,
+    // Skip rate limiting for some trusted IPs
+    skip: (req) => {
+      const trustedIps = (process.env.TRUSTED_IPS || '').split(',');
+      return trustedIps.includes(req.ip);
+    },
+    message: {
+      error: 'Too many requests',
+      message: 'You have exceeded the rate limit. Please try again later.'
+    }
+  });
+  app.use('/api', limiter);
+} else {
+  // Very high rate limits for development to prevent 429 errors
+  const devLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100000, // Very high limit for development
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      error: 'Too many requests',
+      message: 'Development rate limit exceeded. Please try again later.'
+    }
+  });
+  app.use('/api', devLimiter);
+}
 
-// Additional stricter rate limiting for specific high-traffic endpoints
-const strictLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 1000 : 10000, // Much higher limits
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error: 'Too many requests',
-    message: 'You have exceeded the rate limit for this endpoint. Please try again later.'
-  }
-});
+// Additional stricter rate limiting for specific high-traffic endpoints - disable in development
+if (process.env.NODE_ENV !== 'development') {
+  const strictLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10000, // Much higher limits
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      error: 'Too many requests',
+      message: 'You have exceeded the rate limit for this endpoint. Please try again later.'
+    }
+  });
 
-// Apply stricter rate limiting to craftsmen and products endpoints
-app.use('/api/craftsmen', strictLimiter);
-app.use('/api/products', strictLimiter);
+  // Apply stricter rate limiting to craftsmen and products endpoints
+  app.use('/api/craftsmen', strictLimiter);
+  app.use('/api/products', strictLimiter);
+} else {
+  // Very high rate limits for development to prevent 429 errors
+  const devStrictLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100000, // Very high limit for development
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      error: 'Too many requests',
+      message: 'Development rate limit exceeded. Please try again later.'
+    }
+  });
+
+  // Apply high rate limiting to craftsmen and products endpoints in development
+  app.use('/api/craftsmen', devStrictLimiter);
+  app.use('/api/products', devStrictLimiter);
+}
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));

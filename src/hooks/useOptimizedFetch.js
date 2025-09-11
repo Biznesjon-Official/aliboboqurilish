@@ -16,11 +16,16 @@ const cleanCache = () => {
 // Schedule cache cleaning every 5 minutes
 setInterval(cleanCache, 5 * 60 * 1000);
 
-// Rate limiting implementation
+// Rate limiting implementation - disable in development
 const requestTimestamps = [];
-const MAX_REQUESTS_PER_MINUTE = 1000; // Increased from 500 to 1000
+const MAX_REQUESTS_PER_MINUTE = process.env.NODE_ENV === 'development' ? 10000 : 1000; // No limit in development
 
 const canMakeRequest = () => {
+  // No rate limiting in development
+  if (process.env.NODE_ENV === 'development') {
+    return true;
+  }
+  
   const now = Date.now();
   // Remove timestamps older than 1 minute
   while (requestTimestamps.length > 0 && requestTimestamps[0] < now - 60000) {
@@ -124,6 +129,8 @@ export const useParallelFetch = (urls, options = {}) => {
           signal: controller.signal,
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include', // Include credentials for CORS
+          mode: 'cors', // Enable CORS
+          cache: 'no-cache', // Disable cache for real-time data
           ...options.fetchOptions
         });
 
