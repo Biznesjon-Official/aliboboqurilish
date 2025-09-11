@@ -1,4 +1,15 @@
 // Optimized product controller for faster loading
+const Product = require('../models/Product');
+
+// Simple in-memory cache (in production, you might want to use Redis)
+const fastCache = new Map();
+const FAST_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Generate cache key based on query parameters
+const getFastCacheKey = (query, page, limit, sort) => {
+  return `products_fast_${JSON.stringify(query)}_${page}_${limit}_${JSON.stringify(sort)}`;
+};
+
 const getProductsFast = async (req, res) => {
   try {
     const debug = true; // Always enable debug for troubleshooting
@@ -117,5 +128,3 @@ const getProductsFast = async (req, res) => {
 module.exports = {
   getProductsFast
 };
-
-
