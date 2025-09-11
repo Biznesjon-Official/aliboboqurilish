@@ -343,8 +343,6 @@ const connectDB = async () => {
     // Performance optimized connection options with increased timeouts for network latency
     const isDevelopment = process.env.NODE_ENV === 'development';
     const conn = await mongoose.connect(uri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       serverSelectionTimeoutMS: isDevelopment ? 30000 : 8000, // Increased from 5000 to 30000 for high latency
       connectTimeoutMS: isDevelopment ? 30000 : 8000, // Increased from 5000 to 30000 for high latency
       socketTimeoutMS: isDevelopment ? 45000 : 20000, // Increased from 15000 to 45000 for high latency
@@ -352,7 +350,6 @@ const connectDB = async () => {
       minPoolSize: isDevelopment ? 1 : 2,  // Smaller minimum pool in dev
       family: 4,       // Prefer IPv4
       heartbeatFrequencyMS: isDevelopment ? 60000 : 30000, // Less frequent heartbeats in dev
-      monitorCommands: false, // Disable command monitoring
       bufferCommands: true
     });
     if (process.env.DEBUG === 'true') {
