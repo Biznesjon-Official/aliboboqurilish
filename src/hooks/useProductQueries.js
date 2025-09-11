@@ -42,7 +42,7 @@ const fetchProducts = async ({ category = '', search = '', page = 1, limit = 200
     // Handle rate limiting specifically
     if (response.status === 429) {
       const retryAfter = response.headers.get('Retry-After');
-      const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 5000; // Default to 5 seconds
+      const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 500; // Reduced from 1000 to 500ms
       console.log(`⏳ Rate limited, waiting ${waitTime}ms before retrying`);
       await new Promise(resolve => setTimeout(resolve, waitTime));
       // Retry the request

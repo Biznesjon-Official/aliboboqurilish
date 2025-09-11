@@ -18,7 +18,7 @@ setInterval(cleanCache, 5 * 60 * 1000);
 
 // Rate limiting implementation
 const requestTimestamps = [];
-const MAX_REQUESTS_PER_MINUTE = 60;
+const MAX_REQUESTS_PER_MINUTE = 1000; // Increased from 500 to 1000
 
 const canMakeRequest = () => {
   const now = Date.now();

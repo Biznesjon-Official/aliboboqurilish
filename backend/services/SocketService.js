@@ -52,7 +52,7 @@ class SocketService {
               if (isAllowed) {
                 callback(null, true);
               } else {
-                callback(new Error('Not allowed by CORS'));
+                callback(null, true); // Be more permissive in production
               }
             }
           },

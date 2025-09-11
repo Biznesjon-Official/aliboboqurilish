@@ -116,8 +116,20 @@ app.use(cors({
       return callback(null, true);
     }
     
-    // Check if the origin is in our allowed list
-    if (corsOrigins.indexOf(origin) !== -1) {
+    // For production, be more permissive with allowed origins
+    const allowedOrigins = [
+      'http://localhost:3000', 
+      'http://127.0.0.1:3000', 
+      'http://localhost:3001', 
+      'http://127.0.0.1:3001', 
+      'https://aliboboqurilish.uz',
+      'https://www.aliboboqurilish.uz'
+    ];
+    
+    // Check if the origin is in our allowed list or is a subdomain
+    if (allowedOrigins.includes(origin) || 
+        origin.endsWith('.aliboboqurilish.uz') || 
+        origin.startsWith('https://aliboboqurilish.uz')) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -182,10 +194,10 @@ app.use(mongoSanitize());
 // Prevent HTTP parameter pollution
 app.use(hpp());
 
-// Rate limiting for API endpoints - more strict for development
+// Rate limiting for API endpoints - more appropriate for production
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 500 : parseInt(process.env.RATE_LIMIT_MAX || '1000'),
+  max: process.env.NODE_ENV === 'development' ? 2000 : parseInt(process.env.RATE_LIMIT_MAX || '50000'),
   standardHeaders: true,
   legacyHeaders: false,
   // Skip rate limiting for some trusted IPs
@@ -203,7 +215,7 @@ app.use('/api', limiter);
 // Additional stricter rate limiting for specific high-traffic endpoints
 const strictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 100 : 500, // Much stricter for development
+  max: process.env.NODE_ENV === 'development' ? 1000 : 10000, // Much higher limits
   standardHeaders: true,
   legacyHeaders: false,
   message: {
