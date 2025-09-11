@@ -482,7 +482,7 @@ const connectDB = async () => {
 };
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001; // Changed from 5000 to 5001 to avoid conflicts
 let server; // Global reference to server for graceful shutdown
 
 const startServer = async () => {
