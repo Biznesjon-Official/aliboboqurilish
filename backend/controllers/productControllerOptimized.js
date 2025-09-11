@@ -113,3 +113,9 @@ const getProductsFast = async (req, res) => {
     });
   }
 };
+
+module.exports = {
+  getProductsFast
+};
+
+
