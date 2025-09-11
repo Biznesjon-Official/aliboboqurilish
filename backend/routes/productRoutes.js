@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const { getProducts, getProductById, getCategories, clearCache, updateProduct, createProduct, softDeleteProduct, restoreProduct, setArchiveStatus, convertBase64Images } = require('../controllers/productController');
+const { getProductsFast } = require('../controllers/productControllerOptimized');
 
 router.get('/with-images', async (req, res) => {
   try {
@@ -46,7 +47,6 @@ router.get('/with-images', async (req, res) => {
 router.get('/', getProducts);
 
 // GET /api/products/fast - Ultra-fast products endpoint (must be before /:id)
-const { getProductsFast } = require('../controllers/productControllerOptimized');
 router.get('/fast', getProductsFast);
 
 // GET /api/products/categories/list - Get all categories with counts (cached)
