@@ -1,19 +1,12 @@
-const Product = require('../models/Product');
-
-// Simple in-memory cache to speed up repeated fast queries
-const fastCache = new Map();
-const FAST_CACHE_TTL = 15 * 1000; // 15s – enough to coalesce bursty first loads
-
-const getFastCacheKey = (query, page, limit, sort) => {
-  return JSON.stringify({ q: query, p: page, l: limit, s: sort });
-};
-
 // Optimized product controller for faster loading
 const getProductsFast = async (req, res) => {
   try {
     const debug = true; // Always enable debug for troubleshooting
     if (debug) console.log('[getProductsFast] Starting optimized product fetch');
     const startTime = Date.now();
+    
+    // Log incoming request
+    if (debug) console.log('[getProductsFast] Request query:', req.query);
     
     // Simple pagination
     const limit = Math.min(parseInt(req.query.limit) || 60, 100);
@@ -103,6 +96,9 @@ const getProductsFast = async (req, res) => {
     // Save to cache
     fastCache.set(cacheKey, { payload, timestamp: Date.now() });
 
+    // Log response
+    if (debug) console.log('[getProductsFast] Sending response with', products.length, 'products');
+    
     res.json(payload);
     
   } catch (error) {
@@ -116,8 +112,4 @@ const getProductsFast = async (req, res) => {
       message: error.message
     });
   }
-};
-
-module.exports = {
-  getProductsFast
 };

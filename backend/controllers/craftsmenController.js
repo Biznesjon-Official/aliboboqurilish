@@ -3,6 +3,9 @@ const Craftsman = require('../models/Craftsman');
 // GET all craftsmen with pagination, search, and filtering
 const getCraftsmen = async (req, res) => {
   try {
+    const debug = true; // Enable debug for troubleshooting
+    if (debug) console.log('[getCraftsmen] Request query:', req.query);
+    
     const { page = 1, limit = 10, search = '', specialty = '', status = '', sortBy = 'joinDate', sortOrder = 'desc' } = req.query;
     
     const query = {};
@@ -26,6 +29,9 @@ const getCraftsmen = async (req, res) => {
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
     
+    if (debug) console.log('[getCraftsmen] Query:', query);
+    if (debug) console.log('[getCraftsmen] Sort options:', sortOptions);
+    
     const craftsmen = await Craftsman.find(query)
       .sort(sortOptions)
       .limit(limit * 1)
@@ -33,6 +39,8 @@ const getCraftsmen = async (req, res) => {
       .exec();
     
     const count = await Craftsman.countDocuments(query);
+    
+    if (debug) console.log('[getCraftsmen] Found', craftsmen.length, 'craftsmen');
     
     res.json({
       craftsmen,
