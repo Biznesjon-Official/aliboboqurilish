@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 
 // Improved cache with expiration management
 const cache = new Map();
@@ -16,6 +16,39 @@ const cleanCache = () => {
 // Schedule cache cleaning every 5 minutes
 setInterval(cleanCache, 5 * 60 * 1000);
 
+// Rate limiting implementation
+const requestTimestamps = [];
+const MAX_REQUESTS_PER_MINUTE = 60;
+
+const canMakeRequest = () => {
+  const now = Date.now();
+  // Remove timestamps older than 1 minute
+  while (requestTimestamps.length > 0 && requestTimestamps[0] < now - 60000) {
+    requestTimestamps.shift();
+  }
+  
+  // Check if we can make another request
+  if (requestTimestamps.length < MAX_REQUESTS_PER_MINUTE) {
+    requestTimestamps.push(now);
+    return true;
+  }
+  
+  return false;
+};
+
+const waitForRateLimit = () => {
+  return new Promise(resolve => {
+    const check = () => {
+      if (canMakeRequest()) {
+        resolve();
+      } else {
+        setTimeout(check, 1000); // Check again in 1 second
+      }
+    };
+    check();
+  });
+};
+
 // Optimized parallel fetch hook with deduplication and error handling per request
 export const useParallelFetch = (urls, options = {}) => {
   const {
@@ -30,8 +63,12 @@ export const useParallelFetch = (urls, options = {}) => {
   const abortControllersRef = useRef(new Map());
   const isMountedRef = useRef(true);
 
-  // Generate a stable dependency key from urls
-  const urlsKey = urls ? urls.join(',') : '';
+  // Generate a stable dependency key from urls using useMemo
+  const urlsKey = useMemo(() => {
+    if (!urls) return '';
+    // Sort the URLs to ensure consistent key generation regardless of order
+    return [...urls].sort().join('|');
+  }, [JSON.stringify(urls)]); // Use JSON.stringify to properly detect changes in the urls array
 
   useEffect(() => {
     if (!urls || urls.length === 0 || !enabled) {
@@ -52,6 +89,8 @@ export const useParallelFetch = (urls, options = {}) => {
     let pendingFetches = urls.length;
 
     const fetchUrl = async (url) => {
+      console.log(`📡 Attempting to fetch: ${url}`);
+      
       // Check cache first
       const cachedData = cache.get(url);
       if (cachedData && cachedData.expiry > now) {
@@ -70,6 +109,12 @@ export const useParallelFetch = (urls, options = {}) => {
         newData[url] = cachedData.data;
       }
 
+      // Rate limiting - wait if necessary
+      if (!canMakeRequest()) {
+        console.log(`⏳ Rate limit reached, waiting before fetching: ${url}`);
+        await waitForRateLimit();
+      }
+
       // Create new abort controller for this URL
       const controller = new AbortController();
       abortControllersRef.current.set(url, controller);
@@ -78,11 +123,25 @@ export const useParallelFetch = (urls, options = {}) => {
         const response = await fetch(url, {
           signal: controller.signal,
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include', // Include credentials for CORS
           ...options.fetchOptions
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const errorText = await response.text();
+          console.error(`❌ HTTP error for ${url}! status: ${response.status}, message: ${errorText}`);
+          
+          // Handle rate limiting specifically
+          if (response.status === 429) {
+            const retryAfter = response.headers.get('Retry-After');
+            const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 5000; // Default to 5 seconds
+            console.log(`⏳ Rate limited, waiting ${waitTime}ms before retrying`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            // Retry the request
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+          }
+          
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
 
         const result = await response.json();
@@ -124,7 +183,7 @@ export const useParallelFetch = (urls, options = {}) => {
         controller.abort();
       });
     };
-  }, [urlsKey, enabled, cacheTime, staleTime, options.fetchOptions]);
+  }, [urlsKey, enabled, cacheTime, staleTime, JSON.stringify(options.fetchOptions)]); // Add fetchOptions to dependencies
 
   // Cleanup on unmount
   useEffect(() => {

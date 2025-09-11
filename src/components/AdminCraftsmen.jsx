@@ -135,6 +135,7 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
     itemsPerPage,
     debouncedSearch,
     debouncedSpecialty,
+    '', // status parameter - empty means all statuses
     sortField,
     sortDirection
   );

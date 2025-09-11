@@ -96,10 +96,33 @@ app.set('trust proxy', process.env.TRUST_PROXY === 'true');
 // Performance middleware
 const corsOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001', 'https://www.aliboboqurilish.uz', 'https://aliboboqurilish.uz'];
+  : [
+      'http://localhost:3000', 
+      'http://127.0.0.1:3000', 
+      'http://localhost:3001', 
+      'http://127.0.0.1:3001', 
+      'https://aliboboqurilish.uz',
+      'https://www.aliboboqurilish.uz'
+    ];
 
 app.use(cors({
-  origin: corsOrigins,
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Always allow requests in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`⚠️  CORS request from origin: ${origin}`);
+      return callback(null, true);
+    }
+    
+    // Check if the origin is in our allowed list
+    if (corsOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   maxAge: 86400 // CORS pre-flight results are cached for 1 day
 }));
@@ -176,6 +199,22 @@ const limiter = rateLimit({
   }
 });
 app.use('/api', limiter);
+
+// Additional stricter rate limiting for specific high-traffic endpoints
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'development' ? 100 : 500, // Much stricter for development
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many requests',
+    message: 'You have exceeded the rate limit for this endpoint. Please try again later.'
+  }
+});
+
+// Apply stricter rate limiting to craftsmen and products endpoints
+app.use('/api/craftsmen', strictLimiter);
+app.use('/api/products', strictLimiter);
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -406,8 +445,12 @@ const startServer = async () => {
   // Create HTTP server for Socket.IO integration
   const httpServer = http.createServer(app);
   
+  console.log('🔧 Initializing Socket.IO server...');
+  
   // Initialize Socket.IO for real-time stock updates
-  socketService.initialize(httpServer);
+  const io = socketService.initialize(httpServer);
+  
+  console.log('✅ Socket.IO server initialized');
   
   // Socket.IO events available: stock:updated, order:updated, stock:bulk_updated, product:availability_changed, admin:notification
   

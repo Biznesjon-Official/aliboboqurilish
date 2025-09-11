@@ -4,6 +4,40 @@ const Product = require('../models/Product');
 // Simple in-memory cache (in production, you might want to use Redis)
 const fastCache = new Map();
 const FAST_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const MAX_CACHE_SIZE = 100; // Maximum number of cache entries
+
+// Helper function to clean expired cache entries
+const cleanCache = () => {
+  const now = Date.now();
+  let deletedCount = 0;
+  
+  for (const [key, { timestamp }] of fastCache.entries()) {
+    if ((now - timestamp) > FAST_CACHE_TTL) {
+      fastCache.delete(key);
+      deletedCount++;
+    }
+  }
+  
+  // If cache is still too large, remove oldest entries
+  if (fastCache.size > MAX_CACHE_SIZE) {
+    const entries = Array.from(fastCache.entries());
+    // Sort by timestamp (oldest first)
+    entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+    
+    // Remove oldest entries until we're under the limit
+    const excess = fastCache.size - MAX_CACHE_SIZE;
+    for (let i = 0; i < excess; i++) {
+      fastCache.delete(entries[i][0]);
+    }
+  }
+  
+  if (process.env.NODE_ENV === 'development' && deletedCount > 0) {
+    console.log(`[getProductsFast] Cleaned ${deletedCount} expired cache entries`);
+  }
+};
+
+// Clean cache every 5 minutes
+setInterval(cleanCache, 5 * 60 * 1000);
 
 // Generate cache key based on query parameters
 const getFastCacheKey = (query, page, limit, sort) => {
@@ -12,15 +46,15 @@ const getFastCacheKey = (query, page, limit, sort) => {
 
 const getProductsFast = async (req, res) => {
   try {
-    const debug = true; // Always enable debug for troubleshooting
+    const debug = process.env.NODE_ENV === 'development'; // Enable debug only in development
     if (debug) console.log('[getProductsFast] Starting optimized product fetch');
     const startTime = Date.now();
     
     // Log incoming request
     if (debug) console.log('[getProductsFast] Request query:', req.query);
     
-    // Simple pagination
-    const limit = Math.min(parseInt(req.query.limit) || 60, 100);
+    // Simple pagination with stricter limits
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100); // Default to 20, max 100
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const skip = (page - 1) * limit;
     
@@ -57,7 +91,8 @@ const getProductsFast = async (req, res) => {
       .sort(sort)
       .skip(skip)
       .limit(limit)
-      .lean(); // Use lean() for faster queries
+      .lean() // Use lean() for faster queries
+      .maxTimeMS(5000); // Add timeout to prevent long-running queries
     
     // Choose a safe primary image: prefer product.image, else first from images
     const getPrimaryImage = (p) => {
@@ -128,3 +163,5 @@ const getProductsFast = async (req, res) => {
 module.exports = {
   getProductsFast
 };
+
+

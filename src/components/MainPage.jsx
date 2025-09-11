@@ -1,5 +1,4 @@
-
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Header from './Header';
 import ProductsGrid from './ProductsGrid';
 import Craftsmen from './Craftsmen';
@@ -35,21 +34,37 @@ const MainPage = ({ onSuccessfulLogin }) => {
   const [activeSection, setActiveSection] = useState('products');
 
   // Parallel data loading for initial page load - Ultra-optimized for speed
-  const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
-  const craftsmenUrl = `${API_BASE}/craftsmen?limit=20&status=active`; // Reduced from 50 to 20
-  const productsUrl = `${API_BASE}/products/fast?limit=20&page=1`;
-  const { data: parallelData, loading: parallelLoading } = useParallelFetch([
-    craftsmenUrl,
-    productsUrl
-  ], { fetchOptions: { cache: 'no-store' } });
+  const API_BASE = process.env.REACT_APP_API_BASE || 'https://aliboboqurilish.uz/api';
+  
+  console.log(`🔧 API Base URL in MainPage: ${API_BASE}`);
+  
+  // Memoize URLs to prevent unnecessary re-renders
+  const urls = useMemo(() => [
+    `${API_BASE}/craftsmen?limit=20&status=active`,
+    `${API_BASE}/products/fast?limit=20&page=1`
+  ], [API_BASE]);
+
+  const { data: parallelData, loading: parallelLoading, errors } = useParallelFetch(urls, { 
+    fetchOptions: { cache: 'no-store' },
+    // Add enabled flag to prevent fetching when not needed
+    enabled: true
+  });
+
+  // Log any errors
+  useEffect(() => {
+    if (errors && Object.keys(errors).length > 0) {
+      console.error('❌ Parallel fetch errors:', errors);
+    }
+  }, [errors]);
 
   // Update craftsmen data when parallel fetch completes
   useEffect(() => {
-    if (parallelData[craftsmenUrl]) {
-      const craftsmenResponse = parallelData[craftsmenUrl];
+    if (parallelData[urls[0]]) {
+      const craftsmenResponse = parallelData[urls[0]];
+      console.log('🔧 Craftsmen data received:', craftsmenResponse);
       setCraftsmenData(craftsmenResponse.craftsmen || []);
     }
-  }, [parallelData]);
+  }, [parallelData, urls]);
 
   // Optimized callback for ProductsGrid
   const handleInitialProductsLoaded = useCallback(() => {
@@ -170,7 +185,7 @@ const MainPage = ({ onSuccessfulLogin }) => {
       <div id="craftsmen">
         <Craftsmen
           craftsmenData={craftsmenData}
-          loading={parallelLoading || !parallelData[craftsmenUrl]}
+          loading={parallelLoading || !parallelData[urls[0]]}
         />
       </div>
       <Services />

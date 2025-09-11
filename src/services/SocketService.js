@@ -10,6 +10,7 @@ class SocketService {
     this.healthCheckInterval = null;
     this.lastSuccessfulPing = null;
     this.previousHealthCheckFailed = false; // Track health check failures
+    this.isDevelopment = process.env.NODE_ENV === 'development';
   }
 
   initialize() {
@@ -22,6 +23,8 @@ class SocketService {
       // Use environment variables for socket URL
       const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_BASE?.replace(/\/api$/, '') || 'http://localhost:5000';
       
+      console.log(`🔧 Initializing Socket.IO with URL: ${socketUrl}`);
+      
       this.socket = io(socketUrl, {
         transports: ['polling', 'websocket'],
         timeout: 60000, // Increased from 20s to 60s
@@ -33,11 +36,13 @@ class SocketService {
         forceNew: false,
         upgrade: true,
         rememberUpgrade: true,
+        withCredentials: true // Ensure credentials are sent with requests
+        // Removed extraHeaders as they can cause CORS issues
       });
 
       this.setupEventListeners();
       this.startHealthMonitoring();
-      // console.log('🔗 Socket.IO initialized');
+      console.log('🔗 Socket.IO initialized');
     } catch (error) {
       console.error('❌ Failed to initialize Socket.IO:', error);
     }
@@ -79,6 +84,12 @@ class SocketService {
         console.log(`🔄 Retrying connection in ${delay/1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
       } else {
         console.warn('⚠️ Max reconnection attempts reached. Socket will retry automatically.');
+      }
+      
+      // In development, if we keep failing, disable socket connection to prevent spam
+      if (this.isDevelopment && this.reconnectAttempts > 5) {
+        console.log('🔧 Development mode: Disabling socket connection to prevent spam');
+        this.disconnect();
       }
     });
 
@@ -268,7 +279,7 @@ class SocketService {
       this.socket = null;
       this.isConnected = false;
       this.listeners.clear();
-      // console.log('🔗 Socket disconnected');
+      console.log('🔗 Socket disconnected');
     }
   }
 }

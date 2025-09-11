@@ -5,29 +5,23 @@ import { queryKeys, invalidateQueries, queryClient } from '../lib/queryClient';
 const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
 
 // Fetch functions
-const fetchProducts = async ({ category, search, page = 1, limit = 20, signal }) => {
-  const useFastEndpoint = page === 1 && (!search || search.trim() === '');
-
+const fetchProducts = async ({ category = '', search = '', page = 1, limit = 200, sortBy = 'updatedAt', sortOrder = 'desc', signal, useFastEndpoint = true }) => {
+  // Build query parameters
   const params = new URLSearchParams({
     limit: limit.toString(),
     page: page.toString(),
-    sortBy: 'updatedAt',
-    sortOrder: 'desc',
+    sortBy,
+    sortOrder,
   });
-
+  
   if (category && category !== '') {
     params.append('category', category);
   }
-
+  
   if (search && search.trim() !== '') {
     params.append('search', search.trim());
   }
-
-  // Include images on the standard endpoint so subsequent pages have thumbnails
-  if (!useFastEndpoint) {
-    params.append('includeImages', 'true');
-  }
-
+  
   const fastPath = `${API_BASE}/products/fast?${params.toString()}`;
   const normalPath = `${API_BASE}/products?${params.toString()}`;
 
@@ -44,10 +38,28 @@ const fetchProducts = async ({ category, search, page = 1, limit = 20, signal })
     if (process.env.NODE_ENV === 'development') {
       console.warn('[fetchProducts] Primary endpoint failed:', primaryUrl, response.status, response.statusText);
     }
-    // Try fallback once
-    response = await fetch(fallbackUrl, { signal, headers: { 'Content-Type': 'application/json' } });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    
+    // Handle rate limiting specifically
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After');
+      const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 5000; // Default to 5 seconds
+      console.log(`⏳ Rate limited, waiting ${waitTime}ms before retrying`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      // Retry the request
+      response = await fetch(primaryUrl, { signal, headers: { 'Content-Type': 'application/json' } });
+      if (!response.ok) {
+        // Try fallback once
+        response = await fetch(fallbackUrl, { signal, headers: { 'Content-Type': 'application/json' } });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+      }
+    } else {
+      // Try fallback once
+      response = await fetch(fallbackUrl, { signal, headers: { 'Content-Type': 'application/json' } });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
     }
   }
 

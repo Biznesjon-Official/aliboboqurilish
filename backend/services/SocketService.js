@@ -17,7 +17,45 @@ class SocketService {
       // Initialize Socket.IO server with optimized configuration for network latency
       this.io = new Server(httpServer, {
         cors: {
-          origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://www.aliboboqurilish.uz', 'https://aliboboqurilish.uz'],
+          origin: function(origin, callback) {
+            const allowedOrigins = [
+              'http://localhost:3000', 
+              'http://127.0.0.1:3000', 
+              'http://localhost:3001', 
+              'http://127.0.0.1:3001', 
+              'https://aliboboqurilish.uz',
+              'https://www.aliboboqurilish.uz'
+            ];
+            
+            // Allow requests with no origin (like mobile apps or curl requests)
+            if (!origin) return callback(null, true);
+            
+            // Always allow requests in development mode
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`⚠️  Socket.IO request from origin: ${origin}`);
+              return callback(null, true);
+            }
+            
+            // Check if the origin is in our allowed list (exact match)
+            if (allowedOrigins.includes(origin)) {
+              callback(null, true);
+            } else {
+              // In production, check if it's a subdomain or similar
+              let isAllowed = false;
+              for (const allowed of allowedOrigins) {
+                if (origin.startsWith(allowed) || origin.endsWith(allowed.replace(/^https?:\/\//, ''))) {
+                  isAllowed = true;
+                  break;
+                }
+              }
+              
+              if (isAllowed) {
+                callback(null, true);
+              } else {
+                callback(new Error('Not allowed by CORS'));
+              }
+            }
+          },
           methods: ['GET', 'POST'],
           credentials: true,
         },
@@ -240,7 +278,7 @@ class SocketService {
   }
 
   // Emit low stock alerts for admin
-  emitLowStockAlert(productId, productName, currentStock, threshold = 5, variantOption = null) {
+  emitLowStockAlert(productId, currentStock, threshold, productName = null) {
     if (!this.io) {
       console.warn('⚠️ Socket.IO not initialized, cannot emit low stock alert');
       return;
@@ -248,37 +286,36 @@ class SocketService {
 
     const payload = {
       productId,
-      productName,
       currentStock,
       threshold,
-      variantOption,
+      productName,
       timestamp: new Date().toISOString(),
-      type: 'low_stock_alert'
+      type: 'low_stock'
     };
 
+    // Emit to admin room only
     this.io.to('admin').emit('lowStockAlert', payload);
+    
     if (process.env.DEBUG === 'true') {
       console.log('⚠️ Low stock alert emitted to admin:', payload);
     }
   }
 
-  // Emit notification to specific user or all
-  emitNotification(notification, userId = null) {
+  // Emit notification to all clients or specific rooms
+  emitNotification(data, room = null) {
     if (!this.io) {
       console.warn('⚠️ Socket.IO not initialized, cannot emit notification');
       return;
     }
 
     const payload = {
-      ...notification,
+      ...data,
       timestamp: new Date().toISOString(),
     };
 
-    if (userId) {
-      // Send to specific user (if you implement user-specific rooms)
-      this.io.to(`user_${userId}`).emit('notification', payload);
+    if (room) {
+      this.io.to(room).emit('notification', payload);
     } else {
-      // Send to all connected clients
       this.io.emit('notification', payload);
     }
 
@@ -291,70 +328,43 @@ class SocketService {
   getConnectionStats() {
     if (!this.io) {
       return {
-        isInitialized: false,
         connectedClients: 0,
         adminClients: 0,
+        isInitialized: false
       };
     }
 
-    const adminSockets = this.io.sockets.adapter.rooms.get('admin');
-    
+    const connectedClients = this.connectedClients.size;
+    const adminClients = this.io.sockets.adapter.rooms.get('admin')?.size || 0;
+
     return {
-      isInitialized: this.isInitialized,
-      connectedClients: this.connectedClients.size,
-      adminClients: adminSockets ? adminSockets.size : 0,
-      clients: Array.from(this.connectedClients.values()),
+      connectedClients,
+      adminClients,
+      isInitialized: this.isInitialized
     };
   }
 
-  // Broadcast to all clients
-  broadcast(event, data) {
-    if (!this.io) {
-      console.warn(`⚠️ Socket.IO not initialized, cannot broadcast ${event}`);
-      return;
-    }
-
-    const payload = {
-      ...data,
-      timestamp: new Date().toISOString(),
-    };
-
-    this.io.emit(event, payload);
-    if (process.env.DEBUG === 'true') {
-      console.log(`📡 Broadcasted ${event}:`, payload);
-    }
-  }
-
-  // Send to admin only
-  sendToAdmin(event, data) {
-    if (!this.io) {
-      console.warn(`⚠️ Socket.IO not initialized, cannot send ${event} to admin`);
-      return;
-    }
-
-    const payload = {
-      ...data,
-      timestamp: new Date().toISOString(),
-    };
-
-    this.io.to('admin').emit(event, payload);
-    if (process.env.DEBUG === 'true') {
-      console.log(`📡 Sent ${event} to admin:`, payload);
-    }
-  }
-
-  // Cleanup and close connections
+  // Disconnect all clients and close server
   close() {
     if (this.io) {
+      // Disconnect all clients
       this.io.close();
-      this.io = null;
       this.connectedClients.clear();
       this.isInitialized = false;
-      console.log('🔗 Socket.IO server closed');
+      
+      if (process.env.DEBUG === 'true') {
+        console.log('🔌 Socket.IO server closed');
+      }
     }
   }
 }
 
 // Export singleton instance
 const socketService = new SocketService();
+
+// Expose to global scope for debugging
+if (process.env.NODE_ENV === 'development' || process.env.DEBUG === 'true') {
+  global.socketService = socketService;
+}
+
 module.exports = socketService;

@@ -15,6 +15,11 @@ const getCraftsmen = async (req, res) => {
     const sortBy = req.query.sortBy || 'joinDate';
     const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
     
+    // Log the parsed parameters for debugging
+    if (debug) {
+      console.log('[getCraftsmen] Parsed parameters:', { page, limit, search, specialty, status, sortBy, sortOrder });
+    }
+    
     const query = {};
     
     if (search) {

@@ -2,26 +2,49 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys, queryClient } from '../lib/queryClient';
 
 // API base URL - Direct connection to backend
-const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+const API_BASE = process.env.REACT_APP_API_BASE || 'https://aliboboqurilish.uz/api';
+
+console.log(`🔧 API Base URL: ${API_BASE}`);
 
 // Fetch functions
-const fetchCraftsmen = async ({ page = 1, limit = 10, search = '', specialty = '', sortBy = 'joinDate', sortOrder = 'desc', signal }) => {
+const fetchCraftsmen = async ({ page = 1, limit = 10, search = '', specialty = '', status = '', sortBy = 'joinDate', sortOrder = 'desc', signal }) => {
   const params = new URLSearchParams({
     page: page.toString(),
     limit: limit.toString(),
     search,
     specialty,
+    status, // Add status parameter
     sortBy,
     sortOrder
   });
 
-  const response = await fetch(`${API_BASE}/craftsmen?${params.toString()}`, {
+  const url = `${API_BASE}/craftsmen?${params.toString()}`;
+  console.log(`📡 Fetching craftsmen from: ${url}`);
+  
+  let response = await fetch(url, {
     signal,
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // Include credentials for CORS
   });
 
+  // Handle rate limiting
+  if (response.status === 429) {
+    const retryAfter = response.headers.get('Retry-After');
+    const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 5000; // Default to 5 seconds
+    console.log(`⏳ Rate limited, waiting ${waitTime}ms before retrying`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+    // Retry the request
+    response = await fetch(url, {
+      signal,
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Include credentials for CORS
+    });
+  }
+
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    const errorText = await response.text();
+    console.error(`❌ HTTP error! status: ${response.status}, message: ${errorText}`);
+    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
   }
 
   return response.json();
@@ -31,20 +54,23 @@ const fetchCraftsman = async (id, signal) => {
   const response = await fetch(`${API_BASE}/craftsmen/${id}`, {
     signal,
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // Include credentials for CORS
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    const errorText = await response.text();
+    console.error(`❌ HTTP error! status: ${response.status}, message: ${errorText}`);
+    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
   }
 
   return response.json();
 };
 
 // Hook for fetching craftsmen list with caching
-export const useCraftsmen = (page = 1, limit = 10, search = '', specialty = '', sortBy = 'joinDate', sortOrder = 'desc') => {
+export const useCraftsmen = (page = 1, limit = 10, search = '', specialty = '', status = '', sortBy = 'joinDate', sortOrder = 'desc') => {
   return useQuery({
-    queryKey: queryKeys.craftsmen.list(page, limit, search, specialty, sortBy, sortOrder),
-    queryFn: ({ signal }) => fetchCraftsmen({ page, limit, search, specialty, sortBy, sortOrder, signal }),
+    queryKey: queryKeys.craftsmen.list(page, limit, search, specialty, status, sortBy, sortOrder),
+    queryFn: ({ signal }) => fetchCraftsmen({ page, limit, search, specialty, status, sortBy, sortOrder, signal }),
     keepPreviousData: true, // Keep previous data while fetching new data
     staleTime: 2 * 60 * 1000, // Cache data for 2 minutes
     cacheTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
@@ -74,6 +100,7 @@ export const useCreateCraftsman = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(craftsmanData),
+        credentials: 'include', // Include credentials for CORS
       });
 
       if (!response.ok) {
@@ -112,9 +139,12 @@ export const useUpdateCraftsman = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(craftsmanData),
+        credentials: 'include', // Include credentials for CORS
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ HTTP error! status: ${response.status}, message: ${errorText}`);
         throw new Error('Failed to update craftsman');
       }
 
@@ -147,9 +177,12 @@ export const useDeleteCraftsman = () => {
       const response = await fetch(`${API_BASE}/craftsmen/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Include credentials for CORS
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ HTTP error! status: ${response.status}, message: ${errorText}`);
         throw new Error('Failed to delete craftsman');
       }
 

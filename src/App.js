@@ -44,6 +44,8 @@ function AppContent() {
 
   // CRITICAL: Initialize Socket.IO for real-time stock updates
   useEffect(() => {
+    console.log('🔧 API Base URL:', process.env.REACT_APP_API_BASE);
+    console.log('🔧 Socket URL:', process.env.REACT_APP_SOCKET_URL);
     console.log('🔗 Initializing Socket.IO for real-time stock synchronization');
     socketService.initialize();
     
@@ -154,6 +156,8 @@ function App() {
 
   // CRITICAL: Initialize Socket.IO for real-time stock updates
   useEffect(() => {
+    console.log('🔧 API Base URL:', process.env.REACT_APP_API_BASE);
+    console.log('🔧 Socket URL:', process.env.REACT_APP_SOCKET_URL);
     console.log('🔗 Initializing Socket.IO for real-time stock synchronization');
     socketService.initialize();
     
