@@ -17,7 +17,7 @@ class SocketService {
       // Initialize Socket.IO server with optimized configuration for network latency
       this.io = new Server(httpServer, {
         cors: {
-          origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+          origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://www.aliboboqurilish.uz', 'https://aliboboqurilish.uz'],
           methods: ['GET', 'POST'],
           credentials: true,
         },
