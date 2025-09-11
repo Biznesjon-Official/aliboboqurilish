@@ -3,7 +3,7 @@ const Craftsman = require('../models/Craftsman');
 // GET all craftsmen with pagination, search, and filtering
 const getCraftsmen = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '', specialty = '', sortBy = 'joinDate', sortOrder = 'desc' } = req.query;
+    const { page = 1, limit = 10, search = '', specialty = '', status = '', sortBy = 'joinDate', sortOrder = 'desc' } = req.query;
     
     const query = {};
     
@@ -16,6 +16,11 @@ const getCraftsmen = async (req, res) => {
     
     if (specialty && specialty !== 'Barcha mutaxassisliklar') {
       query.specialty = specialty;
+    }
+    
+    // Handle status filter
+    if (status) {
+      query.status = status;
     }
     
     const sortOptions = {};
