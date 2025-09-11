@@ -18,7 +18,7 @@ import OptimizedImage from './OptimizedImage';
 import Base64Image from './Base64Image';
 import '../styles/select-styles.css';
 
-const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
 
 const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // Real notification system for notification bell
@@ -868,16 +868,6 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const showPageLoading = isFetching && (products?.length || 0) > 0; // Show loading when changing pages
   const showEmpty = !loading && !isFetching && isSuccess && (products?.length || 0) === 0;
 
-  // Yangi loader komponenti
-  const LoadingOverlay = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center">
-        <div className="w-12 h-12 border-4 border-primary-orange border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-700 font-medium">Mahsulotlar yuklanmoqda...</p>
-      </div>
-    </div>
-  );
-
   return (
   <div className="min-h-screen bg-gray-50">
     <style>{`
@@ -913,8 +903,8 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       }
     `}</style>
     
-    {/* Yangi loader */}
-    {loading && <LoadingOverlay />}
+    {/* Remove the loading overlay */}
+    {/* {loading && <LoadingOverlay />} */}
     
     {/* Main Content */}
     <main className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
@@ -1007,13 +997,6 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 
       {/* Products Grid */}
       <div className="mb-6">
-        {/* Page loading indicator */}
-        {showPageLoading && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center">
-            <i className="fas fa-spinner fa-spin text-blue-600 mr-2"></i>
-            <span className="text-blue-700 text-sm">Mahsulotlar yuklanmoqda...</span>
-          </div>
-        )}
         {showSkeleton ? (
           <div className="col-span-full">
             <LoadingCard count={8} />
@@ -1546,5 +1529,11 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 };
 
 export default AdminProducts; 
+
+
+
+
+
+
 
 

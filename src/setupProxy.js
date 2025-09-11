@@ -3,7 +3,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 // Add a simple health check function
 const checkBackendHealth = async () => {
   try {
-    const base = process.env.REACT_APP_API_BASE || 'http://localhost:5000/api';
+    const base = process.env.REACT_APP_API_BASE || 'http://localhost:5001/api';
     const response = await fetch(`${base}/health`);
     return response.ok;
   } catch (error) {
@@ -17,7 +17,7 @@ module.exports = function(app) {
   app.use(
     '/api',
     createProxyMiddleware({
-      target: 'http://localhost:5000',
+      target: 'http://localhost:5001',
       changeOrigin: true,
       secure: false,
       logLevel: 'debug',
@@ -31,7 +31,7 @@ module.exports = function(app) {
         // Check if backend is running
         checkBackendHealth().then(isHealthy => {
           if (!isHealthy) {
-            console.log('❌ Backend server is not responding on port 5000');
+            console.log('❌ Backend server is not responding on port 5001');
             console.log('🛠️ Please ensure backend is running: npm run start:backend');
           }
         });
@@ -39,14 +39,14 @@ module.exports = function(app) {
         if (!res.headersSent) {
           res.status(504).json({ 
             error: 'Backend service unavailable', 
-            message: 'Backend server timeout - check if server is running on port 5000',
+            message: 'Backend server timeout - check if server is running on port 5001',
             timestamp: new Date().toISOString(),
             suggestion: 'Run: npm run start:backend'
           });
         }
       },
       onProxyReq: (proxyReq, req, res) => {
-        console.log(`[PROXY] 📡 ${req.method} ${req.url} -> http://localhost:5000${req.url}`);
+        console.log(`[PROXY] 📡 ${req.method} ${req.url} -> http://localhost:5001${req.url}`);
       },
       onProxyRes: (proxyRes, req, res) => {
         console.log(`[PROXY] ✅ ${proxyRes.statusCode} ${req.url}`);
@@ -58,7 +58,7 @@ module.exports = function(app) {
   app.use(
     '/uploads',
     createProxyMiddleware({
-      target: 'http://localhost:5000',
+      target: 'http://localhost:5001',
       changeOrigin: true,
       secure: false,
       logLevel: 'silent', // Reduced logging for cleaner terminal
@@ -72,7 +72,7 @@ module.exports = function(app) {
       },
       onProxyReq: (proxyReq, req, res) => {
         if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-          console.log(`[PROXY] Upload Request: ${req.method} ${req.url} -> http://localhost:5000${req.url}`);
+          console.log(`[PROXY] Upload Request: ${req.method} ${req.url} -> http://localhost:5001${req.url}`);
         }
       }
     })
@@ -82,7 +82,7 @@ module.exports = function(app) {
   app.use(
     '/health',
     createProxyMiddleware({
-      target: 'http://localhost:5000',
+      target: 'http://localhost:5001',
       changeOrigin: true,
       secure: false,
       logLevel: 'silent',
@@ -105,7 +105,7 @@ module.exports = function(app) {
   app.use(
     '/socket.io',
     createProxyMiddleware({
-      target: 'http://localhost:5000',
+      target: 'http://localhost:5001',
       changeOrigin: true,
       secure: false,
       ws: true, // Enable WebSocket proxying
@@ -114,13 +114,13 @@ module.exports = function(app) {
       proxyTimeout: 30000,
       onError: (err, req, res) => {
         console.error('❌ Socket.IO proxy error:', err.message);
-        console.log('🔍 Check if backend Socket.IO server is running on port 5000');
+        console.log('🔍 Check if backend Socket.IO server is running on port 5001');
         if (!res.headersSent) {
           res.status(504).end();
         }
       },
       onProxyReq: (proxyReq, req, res) => {
-        console.log(`[SOCKET.IO] 🔌 ${req.method} ${req.url} -> http://localhost:5000${req.url}`);
+        console.log(`[SOCKET.IO] 🔌 ${req.method} ${req.url} -> http://localhost:5001${req.url}`);
       }
     })
   );

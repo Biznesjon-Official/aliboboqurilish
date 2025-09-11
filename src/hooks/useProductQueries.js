@@ -2,7 +2,7 @@ import { useQuery, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys, invalidateQueries, queryClient } from '../lib/queryClient';
 
 // API base URL - Direct connection to backend
-const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
 
 // Fetch functions
 const fetchProducts = async ({ category = '', search = '', page = 1, limit = 200, sortBy = 'updatedAt', sortOrder = 'desc', signal, useFastEndpoint = true }) => {

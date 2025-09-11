@@ -34,7 +34,7 @@ const MainPage = ({ onSuccessfulLogin }) => {
   const [activeSection, setActiveSection] = useState('products');
 
   // Parallel data loading for initial page load - Ultra-optimized for speed
-  const API_BASE = process.env.REACT_APP_API_BASE || 'https://aliboboqurilish.uz/api';
+  const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
   
   console.log(`🔧 API Base URL in MainPage: ${API_BASE}`);
   

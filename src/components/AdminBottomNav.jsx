@@ -20,7 +20,7 @@ const AdminBottomNav = ({ counts = defaultCounts }) => {
   const pathname = location.pathname || '';
   let activeSection = 'dashboard';
   if (pathname.startsWith('/admin')) {
-    const rest = pathname.slice('/admin'.length);
+    const rest = pathname.slice('/admin');
     const first = rest.split('/').filter(Boolean)[0];
     activeSection = first || 'dashboard';
   }
@@ -36,7 +36,7 @@ const AdminBottomNav = ({ counts = defaultCounts }) => {
       className="fixed bottom-0 inset-x-[-2px] bg-primary-dark border-t border-gray-700 shadow-2xl z-40 lg:hidden"
       role="navigation"
       aria-label="Admin bottom navigation"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px)' }}
     >
       <ul className="flex items-stretch justify-around">
         {links.map((link) => {
