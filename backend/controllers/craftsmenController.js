@@ -3,10 +3,17 @@ const Craftsman = require('../models/Craftsman');
 // GET all craftsmen with pagination, search, and filtering
 const getCraftsmen = async (req, res) => {
   try {
-    const debug = true; // Enable debug for troubleshooting
+    const debug = process.env.NODE_ENV === 'development'; // Enable debug only in development
     if (debug) console.log('[getCraftsmen] Request query:', req.query);
     
-    const { page = 1, limit = 10, search = '', specialty = '', status = '', sortBy = 'joinDate', sortOrder = 'desc' } = req.query;
+    // Parse and validate query parameters with sensible defaults and limits
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10)); // Limit between 1-100
+    const search = req.query.search || '';
+    const specialty = req.query.specialty || '';
+    const status = req.query.status || '';
+    const sortBy = req.query.sortBy || 'joinDate';
+    const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
     
     const query = {};
     
@@ -27,18 +34,26 @@ const getCraftsmen = async (req, res) => {
     }
     
     const sortOptions = {};
-    sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    // Only allow sorting by specific fields to prevent injection
+    const allowedSortFields = ['joinDate', 'name', 'specialty', 'rating', 'completedJobs'];
+    if (allowedSortFields.includes(sortBy)) {
+      sortOptions[sortBy] = sortOrder;
+    } else {
+      sortOptions.joinDate = -1; // Default sort
+    }
     
     if (debug) console.log('[getCraftsmen] Query:', query);
     if (debug) console.log('[getCraftsmen] Sort options:', sortOptions);
     
+    // Add performance hints for MongoDB
     const craftsmen = await Craftsman.find(query)
       .sort(sortOptions)
-      .limit(limit * 1)
+      .limit(limit)
       .skip((page - 1) * limit)
+      .maxTimeMS(5000) // Limit query execution time to 5 seconds
       .exec();
     
-    const count = await Craftsman.countDocuments(query);
+    const count = await Craftsman.countDocuments(query).maxTimeMS(5000);
     
     if (debug) console.log('[getCraftsmen] Found', craftsmen.length, 'craftsmen');
     

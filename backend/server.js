@@ -159,16 +159,20 @@ app.use(mongoSanitize());
 // Prevent HTTP parameter pollution
 app.use(hpp());
 
-// Rate limiting for API endpoints
+// Rate limiting for API endpoints - more strict for development
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX || '1000'),
+  max: process.env.NODE_ENV === 'development' ? 500 : parseInt(process.env.RATE_LIMIT_MAX || '1000'),
   standardHeaders: true,
   legacyHeaders: false,
   // Skip rate limiting for some trusted IPs
   skip: (req) => {
     const trustedIps = (process.env.TRUSTED_IPS || '').split(',');
     return trustedIps.includes(req.ip);
+  },
+  message: {
+    error: 'Too many requests',
+    message: 'You have exceeded the rate limit. Please try again later.'
   }
 });
 app.use('/api', limiter);
