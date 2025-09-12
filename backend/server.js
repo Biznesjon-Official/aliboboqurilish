@@ -455,13 +455,10 @@ const connectDB = async () => {
       maxIdleTimeMS: 45000, // Close connections after 45 seconds of inactivity
       waitQueueTimeoutMS: 120000, // Increase wait queue timeout to 2 minutes
       autoIndex: false, // Disable autoIndex to reduce connection overhead
-      // New options for handling network issues
+      // Updated options for current MongoDB driver
       useUnifiedTopology: true,
       useNewUrlParser: true,
-      keepAlive: true,
-      keepAliveInitialDelay: 300000, // 5 minutes
-      ssl: true,
-      sslValidate: false // Disable SSL validation to avoid certificate issues
+      tlsAllowInvalidCertificates: true // Replaces deprecated sslValidate: false
     });
     if (process.env.DEBUG === 'true') {
       console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
