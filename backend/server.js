@@ -91,7 +91,7 @@ if (enableClustering && cluster.isPrimary) {
 const app = express();
 
 // Middleware
-app.set('trust proxy', process.env.TRUST_PROXY === 'true');
+app.set('trust proxy', 1);
 
 // Remove CORS middleware since we're handling it at the Nginx level
 // This prevents duplicate Access-Control-Allow-Origin headers
