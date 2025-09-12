@@ -68,7 +68,7 @@ Create `/opt/alibobo/backend/.env` with the following content:
 
 ```
 # MongoDB Atlas
-MONGODB_URI=mongodb+srv://ozodbek:GGClW0p1qdzXtZ9W@ac-x48uxjk.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0
+MONGODB_URI=mongodb+srv://ozodbek:9KS0xaLkMnnqqE3L@cluster0.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0
 
 # Production Environment
 NODE_ENV=production

@@ -25,7 +25,7 @@
     "start:frontend:fast": "cross-env PORT=3001 GENERATE_SOURCEMAP=false TSC_COMPILE_ON_ERROR=true ESLINT_NO_DEV_ERRORS=true FAST_REFRESH=false react-scripts start",
     "start:backend": "cd backend && npm run start:fast",
     "start:backend:fast": "cd backend && npm run start:fast",
-    "start:backend:turbo": "cd backend && cross-env MONGODB_URI=\"mongodb+srv://ozodbek:GGClW0p1qdzXtZ9W@ac-x48uxjk.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0\" NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=false node server.js",
+    "start:backend:turbo": "cd backend && cross-env MONGODB_URI=\"mongodb+srv://ozodbek:9KS0xaLkMnnqqE3L@cluster0.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0\" NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=false node server.js",
     "start:react": "react-scripts start",
     "dev": "npm start",
     "dev:safe": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\" --success \"first\" \"npm run start:backend\" \"npm run start:frontend\"",

@@ -149,8 +149,8 @@ MONGO_URI=$(grep "MONGODB_URI\|MONGO_URI" .env | cut -d '=' -f2)
 if [ -z "$MONGO_URI" ]; then
     echo "❌ MongoDB URI not found in .env file"
     echo "🔧 Adding MongoDB URI to .env file..."
-    echo "MONGODB_URI=mongodb+srv://ozodbek:GGClW0p1qdzXtZ9W@ac-x48uxjk.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0" >> .env
-    MONGO_URI="mongodb+srv://ozodbek:GGClW0p1qdzXtZ9W@ac-x48uxjk.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0"
+    echo "MONGODB_URI=mongodb+srv://ozodbek:9KS0xaLkMnnqqE3L@cluster0.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0" >> .env
+    MONGO_URI="mongodb+srv://ozodbek:9KS0xaLkMnnqqE3L@cluster0.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0"
 fi
 
 echo "🔗 Testing MongoDB connection..."
