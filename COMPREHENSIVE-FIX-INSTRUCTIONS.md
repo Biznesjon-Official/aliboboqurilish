@@ -87,7 +87,7 @@ If you still encounter issues:
    cd /opt/alibobo/backend
    node -e "
    const mongoose = require('mongoose');
-   mongoose.connect('mongodb+srv://ozodbek:4C6ZNSo5zF15lJvW@cluster0.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0', {
+   mongoose.connect('mongodb+srv://ozodbek:GGClW0p1qdzXtZ9W@ac-x48uxjk.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0', {
      serverSelectionTimeoutMS: 5000,
      connectTimeoutMS: 5000
    }).then(() => {
