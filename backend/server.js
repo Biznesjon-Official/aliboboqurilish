@@ -106,9 +106,7 @@ if (process.env.NODE_ENV === 'production') {
     ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
     : [
         'http://localhost:3000', 
-        'http://127.0.0.1:3000', 
-        'http://localhost:3001', 
-        'http://127.0.0.1:3001', 
+        'http://127.0.0.1:3000',
         'https://aliboboqurilish.uz',
         'https://www.aliboboqurilish.uz'
       ];
@@ -128,8 +126,6 @@ if (process.env.NODE_ENV === 'production') {
       const allowedOrigins = [
         'http://localhost:3000', 
         'http://127.0.0.1:3000', 
-        'http://localhost:3001', 
-        'http://127.0.0.1:3001', 
         'https://aliboboqurilish.uz',
         'https://www.aliboboqurilish.uz'
       ];
@@ -197,6 +193,10 @@ app.use(compression({
     return contentLength > 1024; // Only compress responses > 1KB
   }
 }));
+
+// Query timeout middleware for performance
+const { queryTimeoutMiddleware, handleQueryTimeout } = require('./middleware/queryTimeout');
+app.use(queryTimeoutMiddleware(5000)); // 5 second timeout for all queries
 
 // Data sanitization against NoSQL query injection
 app.use(mongoSanitize());
@@ -346,6 +346,65 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
+// Serve static files from the React app build directory
+const path = require('path');
+
+// Function to check if build directory is valid and has index.html
+const isBuildDirValid = () => {
+  try {
+    const buildDir = path.join(__dirname, '..', 'build');
+    const indexPath = path.join(buildDir, 'index.html');
+    return fs.existsSync(buildDir) && fs.lstatSync(buildDir).isDirectory() && fs.existsSync(indexPath);
+  } catch (err) {
+    console.log('⚠️ Error checking build directory:', err.message);
+    return false;
+  }
+};
+
+const buildDir = path.join(__dirname, '..', 'build');
+
+if (isBuildDirValid()) {
+  console.log('✅ Build directory found with index.html, serving static files');
+  app.use(express.static(buildDir));
+  
+  // Serve the React app for any non-API routes
+  app.get('*', (req, res, next) => {
+    // Don't serve index.html for API routes
+    if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
+      return next();
+    }
+    
+    // Check if the requested file exists
+    const requestedFile = path.join(buildDir, req.path);
+    fs.access(requestedFile, fs.constants.F_OK, (err) => {
+      if (err) {
+        // File doesn't exist, serve index.html for client-side routing
+        const indexPath = path.join(buildDir, 'index.html');
+        res.sendFile(indexPath, (err) => {
+          if (err) {
+            console.error('❌ Error serving index.html:', err.message);
+            next(err);
+          }
+        });
+      } else {
+        // File exists, let express.static handle it
+        next();
+      }
+    });
+  });
+} else {
+  console.log('⚠️ Build directory with index.html not found, skipping static file serving');
+  // If no build directory, show a simple API message for root route
+  app.get('/', (req, res) => {
+    res.json({ 
+      message: 'Alibobo Backend API',
+      version: '1.0.0',
+      status: 'Running',
+      note: 'Frontend build not found - run "npm run build" to generate frontend files'
+    });
+  });
+}
+
 // Routes
 const productRoutes = require('./routes/productRoutes');
 const craftsmenRoutes = require('./routes/craftsmenRoutes');
@@ -438,19 +497,33 @@ const connectDB = async () => {
       console.error('❌ MongoDB connection error:', err?.message || err);
     });
 
-    // Performance optimized connection options with increased timeouts for network latency
+    // ULTRA-OPTIMIZED connection options for maximum performance
     const isDevelopment = process.env.NODE_ENV === 'development';
     const conn = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: isDevelopment ? 60000 : 30000, // Increased from 30000 to 60000 for high latency
-      connectTimeoutMS: isDevelopment ? 60000 : 30000, // Increased from 30000 to 60000 for high latency
-      socketTimeoutMS: isDevelopment ? 60000 : 30000, // Increased from 45000 to 60000 for high latency
-      maxPoolSize: isDevelopment ? 5 : 15, // Much smaller pool for development
-      minPoolSize: isDevelopment ? 1 : 2,  // Smaller minimum pool in dev
-      family: 4,       // Prefer IPv4
-      heartbeatFrequencyMS: isDevelopment ? 60000 : 30000, // Less frequent heartbeats in dev
-      bufferCommands: true,
+      // Connection timeouts - optimized for performance
+      serverSelectionTimeoutMS: isDevelopment ? 10000 : 5000,  // Faster timeout for quick failure
+      connectTimeoutMS: isDevelopment ? 10000 : 5000,          // Quick connection establishment
+      socketTimeoutMS: isDevelopment ? 30000 : 15000,          // Reasonable socket timeout
+      
+      // Connection pooling - optimized for concurrent requests
+      maxPoolSize: isDevelopment ? 10 : 25,    // Increased pool size for better concurrency
+      minPoolSize: isDevelopment ? 2 : 5,      // Higher minimum to avoid connection overhead
+      maxIdleTimeMS: 30000,                    // Close idle connections after 30s
+      
+      // Performance optimizations
+      family: 4,                               // Prefer IPv4 for faster DNS resolution
+      heartbeatFrequencyMS: 10000,             // More frequent heartbeats for faster failure detection
+      bufferCommands: false,                   // Fail fast instead of buffering
+      // bufferMaxEntries is deprecated, using bufferCommands: false instead
+      
+      // Reliability settings
       retryWrites: true,
-      retryReads: true
+      retryReads: true,
+      readPreference: 'primary',               // Always read from primary for consistency
+      
+      // Compression for better network performance
+      compressors: ['zlib'],
+      zlibCompressionLevel: 6
     });
     if (process.env.DEBUG === 'true') {
       console.log(`✅ MongoDB Connected: ${conn.connection.host}`);

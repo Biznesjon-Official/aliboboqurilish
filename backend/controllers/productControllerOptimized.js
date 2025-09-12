@@ -46,63 +46,95 @@ const getFastCacheKey = (query, page, limit, sort) => {
 
 const getProductsFast = async (req, res) => {
   try {
-    const debug = process.env.NODE_ENV === 'development'; // Enable debug only in development
-    if (debug) console.log('[getProductsFast] Starting optimized product fetch');
+    const debug = process.env.NODE_ENV === 'development';
+    if (debug) console.log('[getProductsFast] Starting ULTRA-OPTIMIZED product fetch');
     const startTime = Date.now();
     
-    // Log incoming request
     if (debug) console.log('[getProductsFast] Request query:', req.query);
     
-    // Simple pagination with stricter limits
-    const limit = Math.min(parseInt(req.query.limit) || 20, 100); // Default to 20, max 100
+    // Optimized pagination
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50); // Reduced max to 50 for better performance
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const skip = (page - 1) * limit;
     
-    // Basic query - only active products (fix for empty results)
+    // ULTRA-OPTIMIZED QUERY - Use simple, indexed fields only
     let query = {
-      $and: [
-        { $or: [{ status: 'active' }, { status: { $exists: false } }] },
-        { $or: [{ isDeleted: false }, { isDeleted: { $exists: false } }] }
-      ]
+      isDeleted: { $ne: true }, // Use indexed field directly
+      status: 'active'          // Use indexed field directly
     };
     
-    // Category filter
+    // Category filter (indexed)
     if (req.query.category && req.query.category.trim() !== '') {
       query.category = req.query.category.trim();
     }
     
-    // Simple sort
-    let sort = { updatedAt: -1 };
+    // Optimized sort - use indexed fields
+    let sort = { updatedAt: -1 }; // Default: newest first (indexed)
     if (req.query.sortBy === 'price') {
-      sort = { price: req.query.sortOrder === 'asc' ? 1 : -1 };
+      sort = { price: req.query.sortOrder === 'asc' ? 1 : -1, updatedAt: -1 };
     }
     
-    // Serve from cache if available
+    // Check cache first
     const cacheKey = getFastCacheKey(query, page, limit, sort);
     const cached = fastCache.get(cacheKey);
     if (cached && (Date.now() - cached.timestamp) < FAST_CACHE_TTL) {
-      if (debug) console.log('[getProductsFast] Served from cache');
+      if (debug) console.log('[getProductsFast] ⚡ Served from cache in', Date.now() - startTime, 'ms');
       return res.json(cached.payload);
     }
 
-    // Ultra-fast query with minimal data - fetch only essential fields (including images)
+    // ULTRA-FAST AGGREGATION PIPELINE - Optimized for indexes
+    const pipeline = [
+      // Stage 1: Match using indexed fields (FASTEST)
+      { 
+        $match: query 
+      },
+      
+      // Stage 2: Sort using indexed fields
+      { 
+        $sort: sort 
+      },
+      
+      // Stage 3: Pagination
+      { 
+        $skip: skip 
+      },
+      { 
+        $limit: limit 
+      },
+      
+      // Stage 4: Project only essential fields (MINIMAL PAYLOAD)
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          price: 1,
+          oldPrice: 1,
+          category: 1,
+          stock: 1,
+          unit: 1,
+          badge: 1,
+          rating: 1,
+          isNew: 1,
+          isPopular: 1,
+          // Optimize image handling - take only first image to reduce payload
+          image: 1,
+          thumbnail: { $arrayElemAt: ['$images', 0] }, // First image as thumbnail
+          updatedAt: 1,
+          createdAt: 1
+        }
+      }
+    ];
+
+    // ULTRA-SIMPLE query - skip aggregation completely for maximum speed
     const products = await Product.find(query)
-      .select('name price oldPrice category stock unit badge rating isNew isPopular image images updatedAt createdAt')
+      .select('_id name price oldPrice category stock unit badge rating isNew isPopular updatedAt createdAt') // Remove image fields for speed
       .sort(sort)
       .skip(skip)
       .limit(limit)
-      .lean() // Use lean() for faster queries
-      .maxTimeMS(30000); // Increased timeout to 30 seconds to handle network latency
+      .lean()
+      .maxTimeMS(3000); // Even stricter timeout
     
-    // Choose a safe primary image: prefer product.image, else first from images
-    const getPrimaryImage = (p) => {
-      const imgs = Array.isArray(p.images) ? p.images : [];
-      if (p.image && typeof p.image === 'string' && p.image.length > 0) return p.image;
-      if (imgs.length > 0 && typeof imgs[0] === 'string' && imgs[0].length > 0) return imgs[0];
-      return '/assets/default-product.svg';
-    };
-
-    // Process products to include only essential fields and keep very small image payload
+    // MINIMAL processing - no image processing for maximum speed
     const productsWithImages = products.map(product => ({
       _id: product._id,
       name: product.name,
@@ -110,20 +142,18 @@ const getProductsFast = async (req, res) => {
       oldPrice: product.oldPrice,
       category: product.category,
       stock: product.stock,
-      unit: product.unit,
+      unit: product.unit || 'dona',
       badge: product.badge,
-      rating: product.rating,
-      isNew: product.isNew,
-      isPopular: product.isPopular,
-      image: getPrimaryImage(product),
-      // Limit images array to at most 3 to avoid huge payloads
-      images: Array.isArray(product.images) ? product.images.slice(0, 3) : [],
+      rating: product.rating || 0,
+      isNew: product.isNew || false,
+      isPopular: product.isPopular || false,
+      image: '/assets/default-product.svg', // Default image for speed
       updatedAt: product.updatedAt,
       createdAt: product.createdAt
     }));
     
     const duration = Date.now() - startTime;
-    if (debug) console.log(`[getProductsFast] Completed in ${duration}ms, returned ${products.length} products`);
+    if (debug) console.log(`[getProductsFast] 🚀 ULTRA-FAST completed in ${duration}ms, returned ${products.length} products`);
     
     const payload = {
       products: productsWithImages,
@@ -131,19 +161,21 @@ const getProductsFast = async (req, res) => {
         currentPage: page,
         limit,
         hasNextPage: products.length === limit,
-        hasPrevPage: page > 1
+        hasPrevPage: page > 1,
+        total: null // Skip expensive count for speed
       },
       performance: {
         queryTime: duration,
-        optimized: true
+        optimized: true,
+        cached: false,
+        version: 'ultra-fast-v2'
       }
     };
 
-    // Save to cache
-    fastCache.set(cacheKey, { payload, timestamp: Date.now() });
+    // Cache the result
+    fastCache.set(cacheKey, { payload: { ...payload, performance: { ...payload.performance, cached: true } }, timestamp: Date.now() });
 
-    // Log response
-    if (debug) console.log('[getProductsFast] Sending response with', products.length, 'products');
+    if (debug) console.log('[getProductsFast] 📤 Sending response with', products.length, 'products');
     
     res.json(payload);
     

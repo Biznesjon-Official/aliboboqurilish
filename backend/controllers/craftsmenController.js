@@ -50,15 +50,18 @@ const getCraftsmen = async (req, res) => {
     if (debug) console.log('[getCraftsmen] Query:', query);
     if (debug) console.log('[getCraftsmen] Sort options:', sortOptions);
     
-    // Add performance hints for MongoDB
+    // ULTRA-SIMPLE craftsmen query - minimal fields only
     const craftsmen = await Craftsman.find(query)
+      .select('_id name specialty phone status joinDate rating') // Only essential fields
       .sort(sortOptions)
       .limit(limit)
       .skip((page - 1) * limit)
-      .maxTimeMS(30000) // Increased timeout to 30 seconds to handle network latency
+      .lean() // Use lean for faster queries
+      .maxTimeMS(3000) // Even stricter timeout
       .exec();
     
-    const count = await Craftsman.countDocuments(query).maxTimeMS(30000);
+    // Skip count for better performance (optional)
+    const count = craftsmen.length === limit ? limit * page + 1 : (page - 1) * limit + craftsmen.length;
     
     if (debug) console.log('[getCraftsmen] Found', craftsmen.length, 'craftsmen');
     

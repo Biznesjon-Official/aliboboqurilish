@@ -7,7 +7,7 @@ const router = express.Router();
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadPath = 'uploads/products';
+    const uploadPath = 'uploads/products/original';
     // Create directory if it doesn't exist
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
@@ -54,7 +54,7 @@ router.post('/variant-images', upload.array('images', 5), async (req, res) => {
 
     // Generate URLs for uploaded files
     const imageUrls = req.files.map(file => {
-      return `/uploads/products/${file.filename}`;
+      return `/uploads/products/original/${file.filename}`;
     });
 
     console.log('✅ Variant images uploaded:', imageUrls);
@@ -84,7 +84,7 @@ router.post('/product-image', upload.single('image'), async (req, res) => {
       });
     }
 
-    const imageUrl = `/uploads/products/${req.file.filename}`;
+    const imageUrl = `/uploads/products/original/${req.file.filename}`;
 
     console.log('✅ Product image uploaded:', imageUrl);
     
@@ -107,7 +107,7 @@ router.post('/product-image', upload.single('image'), async (req, res) => {
 router.delete('/image/:filename', async (req, res) => {
   try {
     const { filename } = req.params;
-    const filePath = path.join(__dirname, '../uploads/products', filename);
+    const filePath = path.join(__dirname, '../uploads/products/original', filename);
 
     // Check if file exists
     if (!fs.existsSync(filePath)) {

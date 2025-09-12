@@ -222,3 +222,69 @@ The unified development environment is for development only. For production:
 **Happy Coding! 🎉**
 
 For issues or questions, check the troubleshooting section above or review the setup validation with `npm run test:setup`.
+
+# Development Setup
+
+This document explains how to run the Alibobo application locally on localhost:3000.
+
+## Prerequisites
+
+- Node.js (version 14 or higher)
+- MongoDB Atlas account (connection string provided in environment files)
+
+## Running the Application on localhost:3000
+
+To run the application with the frontend on port 3000:
+
+1. **Start the backend server** (runs on port 5001):
+   ```bash
+   npm run dev:backend-only
+   ```
+
+2. **In a separate terminal, start the frontend** (runs on port 3000):
+   ```bash
+   npm run dev:frontend-3000
+   ```
+
+3. **Access the application**:
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:5001/api
+   - Backend Socket.IO: http://localhost:5001
+
+## Environment Configuration
+
+### Frontend (.env.development)
+```
+REACT_APP_API_BASE=http://localhost:5001/api
+REACT_APP_SOCKET_URL=http://localhost:5001
+```
+
+### Backend (backend/.env.development)
+```
+# Server Configuration
+PORT=5001
+
+# CORS Configuration
+CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001
+```
+
+## Available Scripts
+
+- `npm run dev:backend-only` - Start only the backend server
+- `npm run dev:frontend-3000` - Start only the frontend on port 3000
+- `npm start` - Start both frontend (port 3001) and backend (port 5001) concurrently
+
+## Proxy Configuration
+
+The frontend uses a proxy configuration (`src/setupProxy.js`) to forward API requests to the backend:
+- `/api` routes are proxied to `http://localhost:5001`
+- `/uploads` routes are proxied to `http://localhost:5001`
+- `/socket.io` routes are proxied to `http://localhost:5001` with WebSocket support
+
+## Troubleshooting
+
+1. **Port conflicts**: If port 5001 is already in use, update the backend PORT in `backend/.env.development` and the proxy target in `src/setupProxy.js`.
+
+2. **CORS errors**: Ensure the backend CORS configuration in `backend/.env.development` includes your frontend origin.
+
+3. **MongoDB connection issues**: Verify the MONGODB_URI in `backend/.env.development` is correct and your MongoDB Atlas cluster is accessible.

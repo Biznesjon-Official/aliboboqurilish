@@ -1,0 +1,188 @@
+# VPS Manual Deployment Commands
+# Connect: ssh root@45.92.173.33
+# Password: 20100804
+
+# 1. Check current PM2 processes
+pm2 ls
+
+# 2. Stop and delete all PM2 processes
+pm2 stop all
+pm2 delete all
+
+# 3. Backup existing project (if any)
+cd /opt
+mv alibobo alibobo-backup-$(date +%Y%m%d-%H%M%S)
+
+# 4. Clone fresh project from GitHub
+git clone https://github.com/ozodbek2410/alibobo.git
+cd alibobo
+
+# 5. Install dependencies
+npm install
+cd backend && npm install && cd ..
+
+# 6. Create backend production environment file
+cat > backend/.env.production << 'EOF'
+NODE_ENV=production
+PORT=5000
+MONGODB_URI=mongodb+srv://ozodbek:9KS0xaLkMnnqqE3L@cluster0.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0
+
+# Security settings
+TRUST_PROXY=true
+ENABLE_CLUSTERING=true
+CORS_ORIGIN=https://aliboboqurilish.uz,https://www.aliboboqurilish.uz,http://aliboboqurilish.uz,http://www.aliboboqurilish.uz
+
+# Performance settings
+RATE_LIMIT_MAX=1000
+DEBUG=false
+SKIP_INDEX_CREATION=false
+EOF
+
+# 7. Create frontend production environment file
+cat > .env.production << 'EOF'
+REACT_APP_API_BASE=https://aliboboqurilish.uz/api
+REACT_APP_SOCKET_URL=https://aliboboqurilish.uz
+GENERATE_SOURCEMAP=false
+EOF
+
+# 8. Build frontend for production
+npm run build
+
+# 9. Create PM2 ecosystem configuration
+cat > ecosystem.config.js << 'EOF'
+module.exports = {
+  apps: [
+    {
+      name: 'alibobo-backend',
+      script: './backend/server.js',
+      cwd: '/opt/alibobo',
+      instances: 'max',
+      exec_mode: 'cluster',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 5000
+      },
+      error_file: './logs/backend-error.log',
+      out_file: './logs/backend-out.log',
+      log_file: './logs/backend-combined.log',
+      time: true,
+      max_memory_restart: '1G',
+      node_args: '--max-old-space-size=1024'
+    }
+  ]
+};
+EOF
+
+# 10. Create necessary directories
+mkdir -p logs backend/uploads
+
+# 11. Configure Nginx
+cat > /etc/nginx/sites-available/aliboboqurilish.uz << 'EOF'
+server {
+    listen 80;
+    server_name aliboboqurilish.uz www.aliboboqurilish.uz;
+    
+    root /opt/alibobo/build;
+    index index.html;
+    
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+    
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    
+    # API proxy
+    location /api/ {
+        proxy_pass http://localhost:5000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        
+        # CORS headers
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization" always;
+        
+        if ($request_method = 'OPTIONS') {
+            return 204;
+        }
+    }
+    
+    # Socket.IO proxy
+    location /socket.io/ {
+        proxy_pass http://localhost:5000/socket.io/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # Uploads proxy
+    location /uploads/ {
+        proxy_pass http://localhost:5000/uploads/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Cache static files
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # Static files
+    location / {
+        try_files $uri $uri/ /index.html;
+        
+        # Cache static assets
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+    
+    # Security - deny access to hidden files
+    location ~ /\. {
+        deny all;
+    }
+}
+EOF
+
+# 12. Enable Nginx site
+ln -sf /etc/nginx/sites-available/aliboboqurilish.uz /etc/nginx/sites-enabled/
+nginx -t
+systemctl reload nginx
+
+# 13. Start application with PM2
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
+
+# 14. Check deployment status
+pm2 ls
+pm2 logs --lines 10
+
+# 15. Monitor application
+pm2 monit
+
+# Useful commands for management:
+# pm2 restart alibobo-backend    # Restart app
+# pm2 logs alibobo-backend       # View logs
+# pm2 stop alibobo-backend       # Stop app
+# pm2 delete alibobo-backend     # Delete app
+# systemctl status nginx         # Check Nginx status
+# tail -f /var/log/nginx/error.log  # Nginx error logs
