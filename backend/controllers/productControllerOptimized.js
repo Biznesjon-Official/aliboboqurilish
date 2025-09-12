@@ -92,7 +92,7 @@ const getProductsFast = async (req, res) => {
       .skip(skip)
       .limit(limit)
       .lean() // Use lean() for faster queries
-      .maxTimeMS(5000); // Add timeout to prevent long-running queries
+      .maxTimeMS(30000); // Increased timeout to 30 seconds to handle network latency
     
     // Choose a safe primary image: prefer product.image, else first from images
     const getPrimaryImage = (p) => {
@@ -153,6 +153,16 @@ const getProductsFast = async (req, res) => {
       stack: error.stack,
       name: error.name
     });
+    
+    // Handle timeout errors specifically
+    if (error.name === 'MongoNetworkTimeoutError' || error.message.includes('timed out')) {
+      return res.status(503).json({
+        error: 'Service temporarily unavailable',
+        message: 'Database connection timeout. Please try again in a few moments.',
+        retryAfter: 30
+      });
+    }
+    
     res.status(500).json({
       error: 'Failed to fetch products',
       message: error.message
@@ -163,5 +173,3 @@ const getProductsFast = async (req, res) => {
 module.exports = {
   getProductsFast
 };
-
-

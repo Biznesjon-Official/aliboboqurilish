@@ -55,10 +55,10 @@ const getCraftsmen = async (req, res) => {
       .sort(sortOptions)
       .limit(limit)
       .skip((page - 1) * limit)
-      .maxTimeMS(5000) // Limit query execution time to 5 seconds
+      .maxTimeMS(30000) // Increased timeout to 30 seconds to handle network latency
       .exec();
     
-    const count = await Craftsman.countDocuments(query).maxTimeMS(5000);
+    const count = await Craftsman.countDocuments(query).maxTimeMS(30000);
     
     if (debug) console.log('[getCraftsmen] Found', craftsmen.length, 'craftsmen');
     
@@ -70,6 +70,16 @@ const getCraftsmen = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching craftsmen:', error);
+    
+    // Handle timeout errors specifically
+    if (error.name === 'MongoNetworkTimeoutError' || error.message.includes('timed out')) {
+      return res.status(503).json({
+        error: 'Service temporarily unavailable',
+        message: 'Database connection timeout. Please try again in a few moments.',
+        retryAfter: 30
+      });
+    }
+    
     res.status(500).json({ 
       error: 'Failed to fetch craftsmen',
       message: error.message 
