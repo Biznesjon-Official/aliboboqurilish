@@ -23,6 +23,7 @@ npm install
 
 REM Build the frontend
 echo 🏗️ Building frontend...
+set CI=false
 npm run build
 
 if %errorlevel% neq 0 (

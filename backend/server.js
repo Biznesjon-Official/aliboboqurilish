@@ -93,56 +93,65 @@ const app = express();
 // Middleware
 app.set('trust proxy', process.env.TRUST_PROXY === 'true');
 
-// Performance middleware
-const corsOrigins = process.env.CORS_ORIGIN 
-  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : [
-      'http://localhost:3000', 
-      'http://127.0.0.1:3000', 
-      'http://localhost:3001', 
-      'http://127.0.0.1:3001', 
-      'https://aliboboqurilish.uz',
-      'https://www.aliboboqurilish.uz'
-    ];
+// Remove CORS middleware since we're handling it at the Nginx level
+// This prevents duplicate Access-Control-Allow-Origin headers
 
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Always allow requests in development mode
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`⚠️  CORS request from origin: ${origin}`);
-      return callback(null, true);
-    }
-    
-    // For production, be more permissive with allowed origins
-    const allowedOrigins = [
-      'http://localhost:3000', 
-      'http://127.0.0.1:3000', 
-      'http://localhost:3001', 
-      'http://127.0.0.1:3001', 
-      'https://aliboboqurilish.uz',
-      'https://www.aliboboqurilish.uz'
-    ];
-    
-    // Check if the origin is in our allowed list or is a subdomain
-    if (allowedOrigins.includes(origin) || 
-        origin.endsWith('.aliboboqurilish.uz') || 
-        origin.startsWith('https://aliboboqurilish.uz')) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  maxAge: 86400, // CORS pre-flight results are cached for 1 day
-  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
-}));
+// Log that CORS is handled by Nginx in production
+if (process.env.NODE_ENV === 'production') {
+  console.log('🔒 CORS handled by Nginx in production');
+} else {
+  // Keep CORS for development since there's no Nginx proxy locally
+  const cors = require('cors');
+  const corsOrigins = process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+    : [
+        'http://localhost:3000', 
+        'http://127.0.0.1:3000', 
+        'http://localhost:3001', 
+        'http://127.0.0.1:3001', 
+        'https://aliboboqurilish.uz',
+        'https://www.aliboboqurilish.uz'
+      ];
 
-// Log CORS configuration in development (only if debug enabled)
-if (process.env.NODE_ENV === 'development' && process.env.DEBUG === 'true') {
-  console.log('🌐 CORS enabled for origins:', corsOrigins);
+  app.use(cors({
+    origin: function(origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      // Always allow requests in development mode
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`⚠️  CORS request from origin: ${origin}`);
+        return callback(null, true);
+      }
+      
+      // For production, be more permissive with allowed origins
+      const allowedOrigins = [
+        'http://localhost:3000', 
+        'http://127.0.0.1:3000', 
+        'http://localhost:3001', 
+        'http://127.0.0.1:3001', 
+        'https://aliboboqurilish.uz',
+        'https://www.aliboboqurilish.uz'
+      ];
+      
+      // Check if the origin is in our allowed list or is a subdomain
+      if (allowedOrigins.includes(origin) || 
+          origin.endsWith('.aliboboqurilish.uz') || 
+          origin.startsWith('https://aliboboqurilish.uz')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    maxAge: 86400, // CORS pre-flight results are cached for 1 day
+    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+  }));
+
+  // Log CORS configuration in development (only if debug enabled)
+  if (process.env.NODE_ENV === 'development' && process.env.DEBUG === 'true') {
+    console.log('🌐 CORS enabled for origins:', corsOrigins);
+  }
 }
 
 // Security middleware (simplified in development for faster startup)
