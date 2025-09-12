@@ -441,24 +441,16 @@ const connectDB = async () => {
     // Performance optimized connection options with increased timeouts for network latency
     const isDevelopment = process.env.NODE_ENV === 'development';
     const conn = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: isDevelopment ? 60000 : 90000, // Increased to 90 seconds for high latency
-      connectTimeoutMS: isDevelopment ? 60000 : 90000, // Increased to 90 seconds
-      socketTimeoutMS: isDevelopment ? 60000 : 90000, // Increased to 90 seconds
-      maxPoolSize: isDevelopment ? 3 : 5, // Reduced pool size to reduce connection overhead
-      minPoolSize: isDevelopment ? 1 : 1,  // Smaller minimum pool
+      serverSelectionTimeoutMS: isDevelopment ? 60000 : 30000, // Increased from 30000 to 60000 for high latency
+      connectTimeoutMS: isDevelopment ? 60000 : 30000, // Increased from 30000 to 60000 for high latency
+      socketTimeoutMS: isDevelopment ? 60000 : 30000, // Increased from 45000 to 60000 for high latency
+      maxPoolSize: isDevelopment ? 5 : 15, // Much smaller pool for development
+      minPoolSize: isDevelopment ? 1 : 2,  // Smaller minimum pool in dev
       family: 4,       // Prefer IPv4
-      heartbeatFrequencyMS: isDevelopment ? 60000 : 60000, // Less frequent heartbeats to reduce load
+      heartbeatFrequencyMS: isDevelopment ? 60000 : 30000, // Less frequent heartbeats in dev
       bufferCommands: true,
       retryWrites: true,
-      retryReads: true,
-      // Additional options for better connection stability
-      maxIdleTimeMS: 45000, // Close connections after 45 seconds of inactivity
-      waitQueueTimeoutMS: 120000, // Increase wait queue timeout to 2 minutes
-      autoIndex: false, // Disable autoIndex to reduce connection overhead
-      // Updated options for current MongoDB driver
-      useUnifiedTopology: true,
-      useNewUrlParser: true,
-      tlsAllowInvalidCertificates: true // Replaces deprecated sslValidate: false
+      retryReads: true
     });
     if (process.env.DEBUG === 'true') {
       console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
@@ -491,7 +483,7 @@ const connectDB = async () => {
       console.error('❌ MongoDB connection error:', err.message || err);
       
       // Implement exponential backoff for connection retries
-      const retryDelay = parseInt(process.env.MONGO_RETRY_DELAY || 30000, 10); // Increased to 30 seconds
+      const retryDelay = parseInt(process.env.MONGO_RETRY_DELAY || 10000, 10);
       if (process.env.DEBUG === 'true') {
         console.log(`🔄 Retrying connection in ${retryDelay/1000} seconds...`);
       }
