@@ -1,0 +1,136 @@
+# Manual CORS Fix Commands
+# ssh root@45.92.173.33 (parol: 20100804)
+
+# 1. Update Nginx configuration
+cat > /etc/nginx/sites-available/aliboboqurilish.uz << 'EOF'
+server {
+    listen 80;
+    server_name aliboboqurilish.uz www.aliboboqurilish.uz;
+    
+    root /opt/alibobo/build;
+    index index.html;
+    
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+    
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    
+    # API proxy with proper CORS
+    location /api/ {
+        proxy_pass http://localhost:5000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        
+        # Enhanced CORS headers
+        add_header Access-Control-Allow-Origin "https://www.aliboboqurilish.uz" always;
+        add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH" always;
+        add_header Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control" always;
+        add_header Access-Control-Allow-Credentials "true" always;
+        
+        # Handle preflight requests
+        if ($request_method = 'OPTIONS') {
+            add_header Access-Control-Allow-Origin "https://www.aliboboqurilish.uz" always;
+            add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH" always;
+            add_header Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control" always;
+            add_header Access-Control-Allow-Credentials "true" always;
+            add_header Access-Control-Max-Age 86400;
+            add_header Content-Length 0;
+            add_header Content-Type "text/plain charset=UTF-8";
+            return 204;
+        }
+    }
+    
+    # Socket.IO proxy with CORS
+    location /socket.io/ {
+        proxy_pass http://localhost:5000/socket.io/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # CORS for Socket.IO
+        add_header Access-Control-Allow-Origin "https://www.aliboboqurilish.uz" always;
+        add_header Access-Control-Allow-Credentials "true" always;
+    }
+    
+    # Uploads proxy
+    location /uploads/ {
+        proxy_pass http://localhost:5000/uploads/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # CORS for uploads
+        add_header Access-Control-Allow-Origin "https://www.aliboboqurilish.uz" always;
+        
+        # Cache static files
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # Static files
+    location / {
+        try_files $uri $uri/ /index.html;
+        
+        # Cache static assets
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+    
+    # Security - deny access to hidden files
+    location ~ /\. {
+        deny all;
+    }
+}
+EOF
+
+# 2. Update backend CORS settings
+cd /opt/alibobo
+cat > backend/.env.production << 'EOF'
+NODE_ENV=production
+PORT=5000
+MONGODB_URI=mongodb+srv://ozodbek:9KS0xaLkMnnqqE3L@cluster0.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0
+
+# Security settings
+TRUST_PROXY=true
+ENABLE_CLUSTERING=true
+CORS_ORIGIN=https://www.aliboboqurilish.uz,https://aliboboqurilish.uz,http://www.aliboboqurilish.uz,http://aliboboqurilish.uz
+
+# Performance settings
+RATE_LIMIT_MAX=1000
+DEBUG=false
+SKIP_INDEX_CREATION=false
+EOF
+
+# 3. Test and reload Nginx
+nginx -t
+systemctl reload nginx
+
+# 4. Restart backend with new environment
+pm2 restart alibobo-backend --update-env
+
+# 5. Check status
+pm2 ls
+pm2 logs alibobo-backend --lines 10
+
+# 6. Test API
+curl -I -H "Origin: https://www.aliboboqurilish.uz" http://localhost/api/products/fast?limit=1

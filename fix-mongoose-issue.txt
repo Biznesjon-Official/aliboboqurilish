@@ -1,0 +1,28 @@
+# Fix Mongoose Dependencies Issue
+# VPS'da bajaring: ssh root@45.92.173.33
+
+# 1. Backend dependencies'ni to'liq qayta o'rnatish
+cd /opt/alibobo/backend
+rm -rf node_modules package-lock.json
+npm cache clean --force
+npm install
+
+# 2. Agar muammo davom etsa, mongoose'ni alohida o'rnatish
+npm uninstall mongoose
+npm install mongoose@latest
+
+# 3. Yoki barcha dependencies'ni yangilash
+npm update
+
+# 4. Backend'ni qayta ishga tushirish
+pm2 restart alibobo-backend
+
+# 5. Logs tekshirish
+pm2 logs alibobo-backend --lines 20
+
+# 6. Agar hali ham muammo bo'lsa, Node.js versiyasini tekshirish
+node --version
+npm --version
+
+# 7. Alternative: Mongoose'ni ma'lum versiyaga o'rnatish
+npm install mongoose@7.5.0

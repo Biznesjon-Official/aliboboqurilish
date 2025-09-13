@@ -82,7 +82,7 @@ const Header = ({
     if (e.type === 'click') {
       e.preventDefault();
     }
-    
+
     const currentTime = new Date().getTime();
     const tapLength = currentTime - lastTap;
 

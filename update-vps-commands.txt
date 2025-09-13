@@ -1,0 +1,32 @@
+# VPS'da kodlarni yangilash uchun buyruqlar
+# ssh root@45.92.173.33 (parol: 20100804)
+
+# 1. Joriy holatni tekshirish
+pm2 ls
+cd /opt/alibobo
+git status
+
+# 2. Yangi kodlarni olish
+git pull origin main
+
+# 3. Dependencies yangilash
+npm install
+cd backend && npm install && cd ..
+
+# 4. Frontend qayta build qilish
+npm run build
+
+# 5. Backend'ni restart qilish
+pm2 restart alibobo-backend
+
+# 6. Holatni tekshirish
+pm2 ls
+pm2 logs alibobo-backend --lines 20
+
+# 7. Website tekshirish
+curl -I http://aliboboqurilish.uz
+
+# Agar muammo bo'lsa:
+pm2 logs alibobo-backend
+systemctl status nginx
+nginx -t

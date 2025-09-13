@@ -1,0 +1,46 @@
+# Alibobo - Professional Ustalar va Qurilish Materiallari
+# https://www.aliboboqurilish.uz
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://www.aliboboqurilish.uz/sitemap.xml
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
+
+# Allow all major search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /private/
+Disallow: /*.json$
+Disallow: /*?*utm_*
+Disallow: /*?*fbclid*
+Disallow: /*?*gclid*
+
+# Allow important pages
+Allow: /api/products/fast
+Allow: /api/craftsmen
+
+# Host preference
+Host: https://www.aliboboqurilish.uz

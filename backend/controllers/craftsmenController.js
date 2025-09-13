@@ -50,9 +50,9 @@ const getCraftsmen = async (req, res) => {
     if (debug) console.log('[getCraftsmen] Query:', query);
     if (debug) console.log('[getCraftsmen] Sort options:', sortOptions);
     
-    // ULTRA-SIMPLE craftsmen query - minimal fields only
+    // OPTIMIZED craftsmen query - include image fields
     const craftsmen = await Craftsman.find(query)
-      .select('_id name specialty phone status joinDate rating') // Only essential fields
+      .select('_id name specialty phone status joinDate rating avatar portfolio') // Include image fields
       .sort(sortOptions)
       .limit(limit)
       .skip((page - 1) * limit)

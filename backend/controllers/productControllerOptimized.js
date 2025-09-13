@@ -125,32 +125,46 @@ const getProductsFast = async (req, res) => {
       }
     ];
 
-    // ULTRA-SIMPLE query - skip aggregation completely for maximum speed
+    // OPTIMIZED query - include image fields but keep it fast
     const products = await Product.find(query)
-      .select('_id name price oldPrice category stock unit badge rating isNew isPopular updatedAt createdAt') // Remove image fields for speed
+      .select('_id name price oldPrice category stock unit badge rating isNew isPopular image images updatedAt createdAt')
       .sort(sort)
       .skip(skip)
       .limit(limit)
       .lean()
       .maxTimeMS(3000); // Even stricter timeout
     
-    // MINIMAL processing - no image processing for maximum speed
-    const productsWithImages = products.map(product => ({
-      _id: product._id,
-      name: product.name,
-      price: product.price,
-      oldPrice: product.oldPrice,
-      category: product.category,
-      stock: product.stock,
-      unit: product.unit || 'dona',
-      badge: product.badge,
-      rating: product.rating || 0,
-      isNew: product.isNew || false,
-      isPopular: product.isPopular || false,
-      image: '/assets/default-product.svg', // Default image for speed
-      updatedAt: product.updatedAt,
-      createdAt: product.createdAt
-    }));
+    // OPTIMIZED processing - include real images with fallback
+    const productsWithImages = products.map(product => {
+      // Determine the best image to use
+      let imageToUse = '/assets/default-product.svg'; // Default fallback
+      
+      // Priority 1: Use main image if it exists and is not default
+      if (product.image && product.image !== '/assets/default-product.svg') {
+        imageToUse = product.image;
+      }
+      // Priority 2: Use first image from images array if available
+      else if (product.images && product.images.length > 0 && product.images[0]) {
+        imageToUse = product.images[0];
+      }
+      
+      return {
+        _id: product._id,
+        name: product.name,
+        price: product.price,
+        oldPrice: product.oldPrice,
+        category: product.category,
+        stock: product.stock,
+        unit: product.unit || 'dona',
+        badge: product.badge,
+        rating: product.rating || 0,
+        isNew: product.isNew || false,
+        isPopular: product.isPopular || false,
+        image: imageToUse,
+        updatedAt: product.updatedAt,
+        createdAt: product.createdAt
+      };
+    });
     
     const duration = Date.now() - startTime;
     if (debug) console.log(`[getProductsFast] 🚀 ULTRA-FAST completed in ${duration}ms, returned ${products.length} products`);

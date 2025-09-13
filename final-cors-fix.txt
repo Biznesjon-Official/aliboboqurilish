@@ -1,0 +1,34 @@
+# Final CORS Fix - VPS'da bajaring
+# ssh root@45.92.173.33
+
+# Backend CORS konfiguratsiyasini yangilash
+cd /opt/alibobo
+
+# Production environment file'ni to'g'ri yaratish
+cat > backend/.env.production << 'EOF'
+NODE_ENV=production
+PORT=5000
+MONGODB_URI=mongodb+srv://ozodbek:9KS0xaLkMnnqqE3L@cluster0.dlopces.mongodb.net/alibobo?retryWrites=true&w=majority&appName=Cluster0
+
+# Security settings
+TRUST_PROXY=true
+ENABLE_CLUSTERING=true
+CORS_ORIGIN=https://www.aliboboqurilish.uz,https://aliboboqurilish.uz,http://www.aliboboqurilish.uz,http://aliboboqurilish.uz
+
+# Performance settings
+RATE_LIMIT_MAX=1000
+DEBUG=false
+SKIP_INDEX_CREATION=false
+EOF
+
+# Backend'ni yangi environment bilan restart qilish
+pm2 restart alibobo-backend --update-env
+
+# Status tekshirish
+pm2 ls
+
+# Logs tekshirish
+pm2 logs alibobo-backend --lines 10
+
+# API test qilish
+curl -I -H "Origin: https://www.aliboboqurilish.uz" http://localhost/api/products/fast?limit=1
