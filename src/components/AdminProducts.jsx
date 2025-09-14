@@ -276,9 +276,13 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const [fastMode, setFastMode] = useState(true);
   
   // React Query: fetch products with debounced inputs
-  const { data: productsData, isLoading, isFetching, isFetched, isSuccess, isError, error } = fastMode 
-    ? useProductsFast(debouncedCategory, currentPage, ITEMS_PER_PAGE)
-    : useProducts(debouncedCategory, debouncedSearch, currentPage, ITEMS_PER_PAGE);
+  // Call both hooks unconditionally to follow Rules of Hooks
+  const fastProducts = useProductsFast(debouncedCategory, currentPage, ITEMS_PER_PAGE);
+  const normalProducts = useProducts(debouncedCategory, debouncedSearch, currentPage, ITEMS_PER_PAGE);
+  
+  // Conditionally use the appropriate result based on fastMode
+  const { data: productsData, isLoading, isFetching, isFetched, isSuccess, isError, error } = 
+    fastMode ? fastProducts : normalProducts;
 
   // Load categories on component mount
   useEffect(() => {
