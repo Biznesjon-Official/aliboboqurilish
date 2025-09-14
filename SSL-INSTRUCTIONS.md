@@ -12,7 +12,7 @@ Follow these steps to set up SSL for your Alibobo application:
 
 3. Upload the SSL setup script:
    ```bash
-   scp ssl-setup.sh root@45.92.173.33:/opt/alibobo/
+   scp ssl-setup.c:/opt/alibobo/
    ```
 
 ## Step 2: Run SSL Setup on VPS

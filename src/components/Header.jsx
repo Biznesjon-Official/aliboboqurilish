@@ -176,16 +176,20 @@ const Header = ({
                   src="/logo.png"
                   alt="Logo"
                   loading="eager"
-                  decoding="async"
+                  decoding="sync"
                   fetchpriority="high"
+                  width="48"
+                  height="48"
                   className="w-12 h-12 object-cover rounded-lg"
                 />
                 <img
                   src="/alibobo.png"
                   alt="Alibobo"
                   loading="eager"
-                  decoding="async"
+                  decoding="sync"
                   fetchpriority="high"
+                  width="144"
+                  height="56"
                   className="h-14 w-36 object-cover"
                 />
               </div>
@@ -276,16 +280,20 @@ const Header = ({
                 src="/logo.png"
                 alt="Logo"
                 loading="eager"
-                decoding="async"
+                decoding="sync"
                 fetchpriority="high"
+                width="32"
+                height="32"
                 className="w-8 h-8 object-cover rounded-lg"
               />
               <img
                 src="/alibobo.png"
                 alt="Alibobo"
                 loading="eager"
-                decoding="async"
+                decoding="sync"
                 fetchpriority="high"
+                width="96"
+                height="32"
                 className="h-8 w-24 object-cover"
               />
             </div>

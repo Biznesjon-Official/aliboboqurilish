@@ -163,4 +163,4 @@ echo "⏰ Setting up automatic certificate renewal..."
 sudo crontab -l | { cat; echo "0 12 * * * /usr/bin/certbot renew --quiet"; } | sudo crontab -
 
 echo "✅ SSL setup completed successfully!"
-echo "📜 SSL certificate will automatically renew every 90 days"
+echo "📜 SSL certificate will automatically renew every 90 days"ear

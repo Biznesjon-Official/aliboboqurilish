@@ -1,0 +1,83 @@
+⚡ MAHSULOTLAR TEZKOR YUKLASH UCHUN FIX
+=====================================
+
+MUAMMO: Birinchi kirganda mahsulotlar sekin yuklanyapti
+
+SABABLARI:
+1. Database'dan barcha mahsulotlar bir vaqtda yuklanmoqda
+2. Rasmlar optimizatsiya qilinmagan
+3. Lazy loading yo'q
+4. Caching yo'q
+5. API response sekin
+
+TEZKOR YECHIMLAR:
+
+1. VPS'DA PERFORMANCE TEKSHIRISH:
+   ssh root@45.92.173.33
+   cd /opt/alibobo
+   pm2 logs alibobo-backend --lines 20
+   htop  # CPU va RAM tekshirish
+
+2. DATABASE INDEXLAR QO'SHISH:
+   mongo
+   use alibobo
+   db.products.createIndex({ "category": 1 })
+   db.products.createIndex({ "createdAt": -1 })
+   db.products.createIndex({ "price": 1 })
+
+3. NGINX CACHING YOQISH:
+   nano /etc/nginx/sites-available/aliboboqurilish.uz
+   
+   # API uchun cache qo'shing:
+   location /api/products {
+       proxy_cache_valid 200 5m;
+       proxy_cache_key $uri$is_args$args;
+       add_header X-Cache-Status $upstream_cache_status;
+   }
+
+4. PM2 CLUSTER MODE:
+   pm2 delete alibobo-backend
+   pm2 start ecosystem.config.js
+   pm2 save
+
+5. GZIP COMPRESSION TEKSHIRISH:
+   curl -H "Accept-Encoding: gzip" -I http://aliboboqurilish.uz/api/products
+
+TEZKOR FRONTEND FIX:
+
+1. LAZY LOADING QO'SHISH (src/components/CategorySection.jsx):
+   - React.lazy() ishlatish
+   - Intersection Observer API
+   - Skeleton loading
+
+2. PAGINATION QO'SHISH:
+   - Birinchi 12 ta mahsulot ko'rsatish
+   - "Ko'proq yuklash" tugmasi
+
+3. IMAGE OPTIMIZATION:
+   - WebP format ishlatish
+   - Lazy loading images
+   - Placeholder images
+
+BUGUN QILISH KERAK:
+
+1. VPS'ga kirib PM2 restart qiling:
+   pm2 restart alibobo-backend
+   pm2 monit
+
+2. Database indexlar qo'shing (yuqoridagi mongo commands)
+
+3. Nginx restart qiling:
+   systemctl reload nginx
+
+4. Performance test qiling:
+   curl -w "@curl-format.txt" -o /dev/null -s http://aliboboqurilish.uz/api/products
+
+KUTILGAN NATIJA:
+- 3-5 soniyadan 1-2 soniyaga tushadi
+- Birinchi yuklash 80% tezlashadi
+- Keyingi yuklashlar cache'dan keladi
+
+MONITORING:
+pm2 monit  # Real-time monitoring
+pm2 logs   # Error logs tekshirish

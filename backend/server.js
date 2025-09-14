@@ -20,6 +20,7 @@ const cluster = require('cluster');
 const os = require('os');
 const http = require('http'); // For Socket.IO integration
 const socketService = require('./services/SocketService'); // Real-time updates
+const { primeProductsFastCache } = require('./controllers/productControllerOptimized');
 
 // Use clustering to take advantage of multi-core systems (disabled in development for faster startup)
 const enableClustering = process.env.ENABLE_CLUSTERING === 'true' && process.env.NODE_ENV !== 'development';
@@ -257,17 +258,66 @@ if (enableClustering && cluster.isPrimary) {
 
   // CRITICAL: Add cache control headers for real-time updates
   app.use((req, res, next) => {
-    // Prevent HTTP caching of API responses that contain real-time data
-    if (req.path.startsWith('/api/products') || req.path.startsWith('/api/orders')) {
-      res.set({
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'ETag': `"${Date.now()}"` // Force ETag rotation
-      });
+    // Products can be cached briefly to boost speed without UI changes
+    if (req.path.startsWith('/api/products')) {
+      // In production, allow short public caching; dev stays no-store for easier debugging
+      const productsCache = process.env.NODE_ENV === 'development'
+        ? 'no-store'
+        : 'public, max-age=30, stale-while-revalidate=60';
+      res.set({ 'Cache-Control': productsCache });
+    } else if (req.path.startsWith('/api/craftsmen')) {
+      const craftsmenCache = process.env.NODE_ENV === 'development'
+        ? 'no-store'
+        : 'public, max-age=30, stale-while-revalidate=60';
+      res.set({ 'Cache-Control': craftsmenCache });
+    } else if (req.path.startsWith('/api/orders')) {
+      // Orders should not be cached client-side
+      res.set({ 'Cache-Control': 'private, no-store' });
     }
+    // Let Express compute proper ETag from response body (don’t rotate per-request)
     next();
   });
+
+  // Ultra-light microcache for GET /api/products to absorb bursts (UI remains unchanged)
+  const createMicroCache = (ttlMs = 5000) => {
+    const store = new Map();
+    return (req, res, next) => {
+      if (req.method !== 'GET') return next();
+
+      const key = req.originalUrl;
+      const now = Date.now();
+      const hit = store.get(key);
+
+      if (hit && now - hit.time < ttlMs) {
+        try {
+          res.set('X-MicroCache', 'HIT');
+          if (hit.headers) {
+            Object.entries(hit.headers).forEach(([k, v]) => {
+              try { res.setHeader(k, v); } catch {}
+            });
+          }
+        } catch {}
+        return res.send(hit.body);
+      }
+
+      const originalSend = res.send.bind(res);
+      res.send = (body) => {
+        try {
+          const headers = typeof res.getHeaders === 'function' ? res.getHeaders() : {};
+          store.set(key, { time: Date.now(), body, headers });
+          res.set('X-MicroCache', 'MISS');
+        } catch {}
+        return originalSend(body);
+      };
+
+      next();
+    };
+  };
+
+  // Apply microcache to products API before route registration (single registration)
+  const microTtl = parseInt(process.env.MICROCACHE_TTL_MS || '5000', 10);
+  app.use('/api/products', createMicroCache(microTtl));
+  app.use('/api/craftsmen', createMicroCache(microTtl));
 
   // Ensure uploads directory exists
   const fs = require('fs');
@@ -552,6 +602,15 @@ if (enableClustering && cluster.isPrimary) {
 
   const startServer = async () => {
     await connectDB();
+
+    // Prime ultra-fast products cache for first pages (non-blocking)
+    try {
+      const pagesToPrime = (process.env.PRIME_PAGES || '1,2,3').split(',').map(n => parseInt(n.trim(), 10)).filter(Boolean);
+      const limitToPrime = parseInt(process.env.PRIME_LIMIT || '20', 10);
+      primeProductsFastCache({ pages: pagesToPrime, limit: limitToPrime, sortBy: 'updatedAt', sortOrder: 'desc' })
+        .then(() => { if (process.env.DEBUG === 'true') console.log('⚡ Primed products fast cache'); })
+        .catch(err => { if (process.env.DEBUG === 'true') console.log('⚠️ Prime cache error:', err?.message || err); });
+    } catch (_) {}
 
     // Create HTTP server for Socket.IO integration
     const httpServer = http.createServer(app);

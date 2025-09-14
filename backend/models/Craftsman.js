@@ -72,6 +72,7 @@ const craftsmanSchema = new mongoose.Schema({
 craftsmanSchema.index({ specialty: 1, status: 1 });
 craftsmanSchema.index({ name: 'text', specialty: 'text' });
 craftsmanSchema.index({ status: 1 });
+craftsmanSchema.index({ status: 1, joinDate: -1 });
 craftsmanSchema.index({ createdAt: 1 });
 craftsmanSchema.index({ updatedAt: 1 });
 craftsmanSchema.index({ createdAt: 1, updatedAt: 1 }, { name: 'edit_tracking' });

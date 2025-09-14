@@ -107,26 +107,23 @@ const ProductsGrid = ({
     }
   }, [data, isLoading, isFetching]);
 
-  // Background prefetch: after first success, prefetch more pages to reach ~600 items
+  // Background prefetch: defer until after first paint/load to avoid LCP contention
   useEffect(() => {
     // Only run when we have first page and there are more pages
     if (!data || !hasNextPage || !fetchNextPage) return;
 
     let cancelled = false;
     const start = Date.now();
-    const MAX_TIME_MS = 500; // Reduced from 2000ms to 500ms for faster UI response
-    const MAX_PAGES = 3; // Reduced from 12 to 3 pages for faster initial load
+    const MAX_TIME_MS = 300; // shorter budget to avoid competing with rendering
+    const MAX_PAGES = 1; // fetch only 1 extra page early; others will be manual or truly idle
 
-    // Helper to fetch next pages sequentially with micro-delays to yield to UI
     const prefetchMore = async () => {
       try {
         let pagesFetched = 0;
         while (!cancelled && hasNextPage && pagesFetched < MAX_PAGES && (Date.now() - start) < MAX_TIME_MS) {
-          // Very small delay to keep UI ultra-responsive
-          await new Promise((r) => setTimeout(r, 10)); // Reduced from 50ms to 10ms
+          await new Promise((r) => setTimeout(r, 16)); // yield a frame
           const res = await fetchNextPage();
           pagesFetched += 1;
-          // If react-query indicates no more next page after fetch, break
           if (!res?.hasNextPage) break;
         }
       } catch (_) {
@@ -134,17 +131,31 @@ const ProductsGrid = ({
       }
     };
 
-    // Schedule prefetch during idle if available, else immediate
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(prefetchMore, { timeout: 500 }); // Reduced from 1500ms to 500ms
-      return () => {
-        cancelled = true;
-        try { window.cancelIdleCallback && window.cancelIdleCallback(idleId); } catch {}
+    const schedule = () => {
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        const idleId = window.requestIdleCallback(prefetchMore, { timeout: 1500 });
+        return () => {
+          cancelled = true;
+          try { window.cancelIdleCallback && window.cancelIdleCallback(idleId); } catch {}
+        };
+      } else {
+        const t = setTimeout(prefetchMore, 1500);
+        return () => { cancelled = true; clearTimeout(t); };
+      }
+    };
+
+    let cleanup = () => { cancelled = true; };
+    if (typeof document !== 'undefined' && document.readyState === 'complete') {
+      cleanup = schedule();
+    } else if (typeof window !== 'undefined') {
+      const onLoad = () => {
+        cleanup = schedule();
+        window.removeEventListener('load', onLoad);
       };
-    } else {
-      prefetchMore();
-      return () => { cancelled = true; };
+      window.addEventListener('load', onLoad);
+      cleanup = () => { cancelled = true; window.removeEventListener('load', onLoad); };
     }
+    return () => cleanup();
   }, [data, hasNextPage, fetchNextPage]);
 
 

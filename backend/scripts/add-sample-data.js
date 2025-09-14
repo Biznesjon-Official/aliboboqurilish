@@ -38,7 +38,7 @@ const addSampleData = async () => {
     // Add sample products if none exist
     if (productCount === 0) {
       console.log('📦 Adding sample products...');
-      const sampleProducts = [
+    const sampleProducts = [
         {
           name: 'Test Mahsulot 1',
           price: 50000,

@@ -125,14 +125,32 @@ const getProductsFast = async (req, res) => {
       }
     ];
 
-    // OPTIMIZED query - include image fields but keep it fast
-    const products = await Product.find(query)
-      .select('_id name price oldPrice category stock unit badge rating isNew isPopular image images updatedAt createdAt')
+    // Helper: choose medium-sized image to reduce LCP
+    const toMedium = (p) => {
+      if (!p || typeof p !== 'string') return p;
+      const norm = p.replace(/\\/g, '/');
+      return norm
+        .replace('/uploads/products/original/', '/uploads/products/medium/')
+        .replace('/uploads/products/large/', '/uploads/products/medium/');
+    };
+
+    // OPTIMIZED query - include only essential image fields and prefer index when applicable
+    let queryExec = Product.find(query)
+      .select('_id name price oldPrice category stock unit badge rating isNew isPopular image images.0 updatedAt createdAt')
       .sort(sort)
       .skip(skip)
       .limit(limit)
       .lean()
       .maxTimeMS(3000); // Even stricter timeout
+
+    // Hint the updatedAt index when sorting by updatedAt (matches schema index { updatedAt: -1, status: 1 })
+    if (sort && Object.prototype.hasOwnProperty.call(sort, 'updatedAt')) {
+      try {
+        queryExec = queryExec.hint({ updatedAt: -1, status: 1 });
+      } catch (_) {}
+    }
+
+    const products = await queryExec;
     
     // OPTIMIZED processing - include real images with fallback
     const productsWithImages = products.map(product => {
@@ -141,11 +159,11 @@ const getProductsFast = async (req, res) => {
       
       // Priority 1: Use main image if it exists and is not default
       if (product.image && product.image !== '/assets/default-product.svg') {
-        imageToUse = product.image;
+        imageToUse = toMedium(product.image);
       }
       // Priority 2: Use first image from images array if available
       else if (product.images && product.images.length > 0 && product.images[0]) {
-        imageToUse = product.images[0];
+        imageToUse = toMedium(product.images[0]);
       }
       
       return {
@@ -217,5 +235,102 @@ const getProductsFast = async (req, res) => {
 };
 
 module.exports = {
-  getProductsFast
+  getProductsFast,
+  // Helper: prime cache for given pages at startup
+  primeProductsFastCache: async ({ pages = [1], limit = 20, category, sortBy = 'updatedAt', sortOrder = 'desc' } = {}) => {
+    const debug = process.env.DEBUG === 'true';
+    try {
+      // Build query identical to getProductsFast
+      let query = {
+        isDeleted: { $ne: true },
+        status: 'active'
+      };
+      if (category && String(category).trim() !== '') {
+        query.category = String(category).trim();
+      }
+
+      const sort = sortBy === 'price' ? { price: sortOrder === 'asc' ? 1 : -1, updatedAt: -1 } : { updatedAt: -1 };
+
+      for (const page of pages) {
+        const p = Math.max(1, parseInt(page));
+        const l = Math.min(parseInt(limit) || 20, 50);
+        const skip = (p - 1) * l;
+        const cacheKey = getFastCacheKey(query, p, l, sort);
+
+        // Skip if already cached and fresh
+        const cached = fastCache.get(cacheKey);
+        if (cached && (Date.now() - cached.timestamp) < FAST_CACHE_TTL) continue;
+
+        // Execute same minimal query used in handler
+        let exec = Product.find(query)
+          .select('_id name price oldPrice category stock unit badge rating isNew isPopular image images.0 updatedAt createdAt')
+          .sort(sort)
+          .skip(skip)
+          .limit(l)
+          .lean()
+          .maxTimeMS(3000);
+
+        if (sort && Object.prototype.hasOwnProperty.call(sort, 'updatedAt')) {
+          try { exec = exec.hint({ updatedAt: -1, status: 1 }); } catch (_) {}
+        }
+
+        const products = await exec;
+
+        const toMedium = (p) => {
+          if (!p || typeof p !== 'string') return p;
+          const norm = p.replace(/\\/g, '/');
+          return norm
+            .replace('/uploads/products/original/', '/uploads/products/medium/')
+            .replace('/uploads/products/large/', '/uploads/products/medium/');
+        };
+
+        const productsWithImages = products.map(product => {
+          let imageToUse = '/assets/default-product.svg';
+          if (product.image && product.image !== '/assets/default-product.svg') {
+            imageToUse = toMedium(product.image);
+          } else if (product.images && product.images.length > 0 && product.images[0]) {
+            imageToUse = toMedium(product.images[0]);
+          }
+          return {
+            _id: product._id,
+            name: product.name,
+            price: product.price,
+            oldPrice: product.oldPrice,
+            category: product.category,
+            stock: product.stock,
+            unit: product.unit || 'dona',
+            badge: product.badge,
+            rating: product.rating || 0,
+            isNew: product.isNew || false,
+            isPopular: product.isPopular || false,
+            image: imageToUse,
+            updatedAt: product.updatedAt,
+            createdAt: product.createdAt
+          };
+        });
+
+        const payload = {
+          products: productsWithImages,
+          pagination: {
+            currentPage: p,
+            limit: l,
+            hasNextPage: products.length === l,
+            hasPrevPage: p > 1,
+            total: null
+          },
+          performance: {
+            queryTime: null,
+            optimized: true,
+            cached: true,
+            version: 'ultra-fast-v2'
+          }
+        };
+
+        fastCache.set(cacheKey, { payload, timestamp: Date.now() });
+        if (debug) console.log(`[primeProductsFastCache] Primed cache for page=${p}, limit=${l}`);
+      }
+    } catch (err) {
+      if (debug) console.log('[primeProductsFastCache] Error:', err.message);
+    }
+  }
 };

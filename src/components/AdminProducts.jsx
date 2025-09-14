@@ -18,8 +18,6 @@ import OptimizedImage from './OptimizedImage';
 import Base64Image from './Base64Image';
 import '../styles/select-styles.css';
 
-const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
-
 const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // Real notification system for notification bell
   const {
@@ -116,23 +114,23 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 
   // Main categories (asosiy kategoriyalar) - only the 5 main categories
   const mainCategories = [
-    'xoz-mag',
-    'yevro-remont', 
-    'elektrika',
-    'dekorativ-mahsulotlar',
-    'santexnika'
+    'Xoz-Mag',
+    'Yevro-Remont', 
+    'Elektrika',
+    'Dekorativ-mahsulotlar',
+    'Santexnika'
   ];
 
   // Load categories from API with fallback to main categories
   const loadCategories = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/products/categories/list`);
+      const response = await fetch('http://localhost:5000/api/products/categories/list');
       if (response.ok) {
-        const data = await response.json();
-        // console.log('📋 Loaded categories from API:', data);
-        // Extract category names from the API response
-        const categoryNames = data.categories?.map(cat => cat._id) || [];
-        setCategories(['Barcha kategoriyalar', ...categoryNames]);
+        const categoriesData = await response.json();
+        // console.log('📋 Loaded categories from API:', categoriesData);
+        // Ensure categoriesData is an array before spreading
+        const categoryArray = Array.isArray(categoriesData) ? categoriesData : [];
+        setCategories(['Barcha kategoriyalar', ...categoryArray]);
       } else {
         console.log('⚠️ API failed, using main categories as fallback');
         setCategories(['Barcha kategoriyalar', ...mainCategories]);
@@ -274,13 +272,13 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     };
   }, []);
 
+  // Fast mode toggle
+  const [fastMode, setFastMode] = useState(true);
+  
   // React Query: fetch products with debounced inputs
-  const { data: productsData, isLoading, isFetching, isFetched, isSuccess, isError, error } = useProducts(
-    debouncedCategory,
-    debouncedSearch,
-    currentPage,
-    ITEMS_PER_PAGE
-  );
+  const { data: productsData, isLoading, isFetching, isFetched, isSuccess, isError, error } = fastMode 
+    ? useProductsFast(debouncedCategory, currentPage, ITEMS_PER_PAGE)
+    : useProducts(debouncedCategory, debouncedSearch, currentPage, ITEMS_PER_PAGE);
 
   // Load categories on component mount
   useEffect(() => {
@@ -349,13 +347,12 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         page: String(nextPage),
         sortBy: 'updatedAt',
         sortOrder: 'desc',
-        includeImages: 'true', // Always include images for admin interface
       });
       if (debouncedCategory) params.append('category', debouncedCategory);
       if (debouncedSearch) params.append('search', debouncedSearch);
       queryClient.prefetchQuery({
         queryKey: key,
-        queryFn: ({ signal }) => fetch(`${API_BASE}/products?${params.toString()}`, { signal }).then(r => r.json()),
+        queryFn: ({ signal }) => fetch(`http://localhost:5000/api/products?${params.toString()}`, { signal }).then(r => r.json()),
         staleTime: 2 * 60 * 1000,
       });
     }
@@ -660,15 +657,6 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         setTimeout(() => {
           safeNotifySuccess('Mahsulot yangilandi', `${productData.name} muvaffaqiyatli yangilandi`);
         }, 0);
-        
-        // GENTLE: Only basic cache management
-        // Single invalidation without forced refetch
-        queryClient.invalidateQueries({ queryKey: queryKeys.recentActivities.all });
-        
-        // Strategy 3: Custom event for immediate UI update
-        window.dispatchEvent(new CustomEvent('productUpdated', {
-          detail: { product: updatedProduct, action: 'updated' }
-        }));
       } else {
         // Create new product using React Query mutation
         // console.log('🔄 Creating product with mutation...');
@@ -681,31 +669,22 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
           // Add to recent activities
           notifyProductAdded(newProduct);
         }, 0);
-        
-        // GENTLE: Only basic cache management
-        // Single invalidation without forced refetch
-        queryClient.invalidateQueries({ queryKey: queryKeys.recentActivities.all });
-        
-        // Strategy 3: Custom event for immediate UI update
-        window.dispatchEvent(new CustomEvent('productAdded', {
-          detail: { product: newProduct, action: 'added' }
-        }));
       }
 
       // Close modal after successful operation
       closeModal();
       
-      // OPTIMIZED: Reduced post-save operations for 3x faster performance
+      // Refresh notifications and recent activities
       setTimeout(() => {
-        // Only reload categories if a completely new category was added
-        const isNewCategory = formData.category && !categories.includes(formData.category);
-        if (isNewCategory) {
-          loadCategories();
+        // Invalidate notifications to show new notification
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        // Refresh recent activities to show new activity
+        if (activitiesCache && activitiesCache.refreshAll) {
+          activitiesCache.refreshAll();
         }
-        // Skip heavy cache invalidations - Socket.IO handles real-time updates
-        // queryClient.invalidateQueries({ queryKey: ['notifications'] });
-        // activitiesCache?.refreshAll();
-      }, 50); // Reduced from 300ms to 50ms
+        // Reload categories to include new ones (if any)
+        loadCategories();
+      }, 300);
 
     } catch (error) {
       console.error('❌ Mahsulot saqlashda xatolik:', error);
@@ -747,14 +726,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const changePage = (direction) => {
     setCurrentPage(prev => {
       const newPage = direction === 'next' ? prev + 1 : prev - 1;
-      const validPage = Math.max(1, Math.min(newPage, totalPages));
-      
-      // Clear current products to show immediate feedback that page is changing
-      if (validPage !== prev) {
-        setProducts([]);
-      }
-      
-      return validPage;
+      return Math.max(1, Math.min(newPage, totalPages));
     });
   };
 
@@ -813,6 +785,8 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     }
   };
 
+  // ... (rest of the code remains the same)
+
   const removeExistingImage = (index) => {
     setFormData(prev => ({
       ...prev,
@@ -845,27 +819,14 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // Derive products and pagination from query
   const queriedProducts = productsData?.products || [];
   useEffect(() => {
-    // Only update products if we have valid data for the current page
-    if (productsData && !isLoading && !isFetching) {
-      setProducts(queriedProducts);
-      const p = productsData?.pagination;
-      setTotalPages(p?.totalPages || 1);
-      setTotalCount(p?.totalCount || productsData?.totalCount || 0);
-      
-      // Debug log to help user understand pagination
-      console.log(`📄 Sahifa ${p?.currentPage || currentPage} yuklandi: ${queriedProducts.length} ta mahsulot`, {
-        currentPage: p?.currentPage || currentPage,
-        totalPages: p?.totalPages,
-        totalCount: p?.totalCount,
-        productsOnPage: queriedProducts.length,
-        category: debouncedCategory || 'Barcha kategoriyalar'
-      });
-    }
-  }, [productsData, isLoading, isFetching, queriedProducts, currentPage, debouncedCategory]);
+    setProducts(queriedProducts);
+    const p = productsData?.pagination;
+    setTotalPages(p?.totalPages || 1);
+    setTotalCount(p?.totalCount || productsData?.totalCount || 0);
+  }, [productsData]);
 
   const loading = isLoading;
   const showSkeleton = loading || (isFetching && (products?.length || 0) === 0);
-  const showPageLoading = isFetching && (products?.length || 0) > 0; // Show loading when changing pages
   const showEmpty = !loading && !isFetching && isSuccess && (products?.length || 0) === 0;
 
   return (
@@ -902,16 +863,24 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         animation: slideOutRight 0.3s ease-in;
       }
     `}</style>
-    
-    {/* Remove the loading overlay */}
-    {/* {loading && <LoadingOverlay />} */}
-    
     {/* Main Content */}
     <main className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
       {/* Top Bar: Title + Notification Bell (no mobile menu) */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-primary-dark">Mahsulotlar</h2>
-        <div className="flex items-center">
+        <div className="flex items-center gap-3">
+          {/* Fast Mode Toggle */}
+          <button
+            onClick={() => setFastMode(!fastMode)}
+            className={`px-3 py-1 text-sm rounded-full transition-colors ${
+              fastMode 
+                ? 'bg-green-100 text-green-700 border border-green-300' 
+                : 'bg-gray-100 text-gray-600 border border-gray-300'
+            }`}
+            title={fastMode ? 'Tez rejim (rasmlar yo\'q)' : 'Oddiy rejim (rasmlar bilan)'}
+          >
+            ⚡ {fastMode ? 'Tez' : 'Oddiy'}
+          </button>
           <AdminNotificationBell 
             notifications={realNotifications} 
             setNotifications={setRealNotifications}
@@ -977,7 +946,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
               className="custom-select flex-1"
             >
               <option value="">Barcha kategoriyalar</option>
-              {categories.filter(category => category !== 'Barcha kategoriyalar').map(category => (
+              {mainCategories.map(category => (
                 <option key={category} value={category}>
                   {category}
                 </option>
@@ -999,7 +968,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       <div className="mb-6">
         {showSkeleton ? (
           <div className="col-span-full">
-            <LoadingCard count={8} />
+            <LoadingCard count={6} />
           </div>
         ) : showEmpty ? (
           <div className="col-span-full text-center py-12">
@@ -1120,34 +1089,25 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         {totalPages > 1 && (
           <div className="flex items-center justify-between bg-white px-6 py-4 rounded-lg shadow-sm flex-nowrap">
             <div className="text-sm text-gray-600 whitespace-nowrap">
-              <span className="font-medium">{totalCount}</span> ta mahsulotdan{' '}
-              <span className="font-medium text-primary-orange">
-                {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)}
-              </span>{' '}
-              tasi ko'rsatilmoqda
-              {debouncedCategory && (
-                <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
-                  {debouncedCategory}
-                </span>
-              )}
+              {totalCount} ta mahsulotdan {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} tasi ko'rsatilmoqda
             </div>
             <div className="flex items-center space-x-2 shrink-0">
               <button
                 onClick={() => changePage('prev')}
-                disabled={currentPage === 1 || isFetching}
+                disabled={currentPage === 1}
                 className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               >
                 <i className="fas fa-chevron-left mr-1"></i>
                 <span className="hidden sm:inline">Oldingi</span>
               </button>
               <span className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap shrink-0 text-center inline-flex items-center gap-1">
-                <span className="font-medium">{currentPage}</span>
+                <span>{currentPage}</span>
                 <span>/</span>
                 <span>{totalPages}</span>
               </span>
               <button
                 onClick={() => changePage('next')}
-                disabled={currentPage === totalPages || isFetching}
+                disabled={currentPage === totalPages}
                 className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               >
                 <span className="hidden sm:inline mr-1">Keyingi</span>
@@ -1209,7 +1169,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                     required
                   >
                     <option value="">Kategoriya tanlang</option>
-                    {categories.filter(category => category !== 'Barcha kategoriyalar').map(category => (
+                    {mainCategories.map(category => (
                       <option key={category} value={category}>
                         {category}
                       </option>
@@ -1529,11 +1489,3 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 };
 
 export default AdminProducts; 
-
-
-
-
-
-
-
-

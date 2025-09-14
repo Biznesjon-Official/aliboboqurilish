@@ -216,6 +216,8 @@ productSchema.index({ rating: -1, status: 1 }); // Highest rated first
 // 6. Time-based queries
 productSchema.index({ createdAt: -1, status: 1 }); // Newest products
 productSchema.index({ updatedAt: -1, status: 1 }); // Recently updated
+// For queries filtering by status & isDeleted and sorting by updatedAt
+productSchema.index({ status: 1, isDeleted: 1, updatedAt: -1 });
 
 // 7. Compound indexes for common query patterns
 productSchema.index({ 

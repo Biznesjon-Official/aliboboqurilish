@@ -218,4 +218,4 @@ rm -f temp_ssl_setup.sh
 
 echo ""
 echo "🎉 SSL setup completed!"
-echo "🌐 Your website: https://aliboboqurilish.uz"
+echo "🌐 Your website: https://aliboboqurilish.uz"  

@@ -1,0 +1,56 @@
+🚨 URGENT FIX - ALIBOBOQURILISH.UZ
+===================================
+
+MUAMMOLAR:
+1. 504 Gateway Timeout - API sekin
+2. 404 favicon errors
+3. Socket.IO duplicate initialization
+4. API URL noto'g'ri
+
+TEZKOR YECHIM (5 daqiqa):
+
+1. VPS'GA KIRISH:
+   ssh root@45.92.173.33
+   Password: 20100804
+
+2. PM2 RESTART:
+   cd /opt/alibobo
+   pm2 restart alibobo-backend
+   pm2 logs alibobo-backend --lines 20
+
+3. NGINX TIMEOUT OSHIRISH:
+   nano /etc/nginx/sites-available/aliboboqurilish.uz
+   
+   # Quyidagi qatorlarni qo'shing:
+   proxy_read_timeout 300s;
+   proxy_connect_timeout 75s;
+   proxy_send_timeout 300s;
+
+4. FAVICON FAYLLARNI YARATISH:
+   cd /opt/alibobo/build
+   cp logo.png favicon.ico
+   cp logo.png android-chrome-192x192.png
+   cp logo.png android-chrome-512x512.png
+
+5. NGINX RESTART:
+   nginx -t
+   systemctl reload nginx
+
+6. DATABASE CONNECTION TEKSHIRISH:
+   mongo "mongodb+srv://ozodbek:9KS0xaLkMnnqqE3L@cluster0.dlopces.mongodb.net/alibobo"
+   db.products.find().limit(1)
+
+7. PERFORMANCE MONITORING:
+   pm2 monit
+   htop
+
+KUTILGAN NATIJA:
+- 504 error yo'qoladi
+- Favicon errors tuzaladi
+- API tezlashadi
+- Socket.IO to'g'ri ishlaydi
+
+AGAR MUAMMO DAVOM ETSA:
+- VPS restart: reboot
+- MongoDB Atlas connection tekshirish
+- DNS cache clear qilish

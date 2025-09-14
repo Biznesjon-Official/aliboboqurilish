@@ -31,124 +31,61 @@ async function createPerformanceIndexes() {
 
     console.log('\n🔧 Creating performance-optimized indexes...');
 
+    const byKey = (idx) => JSON.stringify(idx.key);
+    const ensureIndex = async (keys, options = {}) => {
+      const keyStr = JSON.stringify(keys);
+      const exists = existingIndexes.find(i => byKey(i) === keyStr);
+      if (exists) {
+        console.log(`ℹ️  Index with same key already exists, skipping: ${options.name || keyStr}`);
+        return;
+      }
+      try {
+        await collection.createIndex(keys, { background: true, ...options });
+        console.log(`✅ Created index: ${options.name || keyStr}`);
+      } catch (e) {
+        if (e && (e.code === 85 || /IndexOptionsConflict/i.test(e.message))) {
+          console.log(`⚠️  Index options conflict for ${options.name || keyStr}, skipping (existing index retained).`);
+          return;
+        }
+        if (e && /already exists/i.test(e.message)) {
+          console.log(`ℹ️  Index already exists for ${options.name || keyStr}, skipping.`);
+          return;
+        }
+        throw e;
+      }
+    };
+
     // 1. Critical compound index for the most common query pattern
     // This will dramatically speed up the main product listing
     console.log('Creating compound index for main product listing...');
-    await collection.createIndex(
-      { 
-        isDeleted: 1,
-        status: 1, 
-        updatedAt: -1 
-      },
-      { 
-        name: 'fast_product_listing',
-        background: true 
-      }
-    );
+    await ensureIndex({ isDeleted: 1, status: 1, updatedAt: -1 }, { name: 'fast_product_listing' });
 
     // 2. Category-based queries with sorting
     console.log('Creating category + sorting index...');
-    await collection.createIndex(
-      { 
-        isDeleted: 1,
-        status: 1,
-        category: 1, 
-        updatedAt: -1 
-      },
-      { 
-        name: 'category_sorted_listing',
-        background: true 
-      }
-    );
+    await ensureIndex({ isDeleted: 1, status: 1, category: 1, updatedAt: -1 }, { name: 'category_sorted_listing' });
 
     // 3. Price-based sorting optimization
     console.log('Creating price sorting indexes...');
-    await collection.createIndex(
-      { 
-        isDeleted: 1,
-        status: 1,
-        price: 1,
-        updatedAt: -1 
-      },
-      { 
-        name: 'price_asc_listing',
-        background: true 
-      }
-    );
+    await ensureIndex({ isDeleted: 1, status: 1, price: 1, updatedAt: -1 }, { name: 'price_asc_listing' });
 
-    await collection.createIndex(
-      { 
-        isDeleted: 1,
-        status: 1,
-        price: -1,
-        updatedAt: -1 
-      },
-      { 
-        name: 'price_desc_listing',
-        background: true 
-      }
-    );
+    await ensureIndex({ isDeleted: 1, status: 1, price: -1, updatedAt: -1 }, { name: 'price_desc_listing' });
 
     // 4. Stock availability index
     console.log('Creating stock availability index...');
-    await collection.createIndex(
-      { 
-        isDeleted: 1,
-        status: 1,
-        stock: 1 
-      },
-      { 
-        name: 'stock_availability',
-        background: true 
-      }
-    );
+    await ensureIndex({ isDeleted: 1, status: 1, stock: 1 }, { name: 'stock_availability' });
 
     // 5. Popular and new products index
     console.log('Creating featured products indexes...');
-    await collection.createIndex(
-      { 
-        isDeleted: 1,
-        status: 1,
-        isPopular: 1,
-        updatedAt: -1 
-      },
-      { 
-        name: 'popular_products',
-        background: true 
-      }
-    );
+    await ensureIndex({ isDeleted: 1, status: 1, isPopular: 1, updatedAt: -1 }, { name: 'popular_products' });
 
-    await collection.createIndex(
-      { 
-        isDeleted: 1,
-        status: 1,
-        isNew: 1,
-        updatedAt: -1 
-      },
-      { 
-        name: 'new_products',
-        background: true 
-      }
-    );
+    await ensureIndex({ isDeleted: 1, status: 1, isNew: 1, updatedAt: -1 }, { name: 'new_products' });
 
     // 6. Text search optimization (if not exists)
     console.log('Ensuring text search index exists...');
     try {
-      await collection.createIndex(
-        { 
-          name: 'text',
-          description: 'text',
-          category: 'text'
-        },
-        {
-          name: 'product_text_search_optimized',
-          weights: {
-            name: 10,
-            category: 5,
-            description: 1
-          },
-          background: true
-        }
+      await ensureIndex(
+        { name: 'text', description: 'text', category: 'text' },
+        { name: 'product_text_search_optimized', weights: { name: 10, category: 5, description: 1 } }
       );
     } catch (error) {
       if (error.message.includes('text index')) {

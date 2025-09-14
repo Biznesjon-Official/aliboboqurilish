@@ -1,0 +1,46 @@
+🖼️ FAVICON 404 ERROR FIX - VPS COMMANDS
+========================================
+
+MUAMMO: android-chrome-192x192.png va favicon.ico 404 error
+
+YECHIM (2 daqiqa):
+
+1. VPS'GA KIRISH:
+   ssh root@45.92.173.33
+   Password: 20100804
+
+2. BUILD PAPKASIGA O'TISH:
+   cd /opt/alibobo/build
+
+3. MAVJUD FAYLLARNI TEKSHIRISH:
+   ls -la *.png *.ico
+
+4. FAVICON FAYLLARNI YARATISH:
+   cp logo.png favicon.ico
+   cp logo.png android-chrome-192x192.png
+   cp logo.png android-chrome-512x512.png
+   cp logo.png apple-touch-icon.png
+
+5. FAYLLAR HUQUQINI SOZLASH:
+   chmod 644 *.png *.ico
+   chown www-data:www-data *.png *.ico
+
+6. TEKSHIRISH:
+   ls -la favicon.ico android-chrome-192x192.png
+
+7. NGINX RESTART (agar kerak bo'lsa):
+   systemctl reload nginx
+
+8. BROWSER'DA TEKSHIRISH:
+   curl -I https://aliboboqurilish.uz/favicon.ico
+   curl -I https://aliboboqurilish.uz/android-chrome-192x192.png
+
+KUTILGAN NATIJA:
+- 404 errors yo'qoladi
+- Favicon ko'rinadi
+- PWA manifest to'g'ri ishlaydi
+
+AGAR MUAMMO DAVOM ETSA:
+- Browser cache clear qiling (Ctrl+Shift+R)
+- manifest.json tekshiring
+- public/index.html dagi icon linklar tekshiring

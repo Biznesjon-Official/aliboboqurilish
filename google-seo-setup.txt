@@ -1,0 +1,53 @@
+🔍 GOOGLE'DA CHIQISH UCHUN SEO SETUP
+=====================================
+
+SAYTINGIZ GOOGLE'DA CHIQMASLIGI SABABLARI:
+1. Google Search Console'ga qo'shilmagan
+2. Sitemap yuborilmagan
+3. Domain yangi (Google indexlash vaqt oladi)
+4. SEO optimizatsiya qilinmagan
+
+QADAMLAR:
+
+1. GOOGLE SEARCH CONSOLE SETUP:
+   - https://search.google.com/search-console ga kiring
+   - "Add property" bosing
+   - aliboboqurilish.uz domenini qo'shing
+   - Verification qiling (HTML file yoki DNS orqali)
+
+2. SITEMAP YUBORISH:
+   - Search Console'da "Sitemaps" bo'limiga kiring
+   - Bu URL'ni qo'shing: https://aliboboqurilish.uz/sitemap.xml
+   - "Submit" bosing
+
+3. GOOGLE'GA MANUAL INDEXLASH:
+   - Search Console'da "URL Inspection" bo'limiga kiring
+   - https://aliboboqurilish.uz URL'ini kiriting
+   - "Request indexing" bosing
+
+4. ROBOTS.TXT TEKSHIRISH:
+   - https://aliboboqurilish.uz/robots.txt ochib ko'ring
+   - Google botlarga ruxsat berilganligini tekshiring
+
+5. SEO CONTENT QOSHISH:
+   - Har bir sahifaga unique title va description qo'shing
+   - H1, H2 taglardan foydalaning
+   - Alt text rasmlar uchun qo'shing
+   - Internal linking qiling
+
+6. GOOGLE MY BUSINESS:
+   - https://business.google.com ga kiring
+   - Biznesingizni ro'yxatdan o'tkazing
+   - Manzil, telefon, veb-sayt qo'shing
+
+7. BACKLINK BUILDING:
+   - Boshqa saytlardan link olishga harakat qiling
+   - Social media'da faol bo'ling
+   - Directory saytlarga qo'shing
+
+VAQT: Google'da chiqish uchun 2-4 hafta vaqt ketishi mumkin.
+
+TEKSHIRISH:
+- site:aliboboqurilish.uz (Google'da yozing)
+- Agar natija chiqsa, indexed
+- Agar chiqmasa, yuqoridagi qadamlarni bajaring
