@@ -28,7 +28,7 @@ A modern web application for managing products with real-time stock updates, bui
 
    Or start them separately:
    
-   **Start the backend server** (runs on port 5001):
+   **Start the backend server** (runs on port 5000):
    ```bash
    npm run dev:backend-only
    ```
@@ -40,7 +40,7 @@ A modern web application for managing products with real-time stock updates, bui
 
 2. **Access the application**:
    - Frontend: http://localhost:3000
-   - Backend API: http://localhost:5001/api
+   - Backend API: http://localhost:5000/api
 
 ### Running with default ports (frontend on 3001)
 
@@ -48,7 +48,7 @@ A modern web application for managing products with real-time stock updates, bui
 npm start
 ```
 
-This will start both the frontend (port 3001) and backend (port 5001) concurrently.
+This will start both the frontend (port 3001) and backend (port 5000) concurrently.
 
 ## Project Structure
 
@@ -77,8 +77,8 @@ alibobo/
 
 Create a `.env.development` file in the root directory:
 ```
-REACT_APP_API_BASE=http://localhost:5001/api
-REACT_APP_SOCKET_URL=http://localhost:5001
+REACT_APP_API_BASE=http://localhost:5000/api
+REACT_APP_SOCKET_URL=http://localhost:5000
 ```
 
 ### Backend Environment Variables
@@ -86,7 +86,7 @@ REACT_APP_SOCKET_URL=http://localhost:5001
 Create a `backend/.env.development` file:
 ```
 NODE_ENV=development
-PORT=5001
+PORT=5000
 MONGODB_URI=your_mongodb_atlas_connection_string
 CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001
 ```
@@ -103,7 +103,7 @@ CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,ht
 - `npm run backend-only` - Start backend with development settings
 
 ### Combined Scripts
-- `npm start` - Start both frontend (3001) and backend (5001)
+- `npm start` - Start both frontend (3001) and backend (5000)
 - `npm run dev` - Start backend first, then frontend (3000) after a 5-second delay
 
 ## Development

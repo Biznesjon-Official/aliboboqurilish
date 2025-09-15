@@ -597,7 +597,7 @@ if (enableClustering && cluster.isPrimary) {
   };
 
   // Start server
-  const PORT = process.env.PORT || 5001; // Changed from 5000 to 5001 to avoid conflicts
+  const PORT = process.env.PORT || 5000; // Default to 5000 for local development
   let server; // Global reference to server for graceful shutdown
 
   const startServer = async () => {

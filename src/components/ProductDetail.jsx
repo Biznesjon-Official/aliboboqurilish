@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { getCategoryDisplayName } from '../utils/categoryMapping';
 import ProductVariantSelector from './ProductVariantSelector';
+import { 
+  TimesFAIcon, 
+  ChevronLeftFAIcon, 
+  ChevronRightFAIcon, 
+  CheckCircleFAIcon, 
+  MinusFAIcon, 
+  PlusFAIcon, 
+  CartFAIcon 
+} from './FontAwesome';
 
 const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -220,7 +229,7 @@ const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 flex-shrink-0"
           >
-            <i className="fas fa-times text-gray-500 text-lg"></i>
+            <TimesFAIcon className="text-gray-500 text-lg" />
           </button>
         </div>
 
@@ -266,14 +275,14 @@ const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
                       className="absolute left-1 sm:left-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-1 sm:p-2 shadow-md transition-all duration-200"
                       disabled={selectedImageIndex === 0}
                     >
-                      <i className="fas fa-chevron-left text-gray-600 text-xs sm:text-sm"></i>
+                      <ChevronLeftFAIcon className="text-gray-600 text-xs sm:text-sm" />
                     </button>
                     <button
                       onClick={() => navigateImage('next')}
                       className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-1 sm:p-2 shadow-md transition-all duration-200"
                       disabled={selectedImageIndex === productImages.length - 1}
                     >
-                      <i className="fas fa-chevron-right text-gray-600 text-xs sm:text-sm"></i>
+                      <ChevronRightFAIcon className="text-gray-600 text-xs sm:text-sm" />
                     </button>
                   </>
                 )}
@@ -319,7 +328,7 @@ const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
                       <span className="text-gray-700 font-medium text-sm">Holati</span>
                     </div>
                     <span className="text-green-600 font-medium flex items-center gap-1 text-sm bg-green-50 px-2 py-1 rounded-md">
-                      <i className="fas fa-check-circle text-xs"></i>
+                      <CheckCircleFAIcon className="text-xs" />
                       Mavjud
                     </span>
                   </div>
@@ -403,7 +412,7 @@ const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     className="w-10 h-10 rounded-lg border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors duration-200"
                   >
-                    <i className="fas fa-minus text-gray-600 text-sm"></i>
+                    <MinusFAIcon className="text-gray-600 text-sm" />
                   </button>
                   <input
                     type="number"
@@ -423,7 +432,7 @@ const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
                     onClick={() => setQuantity(quantity + 1)}
                     className="w-10 h-10 rounded-lg border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors duration-200"
                   >
-                    <i className="fas fa-plus text-gray-600 text-sm"></i>
+                    <PlusFAIcon className="text-gray-600 text-sm" />
                   </button>
                 </div>
               </div>
@@ -484,7 +493,7 @@ const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
                 onClick={handleAddToCart}
                 className="w-full py-3 px-6 rounded-lg transition-all duration-200 font-medium text-base flex items-center justify-center gap-2 shadow-md bg-primary-orange text-white hover:bg-opacity-90"
               >
-                <i className="fas fa-shopping-cart text-sm"></i>
+                <CartFAIcon className="text-sm" />
                 Savatga qo'shish
               </button>
             </div>

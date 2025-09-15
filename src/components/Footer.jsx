@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { HammerFAIcon, PhoneFAIcon, EnvelopeFAIcon, MapMarkerAltFAIcon } from './FontAwesome';
 
 const Footer = () => {
   const [expandedSections, setExpandedSections] = useState({});
@@ -18,7 +19,7 @@ const Footer = () => {
           {/* Company Info Only */}
           <div className="mb-6">
             <div className="flex items-center justify-center space-x-2 mb-3">
-              <i className="fas fa-hammer text-primary-orange text-xl"></i>
+              <HammerFAIcon className="text-primary-orange text-xl" />
               <h3 className="text-lg font-bold">Alibobo</h3>
             </div>
             <p className="text-gray-300 text-sm text-center px-2">
@@ -97,17 +98,17 @@ const Footer = () => {
               <div className="mt-3 space-y-3">
                 <div className="space-y-3">
                   <div className="flex items-center text-gray-300">
-                    <i className="fas fa-phone mr-3 text-primary-orange text-sm"></i>
+                    <PhoneFAIcon className="mr-3 text-primary-orange text-sm" />
                     <a href="tel:+998948494956" className="hover:text-primary-orange transition duration-300 text-sm">
                       +998 94 849 49 56
                     </a>
                   </div>
                   <div className="flex items-center text-gray-300">
-                    <i className="fas fa-envelope mr-3 text-primary-orange text-sm"></i>
+                    <EnvelopeFAIcon className="mr-3 text-primary-orange text-sm" />
                     <span className="text-sm">info@alibobo.uz</span>
                   </div>
                   <div className="flex items-center text-gray-300">
-                    <i className="fas fa-map-marker-alt mr-3 text-primary-orange text-sm"></i>
+                    <MapMarkerAltFAIcon className="mr-3 text-primary-orange text-sm" />
                     <span className="text-sm">Toshkent, O'zbekiston</span>
                   </div>
                   <div className="mt-4 pt-3 border-t border-gray-600">
@@ -142,7 +143,7 @@ const Footer = () => {
         <div className="hidden md:grid md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center space-x-2 mb-4">
-              <i className="fas fa-hammer text-primary-orange text-2xl"></i>
+              <HammerFAIcon className="text-primary-orange text-2xl" />
               <h3 className="text-xl font-bold">Alibobo</h3>
             </div>
             <p className="text-gray-300 mb-4">
@@ -218,17 +219,17 @@ const Footer = () => {
             <h4 className="text-lg font-semibold mb-4">Aloqa</h4>
             <ul className="space-y-2">
               <li className="flex items-center text-gray-300">
-                <i className="fas fa-phone mr-2 text-primary-orange"></i>
+                <PhoneFAIcon className="mr-2 text-primary-orange" />
                 <a href="tel:+998948494956" className="hover:text-primary-orange transition duration-300">
                   +998 94 849 49 56
                 </a>
               </li>
               <li className="flex items-center text-gray-300">
-                <i className="fas fa-envelope mr-2 text-primary-orange"></i>
+                <EnvelopeFAIcon className="mr-2 text-primary-orange" />
                 info@alibobo.uz
               </li>
               <li className="flex items-center text-gray-300">
-                <i className="fas fa-map-marker-alt mr-2 text-primary-orange"></i>
+                <MapMarkerAltFAIcon className="mr-2 text-primary-orange" />
                 Toshkent, O'zbekiston
               </li>
             </ul>

@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^7.0.1",
+    "@fortawesome/free-solid-svg-icons": "^7.0.1",
+    "@fortawesome/react-fontawesome": "^3.0.2",
     "@tanstack/react-query": "^5.85.3",
     "@tanstack/react-query-devtools": "^5.85.3",
     "chart.js": "^4.5.0",
@@ -34,7 +37,6 @@
     "dev:frontend-3000": "cross-env PORT=3000 react-scripts start",
     "dev:frontend-3000:delayed": "powershell -Command \"Start-Sleep -Seconds 5\" && cross-env PORT=3000 react-scripts start",
     "dev:debug": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\" --kill-others-on-fail \"cd backend && cross-env NODE_ENV=development DEBUG=true npm start\" \"cross-env REACT_APP_DEBUG_MODE=true npm run start:frontend\"",
-    
     "start:quiet": "concurrently --kill-others-on-fail --prefix \"\" \"npm run start:backend\" \"npm run start:frontend:delayed\"",
     "backend": "cd backend && npm run start:dev",
     "frontend": "cross-env PORT=3001 GENERATE_SOURCEMAP=false TSC_COMPILE_ON_ERROR=true ESLINT_NO_DEV_ERRORS=true react-scripts start",

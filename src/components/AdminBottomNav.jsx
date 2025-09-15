@@ -1,14 +1,15 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { ChartLineFAIcon, UserFAIcon, BoxFAIcon, CartFAIcon, HomeFAIcon } from './FontAwesome';
 
 // Mobile-only bottom navigation for admin pages
 // Mirrors links found in AdminSidebar for consistency
 const links = [
-  { key: 'dashboard', icon: 'fas fa-chart-line', label: 'Dashboard' },
-  { key: 'craftsmen', icon: 'fas fa-users', label: 'Ustalar', badge: 'craftsmenCount' },
-  { key: 'products', icon: 'fas fa-box', label: 'Mahsulotlar', badge: 'productsCount' },
-  { key: 'orders', icon: 'fas fa-shopping-cart', label: 'Buyurtmalar', badge: 'ordersCount' },
-  { key: 'home', icon: 'fas fa-home', label: 'Bosh sahifa' },
+  { key: 'dashboard', icon: ChartLineFAIcon, label: 'Dashboard' },
+  { key: 'craftsmen', icon: UserFAIcon, label: 'Ustalar', badge: 'craftsmenCount' },
+  { key: 'products', icon: BoxFAIcon, label: 'Mahsulotlar', badge: 'productsCount' },
+  { key: 'orders', icon: CartFAIcon, label: 'Buyurtmalar', badge: 'ordersCount' },
+  { key: 'home', icon: HomeFAIcon, label: 'Bosh sahifa' },
 ];
 
 const defaultCounts = { craftsmenCount: 0, productsCount: 0, ordersCount: 0 };
@@ -53,7 +54,7 @@ const AdminBottomNav = ({ counts = defaultCounts }) => {
                 title={link.label}
               >
                 <div className="relative">
-                  <i className={`${link.icon} text-sm`}></i>
+                  <link.icon className="text-sm" />
                 </div>
                 <span className="mt-0.5 text-[10px] leading-none">{link.label}</span>
               </button>

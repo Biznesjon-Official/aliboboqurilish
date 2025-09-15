@@ -1,4 +1,15 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { 
+  SearchFAIcon, 
+  TimesFAIcon, 
+  PlusFAIcon, 
+  EyeFAIcon, 
+  EditFAIcon, 
+  TrashFAIcon, 
+  ChevronLeftFAIcon, 
+  ChevronRightFAIcon, 
+  SpinnerFAIcon 
+} from './FontAwesome';
 import { useProducts, useDeleteProduct, useRestoreProduct, useUpdateProduct, useCreateProduct } from '../hooks/useProductQueries';
 import { useProductsFast } from '../hooks/useProductsFast';
 import { useRecentActivitiesCache } from '../hooks/useRecentActivities';
@@ -928,13 +939,13 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
               }}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-orange w-full sm:w-64"
             />
-            <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            <SearchFAIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             {(searchTerm || filterCategory) && (
               <button
                 onClick={clearSearchAndFilter}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                <i className="fas fa-times"></i>
+                <TimesFAIcon />
               </button>
             )}
           </div>
@@ -962,7 +973,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
               onClick={openAddModal}
               className="bg-primary-orange text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-opacity-90 transition duration-300 whitespace-nowrap"
             >
-              <i className="fas fa-plus mr-2"></i>Yangi mahsulot
+              <PlusFAIcon className="mr-2" />Yangi mahsulot
             </button>
           </div>
         </div>
@@ -1051,7 +1062,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                         title="Ko'rish"
                         aria-label="Ko'rish"
                       >
-                        <i className="fas fa-eye text-green-600 text-sm"></i>
+                        <EyeFAIcon className="text-green-600 text-sm" />
                         <span className="hidden sm:inline ml-1 text-xs">Ko'rish</span>
                       </button>
                       <button 
@@ -1060,7 +1071,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                         title="Tahrirlash"
                         aria-label="Tahrirlash"
                       >
-                        <i className="fas fa-edit text-blue-600 text-sm"></i>
+                        <EditFAIcon className="text-blue-600 text-sm" />
                         <span className="hidden sm:inline ml-1 text-xs">Tahrir</span>
                       </button>
                       {(product?.isDeleted || product?.status === 'inactive') && (
@@ -1080,7 +1091,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                         title="O'chirish"
                         aria-label="O'chirish"
                       >
-                        <i className="fas fa-trash text-red-600 text-sm"></i>
+                        <TrashFAIcon className="text-red-600 text-sm" />
                         <span className="hidden sm:inline ml-1 text-xs">O'chir</span>
                       </button>
                     </div>
@@ -1101,7 +1112,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                 disabled={currentPage === 1}
                 className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               >
-                <i className="fas fa-chevron-left mr-1"></i>
+                <ChevronLeftFAIcon className="mr-1" />
                 <span className="hidden sm:inline">Oldingi</span>
               </button>
               <span className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap shrink-0 text-center inline-flex items-center gap-1">
@@ -1115,7 +1126,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                 className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               >
                 <span className="hidden sm:inline mr-1">Keyingi</span>
-                <i className="fas fa-chevron-right"></i>
+                <ChevronRightFAIcon />
               </button>
             </div>
           </div>
@@ -1141,7 +1152,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                   onClick={closeModal}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  <i className="fas fa-times text-xl"></i>
+                  <TimesFAIcon className="text-xl" />
                 </button>
               </div>
             </div>
@@ -1304,7 +1315,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                     className="px-6 py-3 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 transition duration-200 disabled:opacity-50 font-medium min-w-[120px]"
                   >
                     {isSubmitting ? (
-                      <span><i className="fas fa-spinner fa-spin mr-2"></i>Saqlanmoqda...</span>
+                      <span><SpinnerFAIcon className="mr-2" />Saqlanmoqda...</span>
                     ) : (
                       <span>{selectedProduct ? 'Yangilash' : 'Qo\'shish'}</span>
                     )}
@@ -1333,7 +1344,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                   onClick={() => setIsViewModalOpen(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  <i className="fas fa-times text-xl"></i>
+                  <TimesFAIcon className="text-xl" />
                 </button>
               </div>
             </div>
@@ -1468,7 +1479,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                     }}
                     className="px-6 py-3 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 transition duration-200 font-medium"
                   >
-                    <i className="fas fa-edit mr-2"></i>Tahrirlash
+                    <EditFAIcon className="mr-2" />Tahrirlash
                   </button>
                 </div>
               </div>

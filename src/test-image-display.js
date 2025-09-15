@@ -1,6 +1,6 @@
 // Test image display
 const API_BASE = process.env.REACT_APP_API_BASE || 
-  (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
+  (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
 
 console.log('🔧 API_BASE:', API_BASE);
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { InfoCircleFAIcon, CheckCircleFAIcon, ExclamationTriangleFAIcon, TimesCircleFAIcon, TrashFAIcon, QuestionCircleFAIcon, EditFAIcon } from './FontAwesome';
 
 // AdminNotificationModals - exact match with index.html modal system
 const AdminNotificationModals = ({
@@ -47,13 +48,13 @@ const AdminNotificationModals = ({
   // Icon configurations matching index.html
   const getIconConfig = (type) => {
     const iconConfigs = {
-      info: { icon: 'fas fa-info-circle', color: 'bg-blue-100 text-blue-600' },
-      success: { icon: 'fas fa-check-circle', color: 'bg-green-100 text-green-600' },
-      warning: { icon: 'fas fa-exclamation-triangle', color: 'bg-yellow-100 text-yellow-600' },
-      error: { icon: 'fas fa-times-circle', color: 'bg-red-100 text-red-600' },
-      danger: { icon: 'fas fa-trash', color: 'bg-red-100 text-red-600' },
-      question: { icon: 'fas fa-question-circle', color: 'bg-blue-100 text-blue-600' },
-      edit: { icon: 'fas fa-edit', color: 'bg-blue-100 text-blue-600' }
+      info: { icon: InfoCircleFAIcon, color: 'bg-blue-100 text-blue-600' },
+      success: { icon: CheckCircleFAIcon, color: 'bg-green-100 text-green-600' },
+      warning: { icon: ExclamationTriangleFAIcon, color: 'bg-yellow-100 text-yellow-600' },
+      error: { icon: TimesCircleFAIcon, color: 'bg-red-100 text-red-600' },
+      danger: { icon: TrashFAIcon, color: 'bg-red-100 text-red-600' },
+      question: { icon: QuestionCircleFAIcon, color: 'bg-blue-100 text-blue-600' },
+      edit: { icon: EditFAIcon, color: 'bg-blue-100 text-blue-600' }
     };
     return iconConfigs[type] || iconConfigs.info;
   };
@@ -115,7 +116,7 @@ const AdminNotificationModals = ({
             <div className="p-6 text-center">
               <div className="mb-4">
                 <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center ${getIconConfig(confirmModal.type).color}`}>
-                  <i className={`${getIconConfig(confirmModal.type).icon} text-2xl`}></i>
+                  {React.createElement(getIconConfig(confirmModal.type).icon, { className: 'text-2xl' })}
                 </div>
               </div>
               

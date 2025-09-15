@@ -1,4 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { 
+  CartFAIcon, 
+  TimesFAIcon, 
+  MinusFAIcon, 
+  PlusFAIcon, 
+  TrashFAIcon, 
+  HammerFAIcon, 
+  UserFAIcon, 
+  PhoneFAIcon, 
+  MapMarkerAltFAIcon, 
+  ExclamationTriangleFAIcon, 
+  SpinnerFAIcon, 
+  CheckFAIcon 
+} from './FontAwesome';
 import { queryClient } from '../lib/queryClient';
 import { useCreateOrder } from '../hooks/useOrderQueries';
 
@@ -324,13 +338,13 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
         {/* Cart Header */}
         <div className="flex items-center justify-between p-4 bg-primary-orange text-white">
           <div className="flex items-center space-x-3">
-            <i className="fas fa-shopping-cart text-xl"></i>
+            <CartFAIcon className="text-xl" />
             <div>
               <h3 className="text-lg font-bold">Savatcha</h3>
             </div>
           </div>
           <button onClick={onClose} className="text-white hover:text-gray-200">
-            <i className="fas fa-times text-2xl"></i>
+            <TimesFAIcon className="text-2xl" />
           </button>
         </div>
 
@@ -338,7 +352,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
         <div className="flex-1 overflow-y-auto bg-gray-50">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
-              <i className="fas fa-shopping-cart text-6xl mb-4 text-gray-300"></i>
+              <CartFAIcon className="text-6xl mb-4 text-gray-300" />
               <h4 className="text-xl font-semibold mb-2">Savatcha bo'sh</h4>
               <p>Mahsulot yoki xizmat qo'shing</p>
             </div>
@@ -366,14 +380,14 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
                           onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
                           className="w-8 h-8 bg-gray-100 rounded-md flex items-center justify-center hover:bg-gray-200 transition"
                         >
-                          <i className="fas fa-minus text-xs"></i>
+                          <MinusFAIcon className="text-xs" />
                         </button>
                         <span className="w-10 text-center text-md font-semibold">{item.quantity}</span>
                         <button
                           onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
                           className="w-8 h-8 bg-gray-100 rounded-md flex items-center justify-center hover:bg-gray-200 transition"
                         >
-                          <i className="fas fa-plus text-xs"></i>
+                          <PlusFAIcon className="text-xs" />
                         </button>
                       </div>
                     </div>
@@ -383,7 +397,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
                         onClick={() => onRemoveFromCart(item.id)}
                         className="text-red-500 hover:text-red-700 text-xs sm:text-sm font-medium mt-2 sm:mt-6"
                       >
-                        <i className="fas fa-trash-alt mr-1"></i> 
+                        <TrashFAIcon className="mr-1" /> 
                         <span className="hidden sm:inline">O'chirish</span>
                         <span className="sm:hidden">O'chir</span>
                       </button>
@@ -423,7 +437,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
           <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
             {/* Modal Header */}
             <div className="text-center mb-4">
-              <i className="fas fa-hammer text-primary-orange text-2xl"></i>
+              <HammerFAIcon className="text-primary-orange text-2xl" />
               <h3 className="text-xl font-bold text-primary-dark mt-2">Buyurtma berish</h3>
               <p className="text-gray-600 text-sm">Ma'lumotlaringizni kiriting</p>
             </div>
@@ -431,7 +445,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
             <form onSubmit={handleCheckout} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
-                  <i className="fas fa-user text-primary-orange mr-2 text-xs"></i>
+                  <UserFAIcon className="text-primary-orange mr-2 text-xs" />
                   Sizning ismingiz
                   <span className="text-red-500 ml-1">*</span>
                 </label>
@@ -448,7 +462,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
                 />
                 {formErrors.name && (
                   <p className="text-red-500 text-xs mt-1 flex items-center">
-                    <i className="fas fa-exclamation-circle mr-1"></i>
+                    <ExclamationTriangleFAIcon className="mr-1" />
                     {formErrors.name}
                   </p>
                 )}
@@ -456,7 +470,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
-                  <i className="fas fa-phone text-primary-orange mr-2 text-xs"></i>
+                  <PhoneFAIcon className="text-primary-orange mr-2 text-xs" />
                   Telefon raqami
                   <span className="text-red-500 ml-1">*</span>
                 </label>
@@ -473,7 +487,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
                 />
                 {formErrors.phone && (
                   <p className="text-red-500 text-xs mt-1 flex items-center">
-                    <i className="fas fa-exclamation-circle mr-1"></i>
+                    <ExclamationTriangleFAIcon className="mr-1" />
                     {formErrors.phone}
                   </p>
                 )}
@@ -481,7 +495,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
-                  <i className="fas fa-map-marker-alt text-primary-orange mr-2 text-xs"></i>
+                  <MapMarkerAltFAIcon className="text-primary-orange mr-2 text-xs" />
                   Yetkazib berish manzilim
                   <span className="text-red-500 ml-1">*</span>
                 </label>
@@ -498,7 +512,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
                 ></textarea>
                 {formErrors.address && (
                   <p className="text-red-500 text-xs mt-1 flex items-center">
-                    <i className="fas fa-exclamation-circle mr-1"></i>
+                    <ExclamationTriangleFAIcon className="mr-1" />
                     {formErrors.address}
                   </p>
                 )}
@@ -532,7 +546,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
                 >
                   {isSubmitting ? (
                     <>
-                      <i className="fas fa-spinner fa-spin mr-2"></i>
+                      <SpinnerFAIcon className="mr-2" />
                       Yuborilmoqda...
                     </>
                   ) : (
@@ -551,7 +565,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
           <div className="bg-white rounded-xl p-6 md:p-8 max-w-sm w-full shadow-2xl text-center">
             <div className="mb-4">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i className="fas fa-check text-green-500 text-2xl"></i>
+                <CheckFAIcon className="text-green-500 text-2xl" />
               </div>
               <h3 className="text-xl font-bold text-gray-800 mb-2">Buyurtma qabul qilindi!</h3>
               <p className="text-gray-600 mb-4">
@@ -585,7 +599,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
           >
             {/* Icon */}
             <div className="w-16 h-16 mx-auto flex items-center justify-center rounded-lg bg-red-500">
-              <i className="fas fa-exclamation-triangle text-white text-3xl"></i>
+              <ExclamationTriangleFAIcon className="text-white text-3xl" />
             </div>
 
             {/* Title */}
@@ -601,7 +615,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
               onClick={closeErrorModal}
               className="w-full bg-red-500 text-white py-3 rounded-lg hover:bg-red-600 transition font-semibold mt-6 flex items-center justify-center text-sm"
             >
-              <i className="fas fa-times mr-2"></i>
+              <TimesFAIcon className="mr-2" />
               Yaxshi
             </button>
           </div>

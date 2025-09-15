@@ -1,4 +1,5 @@
 import React from 'react';
+import { UserFAIcon, BoxFAIcon, CartFAIcon, ChartLineFAIcon, ArrowUpFAIcon, ArrowDownFAIcon, MinusFAIcon } from './FontAwesome';
 
 const AdminStatsCards = ({ 
   statistics = null, 
@@ -29,7 +30,7 @@ const AdminStatsCards = ({
           {/* No explicit error text to avoid visual noise */}
         </div>
         <div className={`w-10 h-10 sm:w-12 sm:h-12 ${iconBg} rounded-lg flex items-center justify-center opacity-50 ml-3`}>
-          <i className={`${icon} ${iconColor} text-lg sm:text-xl`}></i>
+          {React.createElement(icon, { className: `${iconColor} text-lg sm:text-xl` })}
         </div>
       </div>
     </div>
@@ -44,13 +45,13 @@ const AdminStatsCards = ({
     
     if (growth === 0) return null;
     
+    const IconComponent = isPositive ? ArrowUpFAIcon : isNegative ? ArrowDownFAIcon : MinusFAIcon;
+    
     return (
       <div className={`flex items-center text-xs mt-1 ${
         isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-gray-500'
       }`}>
-        <i className={`fas ${
-          isPositive ? 'fa-arrow-up' : isNegative ? 'fa-arrow-down' : 'fa-minus'
-        } mr-1`}></i>
+        <IconComponent className="mr-1" />
         <span>{Math.abs(growth)}%</span>
       </div>
     );
@@ -74,7 +75,7 @@ const AdminStatsCards = ({
       label: 'Ustalar',
       value: loading ? '...' : formatNumber(statistics?.craftsmen?.total),
       subValue: statistics?.craftsmen?.recentlyAdded ? `+${statistics.craftsmen.recentlyAdded} (7 kun)` : null,
-      icon: 'fas fa-users',
+      icon: UserFAIcon,
       iconBg: 'bg-blue-100',
       iconColor: 'text-blue-600',
     },
@@ -82,7 +83,7 @@ const AdminStatsCards = ({
       label: 'Mahsulotlar',
       value: loading ? '...' : formatNumber(statistics?.products?.total),
       subValue: statistics?.products?.recentlyAdded ? `+${statistics.products.recentlyAdded} (7 kun)` : null,
-      icon: 'fas fa-box',
+      icon: BoxFAIcon,
       iconBg: 'bg-green-100',
       iconColor: 'text-green-600',
     },
@@ -90,7 +91,7 @@ const AdminStatsCards = ({
       label: 'Buyurtmalar',
       value: loading ? '...' : formatNumber(statistics?.orders?.total),
       subValue: statistics?.orders?.recentlyCreated ? `+${statistics.orders.recentlyCreated} (7 kun)` : null,
-      icon: 'fas fa-shopping-cart',
+      icon: CartFAIcon,
       iconBg: 'bg-orange-100',
       iconColor: 'text-primary-orange',
     },
@@ -99,7 +100,7 @@ const AdminStatsCards = ({
       value: loading ? '...' : formatRevenue(statistics?.revenue?.total),
       subValue: statistics?.revenue?.thisMonth ? `${formatRevenue(statistics.revenue.thisMonth)}` : null,
       growth: statistics?.revenue?.growth,
-      icon: 'fas fa-chart-line',
+      icon: ChartLineFAIcon,
       iconBg: 'bg-purple-100',
       iconColor: 'text-purple-600',
     },
@@ -133,7 +134,7 @@ const AdminStatsCards = ({
             <div className="flex items-center space-x-2 sm:space-x-3">
               {/* Part 1: Icon - Left Side */}
               <div className={`w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 ${item.iconBg} rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300`}>
-                <i className={`${item.icon} ${item.iconColor} text-sm sm:text-lg lg:text-xl`}></i>
+                <item.icon className={`${item.iconColor} text-sm sm:text-lg lg:text-xl`} />
               </div>
               
               {/* Part 2: Text Content - Right Side (divided into 2 parts) */}

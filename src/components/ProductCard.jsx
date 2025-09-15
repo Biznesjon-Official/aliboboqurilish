@@ -1,4 +1,5 @@
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, useEffect, memo } from 'react';
+import { ChevronLeftFAIcon, ChevronRightFAIcon } from './FontAwesome';
 import { useNavigate } from 'react-router-dom';
 import OptimizedImage from './OptimizedImage';
 
@@ -165,7 +166,7 @@ const ProductCard = memo(({
               }}
               className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md"
             >
-              <i className="fas fa-chevron-left text-xs text-gray-600"></i>
+              <ChevronLeftFAIcon className="text-xs text-gray-600" />
             </button>
 
             {/* Next Button */}
@@ -178,7 +179,7 @@ const ProductCard = memo(({
               }}
               className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md"
             >
-              <i className="fas fa-chevron-right text-xs text-gray-600"></i>
+              <ChevronRightFAIcon className="text-xs text-gray-600" />
             </button>
 
             {/* Image Indicators */}

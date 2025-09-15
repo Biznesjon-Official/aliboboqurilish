@@ -1,8 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import CartSidebar from './CartSidebar';
-import Catalog from './Catalog';
 import { useDebounce } from '../hooks/useDebounce';
+import { useFuzzySearch } from '../hooks/useFuzzySearch';
+import CartSidebar from './CartSidebar';
+import CategorySection from './CategorySection';
+import Catalog from './Catalog';
+import { 
+  SearchFAIcon, 
+  CartFAIcon, 
+  BoxFAIcon, 
+  PhoneFAIcon, 
+  UserFAIcon, 
+  ExclamationTriangleFAIcon,
+  GraduationCapFAIcon 
+} from './FontAwesome';
 import { getFuzzyMatches } from '../hooks/useFuzzySearch';
 
 const Header = ({
@@ -78,30 +89,32 @@ const Header = ({
   // Removed close-on-scroll logic (no suggestions panel)
 
   const handleLogoInteraction = (e) => {
-    // Only prevent default for click events, not touch events
-    if (e.type === 'click') {
-      e.preventDefault();
-    }
-
+    // Prevent default behavior for both click and touch events on mobile
+    e.preventDefault();
+    
     const currentTime = new Date().getTime();
     const tapLength = currentTime - lastTap;
-
+    
+    // Reset tap count if too much time has passed
     if (tapLength > 500) {
-      setTapCount(1);
+      setTapCount(2);
     } else {
-      setTapCount(prev => prev + 1);
+      setTapCount(prev => {
+        const newCount = prev + 1;
+        // Check if this is the second tap (double tap)
+        if (newCount === 2) {
+          console.log('Logo double tapped!');
+          setShowLoginModal(true);
+          // Lock background scroll
+          document.body.style.overflow = 'hidden';
+          document.body.style.paddingRight = '17px';
+          return 0; // Reset count
+        }
+        return newCount;
+      });
     }
-
+    
     setLastTap(currentTime);
-
-    if (tapCount === 1 && tapLength < 500) {
-      console.log('Logo double clicked/tapped!');
-      setShowLoginModal(true);
-      setTapCount(0);
-      // Lock background scroll
-      document.body.style.overflow = 'hidden';
-      document.body.style.paddingRight = '17px';
-    }
   };
 
   const handleLogin = (e) => {
@@ -168,7 +181,7 @@ const Header = ({
               <div
                 className="flex items-center space-x-3 cursor-pointer select-none"
                 onClick={handleLogoInteraction}
-                onTouchStart={handleLogoInteraction}
+                onTouchEnd={handleLogoInteraction}
                 title="Admin panel uchun 2 marta bosing"
                 style={{ userSelect: 'none' }}
               >
@@ -219,7 +232,7 @@ const Header = ({
                     type="submit"
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-primary-orange transition duration-300"
                   >
-                    <i className="fas fa-search text-base"></i>
+                    <SearchFAIcon className="text-base" />
                   </button>
                   {/* Close-match typeahead suggestions (desktop) */}
                   {isFocused && debouncedQuery.trim().length >= 2 && suggestions.length > 0 && (
@@ -252,7 +265,7 @@ const Header = ({
                 onClick={toggleCart}
                 className="relative bg-transparent hover:bg-gray-700 hover:bg-opacity-20 text-primary-orange px-3 py-2 rounded-lg transition duration-300"
               >
-                <i className="fas fa-shopping-cart text-xl"></i>
+                <CartFAIcon className="text-xl" />
                 {getTotalItems() > 0 && (
                   <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
                     {getTotalItems()}
@@ -272,7 +285,7 @@ const Header = ({
             <div
               className="flex items-center space-x-2 cursor-pointer select-none min-w-fit"
               onClick={handleLogoInteraction}
-              onTouchStart={handleLogoInteraction}
+              onTouchEnd={handleLogoInteraction}
               title="Admin panel uchun 2 marta bosing"
               style={{ userSelect: 'none' }}
             >
@@ -320,7 +333,7 @@ const Header = ({
                   type="submit"
                   className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-primary-orange transition duration-300"
                 >
-                  <i className="fas fa-search text-xs"></i>
+                  <SearchFAIcon className="text-xs" />
                 </button>
                 {/* Close-match typeahead suggestions (mobile) */}
                 {isFocused && debouncedQuery.trim().length >= 2 && suggestions.length > 0 && (
@@ -368,7 +381,7 @@ const Header = ({
               }}
               className="flex flex-col items-center px-1 text-gray-700 hover:text-primary-orange transition duration-200 w-full"
             >
-              <i className="fas fa-graduation-cap text-[18px]"></i>
+              <GraduationCapFAIcon className="text-[18px]" />
               <span className="text-[11px] sm:text-xs font-medium">Akademiya</span>
             </button>
           </li>
@@ -399,7 +412,7 @@ const Header = ({
               }}
               className="flex flex-col items-center px-1 text-gray-700 hover:text-primary-orange transition duration-200 w-full"
             >
-              <i className="fas fa-box text-[18px]"></i>
+              <BoxFAIcon className="text-[18px]" />
               <span className="text-[11px] sm:text-xs font-medium">Mahsulotlar</span>
             </button>
           </li>
@@ -416,7 +429,7 @@ const Header = ({
               }}
               className="flex flex-col items-center px-1 text-gray-700 hover:text-primary-orange transition duration-200 w-full"
             >
-              <i className="fas fa-phone text-[18px]"></i>
+              <PhoneFAIcon className="text-[18px]" />
               <span className="text-[11px] sm:text-xs font-medium">Aloqa</span>
             </a>
           </li>
@@ -427,10 +440,10 @@ const Header = ({
               onClick={toggleCart}
               className="flex flex-col items-center px-1 text-gray-700 hover:text-primary-orange transition duration-200 w-full relative"
             >
-              <i className="fas fa-shopping-cart text-[18px]"></i>
+              <CartFAIcon className="text-[18px]" />
               <span className="text-[11px] sm:text-xs font-medium">Savatcha</span>
               {getTotalItems() > 0 && (
-                <span className="absolute -top-1 right-3 bg-red-500 text-white text-[10px] rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                <span className="absolute -top-1 right-3 bg-red-500 text-white text-[8px] rounded-full h-3 w-3 flex items-center justify-center font-bold">
                   {getTotalItems()}
                 </span>
               )}
@@ -455,7 +468,7 @@ const Header = ({
               }}
               className="flex flex-col items-center px-1 text-gray-700 hover:text-primary-orange transition duration-200 w-full"
             >
-              <i className="fas fa-users text-[18px]"></i>
+              <UserFAIcon className="text-[18px]" />
               <span className="text-[11px] sm:text-xs font-medium">Ustalar</span>
             </button>
           </li>
@@ -537,7 +550,7 @@ const Header = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-16 h-16 mx-auto flex items-center justify-center rounded-lg bg-red-500">
-              <i className="fas fa-exclamation-triangle text-white text-3xl"></i>
+              <ExclamationTriangleFAIcon className="text-white text-3xl" />
             </div>
             <h2 className="text-2xl font-bold text-red-600 mt-5">Login Xatoligi!</h2>
             <p className="text-gray-600 mt-2 text-sm px-4">

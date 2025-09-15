@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { TimesFAIcon, PhoneFAIcon } from './FontAwesome';
 import { CraftsmenGridSkeleton } from './LoadingSkeleton';
 
 const Craftsmen = ({ craftsmenData = [], loading = false }) => {
@@ -266,7 +267,7 @@ const Craftsmen = ({ craftsmenData = [], loading = false }) => {
                 className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-gray-200 hover:bg-gray-300 text-gray-600 hover:text-gray-700 rounded flex items-center justify-center"
                 aria-label="Qidiruvni yopish"
               >
-                <i className="fas fa-times text-sm"></i>
+                <TimesFAIcon className="text-sm" />
               </button>
             )}
           </div>
@@ -495,7 +496,7 @@ const Craftsmen = ({ craftsmenData = [], loading = false }) => {
                     onClick={() => handlePhoneCall(selectedCraftsman.phone)}
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 sm:py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center"
                   >
-                    <i className="fas fa-phone mr-2"></i>
+                    <PhoneFAIcon className="mr-2" />
                     <span className="hidden sm:inline">Qo'ng'iroq qilish</span>
                     <span className="sm:hidden">Qo'ng'iroq</span>
                   </button>

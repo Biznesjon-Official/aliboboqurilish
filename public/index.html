@@ -9,7 +9,7 @@
       name="description"
       content="Alibobo - Professional craftsmen and quality building materials"
     />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="apple-touch-icon" href="/build/logo.png" />
     <!--
       manifest.json provides metadata used when your web app is installed on a
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
@@ -27,14 +27,30 @@
     <link rel="preconnect" href="https://aliboboqurilish.uz" crossorigin>
     <link rel="dns-prefetch" href="https://aliboboqurilish.uz">
     <!-- Dev backend preconnect (ignored in prod) -->
-    <link rel="preconnect" href="http://localhost:5001">
-    <link rel="dns-prefetch" href="http://localhost:5001">
-    <!-- Preload LCP logo images to reduce LCP -->
-    <link rel="preload" as="image" href="%PUBLIC_URL%/alibobo.png" imagesizes="(max-width: 1024px) 96px, 144px" />
-    <link rel="preload" as="image" href="%PUBLIC_URL%/logo.png" imagesizes="(max-width: 1024px) 32px, 48px" />
+    <link rel="preconnect" href="http://localhost:5000">
+    <link rel="dns-prefetch" href="http://localhost:5000">
+    <!-- Preload critical images for LCP optimization -->
+    <link rel="preload" as="image" href="%PUBLIC_URL%/alibobo.png" imagesizes="(max-width: 1024px) 96px, 144px" fetchpriority="high" />
+    <link rel="preload" as="image" href="%PUBLIC_URL%/logo.png" imagesizes="(max-width: 1024px) 32px, 48px" fetchpriority="high" />
+    <link rel="preload" as="image" href="%PUBLIC_URL%/assets/default-product.svg" fetchpriority="high" />
+    
+    <!-- Preconnect to image domains -->
+    <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+    <link rel="dns-prefetch" href="https://images.unsplash.com">
     <title>Alibobo - Professional Craftsmen & Quality Materials</title>
-    <!-- Font Awesome CDN -->
-    <!-- REMOVED: Font Awesome script tag to prevent CORS errors -->
+    
+    <!-- Critical CSS inline for LCP -->
+    <style>
+      /* Critical above-the-fold styles */
+      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .header { background: #fff; border-bottom: 1px solid #e5e7eb; }
+      .logo { height: 64px; width: auto; }
+      .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+      .product-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+      .product-image { width: 100%; height: 200px; object-fit: cover; }
+      .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
+      @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
@@ -49,7 +65,5 @@
       To begin the development, run `npm start` or `yarn start`.
       To create a production bundle, use `npm run build` or `yarn build`.
     -->
-    <!-- REMOVED: Font Awesome script tag to prevent CORS errors -->
-    <script src="https://kit.fontawesome.com/19d8d10f01.js" crossorigin="anonymous"></script>
   </body>
 </html>

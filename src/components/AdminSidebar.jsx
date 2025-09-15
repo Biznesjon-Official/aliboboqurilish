@@ -1,28 +1,29 @@
 import { useNavigate } from 'react-router-dom';
+import { ToolsFAIcon, UserFAIcon, SignOutAltFAIcon, ChartLineFAIcon, UserFAIcon as UsersFAIcon, BoxFAIcon, CartFAIcon } from './FontAwesome';
 
 // Sidebar bo'limlari
 const sidebarLinks = [
   {
     key: 'dashboard',
-    icon: 'fas fa-chart-line',
+    icon: ChartLineFAIcon,
     label: 'Dashboard',
     badge: null,
   },
   {
     key: 'craftsmen',
-    icon: 'fas fa-users',
+    icon: UsersFAIcon,
     label: 'Ustalar',
     badge: 'craftsmenCount',
   },
   {
     key: 'products',
-    icon: 'fas fa-box',
+    icon: BoxFAIcon,
     label: 'Mahsulotlar',
     badge: 'productsCount',
   },
   {
     key: 'orders',
-    icon: 'fas fa-shopping-cart',
+    icon: CartFAIcon,
     label: 'Buyurtmalar',
     badge: 'ordersCount',
   },
@@ -85,7 +86,7 @@ const AdminSidebar = ({ active = 'dashboard', counts = defaultCounts, onLogout, 
       <div className="p-6 border-b border-gray-700">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-primary-orange rounded-lg flex items-center justify-center">
-            <i className="fas fa-tools text-white text-xl"></i>
+            <ToolsFAIcon className="text-white text-xl" />
           </div>
           <div>
             <h1 className="text-white font-bold text-lg">Alibobo</h1>
@@ -126,7 +127,7 @@ const AdminSidebar = ({ active = 'dashboard', counts = defaultCounts, onLogout, 
                     }
                   }}
                 >
-                  <i className={link.icon}></i>
+                  <link.icon />
                   <span>{link.label}</span>
                   {link.badge && (
                     <span className="ml-auto bg-primary-orange text-white text-xs px-2 py-1 rounded-full">
@@ -144,14 +145,14 @@ const AdminSidebar = ({ active = 'dashboard', counts = defaultCounts, onLogout, 
       <div className="border-t border-gray-700 p-4">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-primary-orange rounded-full flex items-center justify-center">
-            <i className="fas fa-user text-white"></i>
+            <UserFAIcon className="text-white" />
           </div>
           <div>
             <p className="text-white font-medium">Admin</p>
             <p className="text-gray-400 text-sm">Boshqaruvchi</p>
           </div>
           <button onClick={onLogout} className="ml-auto text-gray-400 hover:text-white">
-            <i className="fas fa-sign-out-alt"></i>
+            <SignOutAltFAIcon />
           </button>
         </div>
       </div>

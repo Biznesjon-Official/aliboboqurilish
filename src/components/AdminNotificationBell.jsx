@@ -1,4 +1,5 @@
   import React, { useState } from 'react';
+import { BellFAIcon, CartFAIcon, ExclamationTriangleFAIcon, UserFAIcon, BoxFAIcon, HammerFAIcon, InfoCircleFAIcon } from './FontAwesome';
 
 const AdminNotificationBell = ({ notifications = [], setNotifications, markAllAsRead, markAsRead, deleteNotification, deleteAllNotifications }) => {
   const [notifOpen, setNotifOpen] = useState(false);
@@ -109,7 +110,7 @@ const AdminNotificationBell = ({ notifications = [], setNotifications, markAllAs
         onClick={toggleNotifications}
         className="notification-bell relative text-gray-600 hover:text-primary-orange transition-colors duration-200"
       >
-        <i className="fas fa-bell text-xl"></i>
+        <BellFAIcon className="text-xl" />
         {unreadCount > 0 && (
           <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
             {unreadCount}
@@ -164,18 +165,18 @@ const AdminNotificationBell = ({ notifications = [], setNotifications, markAllAs
           <div className="flex-1 overflow-y-auto min-h-0">
             {notifications.length === 0 ? (
               <div className="p-6 text-center text-gray-500">
-                <i className="fas fa-bell-slash text-3xl mb-3 opacity-50"></i>
+                <BellFAIcon className="text-3xl mb-3 opacity-50" />
                 <p className="text-sm">Bildirishnomalar yo'q</p>
               </div>
             ) : (
               notifications.map((notification, index) => {
                 const iconConfig = {
-                  order: { icon: 'fas fa-shopping-cart', color: 'bg-blue-100 text-blue-600' },
-                  stock: { icon: 'fas fa-exclamation-triangle', color: 'bg-yellow-100 text-yellow-600' },
-                  user: { icon: 'fas fa-user-plus', color: 'bg-green-100 text-green-600' },
-                  product: { icon: 'fas fa-box', color: 'bg-purple-100 text-purple-600' },
-                  craftsman: { icon: 'fas fa-hammer', color: 'bg-orange-100 text-orange-600' },
-                  info: { icon: 'fas fa-info-circle', color: 'bg-blue-100 text-blue-600' }
+                  order: { icon: CartFAIcon, color: 'bg-blue-100 text-blue-600' },
+                  stock: { icon: ExclamationTriangleFAIcon, color: 'bg-yellow-100 text-yellow-600' },
+                  user: { icon: UserFAIcon, color: 'bg-green-100 text-green-600' },
+                  product: { icon: BoxFAIcon, color: 'bg-purple-100 text-purple-600' },
+                  craftsman: { icon: HammerFAIcon, color: 'bg-orange-100 text-orange-600' },
+                  info: { icon: InfoCircleFAIcon, color: 'bg-blue-100 text-blue-600' }
                 };
                 
                 const config = iconConfig[notification.type] || iconConfig.info;
@@ -202,7 +203,7 @@ const AdminNotificationBell = ({ notifications = [], setNotifications, markAllAs
                       </div>
                     )}
                     <div className={`w-10 h-10 ${config.color} rounded-full flex items-center justify-center flex-shrink-0`}>
-                      <i className={`${config.icon} text-sm`}></i>
+                      {config.icon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">

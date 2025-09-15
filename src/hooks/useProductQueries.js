@@ -2,7 +2,7 @@ import { useQuery, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys, invalidateQueries, queryClient } from '../lib/queryClient';
 
 // API base URL - Direct connection to backend
-const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
+const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
 
 // Fetch functions
 const fetchProducts = async ({ category = '', search = '', page = 1, limit = 200, sortBy = 'updatedAt', sortOrder = 'desc', signal, useFastEndpoint = true }) => {
@@ -85,14 +85,14 @@ export const useProducts = (category, search, page = 1, limit = 20) => {
     queryKey: queryKeys.products.list(category, search, page, limit),
     queryFn: ({ signal }) => fetchProducts({ category, search, page, limit, signal }),
     keepPreviousData: false, // Disable to prevent showing stale data from different pages
-    staleTime: 2 * 60 * 1000, // 2 minutes - reasonable for admin interface
-    cacheTime: 10 * 60 * 1000, // 10 minutes cache time
+    staleTime: 30 * 1000, // 30 seconds - faster updates
+    cacheTime: 5 * 60 * 1000, // 5 minutes cache time
     refetchOnWindowFocus: false, // Disable to prevent unnecessary refetches
     refetchOnReconnect: true, // Enable for real-time updates on reconnect
-    refetchOnMount: false, // Don't force fresh data on every mount
+    refetchOnMount: 'always', // Always fetch fresh data for better UX
     // Balanced retry settings
-    retry: 2,
-    retryDelay: 1000, // 1 second retry delay
+    retry: 1,
+    retryDelay: 500, // 500ms retry delay for faster recovery
     // Remove automatic refetch interval to prevent constant loading
     refetchInterval: false, // Disabled automatic refetching
     refetchIntervalInBackground: false, // Disabled background refetching
@@ -112,11 +112,13 @@ export const useInfiniteProducts = (category, search, limit = 20) => {
       }
       return undefined;
     },
-    keepPreviousData: false, // Disable to match useProducts behavior
-    staleTime: 60 * 1000,
-    cacheTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    // Optimized caching settings for better performance
+    staleTime: 2 * 60 * 1000, // 2 minutes - longer to reduce refetches
+    cacheTime: 10 * 60 * 1000, // 10 minutes cache
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnReconnect: false, // Don't refetch on reconnect
+    // Enable background refetch for stale data only
+    refetchOnMount: false, // Don't refetch on mount if fresh
   });
 };
 

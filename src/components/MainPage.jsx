@@ -34,20 +34,23 @@ const MainPage = ({ onSuccessfulLogin }) => {
   const [activeSection, setActiveSection] = useState('products');
 
   // Parallel data loading for initial page load - Ultra-optimized for speed
-  const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
+  const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
   
   console.log(`🔧 API Base URL in MainPage: ${API_BASE}`);
   
   // Memoize URLs to prevent unnecessary re-renders
   const urls = useMemo(() => [
-    `${API_BASE}/craftsmen?limit=20&status=active`,
-    `${API_BASE}/products/fast?limit=20&page=1`
+    `${API_BASE}/craftsmen?limit=8&status=active`,
+    `${API_BASE}/products/fast?limit=8&page=1`
   ], [API_BASE]);
 
   const { data: parallelData, loading: parallelLoading, errors } = useParallelFetch(urls, { 
-    fetchOptions: { cache: 'no-store' },
-    // Add enabled flag to prevent fetching when not needed
-    enabled: true
+    fetchOptions: { 
+      cache: 'force-cache',
+      priority: 'high'
+    },
+    enabled: true,
+    staleTime: 30000 // 30 seconds cache
   });
 
   // Log any errors

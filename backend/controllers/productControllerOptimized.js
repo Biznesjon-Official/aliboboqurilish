@@ -3,8 +3,8 @@ const Product = require('../models/Product');
 
 // Simple in-memory cache (in production, you might want to use Redis)
 const fastCache = new Map();
-const FAST_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const MAX_CACHE_SIZE = 100; // Maximum number of cache entries
+const FAST_CACHE_TTL = 30 * 1000; // 30 seconds for fresh data
+const MAX_CACHE_SIZE = 200; // Increased cache size
 
 // Helper function to clean expired cache entries
 const cleanCache = () => {
@@ -53,7 +53,7 @@ const getProductsFast = async (req, res) => {
     if (debug) console.log('[getProductsFast] Request query:', req.query);
     
     // Optimized pagination
-    const limit = Math.min(parseInt(req.query.limit) || 20, 50); // Reduced max to 50 for better performance
+    const limit = Math.min(parseInt(req.query.limit) || 12, 24); // Smaller initial load for faster response
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const skip = (page - 1) * limit;
     

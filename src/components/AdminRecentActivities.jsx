@@ -4,6 +4,18 @@ import '../styles/select-styles.css';
 import RecentActivitiesSkeleton from './skeletons/RecentActivitiesSkeleton';
 import FadeInTransition from './transitions/FadeInTransition';
 import { useRecentActivities, useDeleteRecentActivity, useDeleteAllRecentActivities, useRecentActivitiesCache } from '../hooks/useRecentActivities';
+import { ExclamationTriangleFAIcon, FilterFAIcon, ClockFAIcon, BoxFAIcon, CartFAIcon, HammerFAIcon } from './FontAwesome';
+
+// Helper function to get icon component from CSS class
+const getActivityIcon = (iconClass) => {
+  const iconMap = {
+    'fas fa-box': BoxFAIcon,
+    'fas fa-shopping-cart': CartFAIcon,
+    'fas fa-hammer': HammerFAIcon,
+    // Add more mappings as needed
+  };
+  return iconMap[iconClass] || BoxFAIcon; // Default to BoxFAIcon
+};
 
 const AdminRecentActivities = ({ onNavigate, isLoading = false }) => {
   const [filter, setFilter] = useState('all');
@@ -161,7 +173,7 @@ const AdminRecentActivities = ({ onNavigate, isLoading = false }) => {
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex-1 flex flex-col h-full">
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
-            <i className="fas fa-exclamation-triangle text-red-500 text-2xl mb-2"></i>
+            <ExclamationTriangleFAIcon className="text-red-500 text-2xl mb-2" />
             <p className="text-gray-600">Amallar yuklanmadi</p>
             <button 
               onClick={() => activitiesCache.refreshAll()}
@@ -186,7 +198,7 @@ const AdminRecentActivities = ({ onNavigate, isLoading = false }) => {
           <h3 className="text-lg sm:text-xl font-bold text-primary-dark">Oxirgi amallar</h3>
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <i className="fas fa-filter absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+              <FilterFAIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
               <select
                 className="custom-select custom-select-with-icon text-sm"
                 value={filter}
@@ -233,7 +245,7 @@ const AdminRecentActivities = ({ onNavigate, isLoading = false }) => {
         <div className="space-y-2 sm:space-y-3 sm:max-h-96 sm:overflow-y-auto flex-1 lg:flex-none">
           {filteredActivities.length === 0 ? (
             <div className="text-center py-6 sm:py-8 text-gray-500">
-              <i className="fas fa-clock text-2xl sm:text-3xl mb-2 sm:mb-3 opacity-50"></i>
+              <ClockFAIcon className="text-2xl sm:text-3xl mb-2 sm:mb-3 opacity-50" />
               <p className="text-sm">Hozircha hech qanday faoliyat mavjud emas</p>
               <p className="text-xs mt-1 opacity-75">Yangi amallar bajarilganda bu yerda ko'rsatiladi</p>
             </div>
@@ -261,7 +273,7 @@ const AdminRecentActivities = ({ onNavigate, isLoading = false }) => {
                   </div>
                 )}
                 <div className={`w-8 h-8 sm:w-10 sm:h-10 ${activity.iconBg} rounded-full flex items-center justify-center flex-shrink-0`}>
-                  <i className={`fas ${activity.icon} ${activity.iconColor} text-sm`}></i>
+                  {React.createElement(getActivityIcon(activity.icon), { className: `${activity.iconColor} text-sm` })}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-800 text-sm leading-tight">

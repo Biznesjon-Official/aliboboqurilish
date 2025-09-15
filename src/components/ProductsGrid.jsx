@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue } from 'react';
 import { useInfiniteProducts } from '../hooks/useProductQueries';
+import { useDebounce } from '../hooks/useDebounce';
 
 import CartSidebar from './CartSidebar';
 import CategoryNavigation from './CategoryNavigation';
@@ -24,7 +25,12 @@ const ProductsGrid = ({
   onCategorySelect,
   onSearch
 }) => {
-  // console.log('ProductsGrid rendered with props:', { selectedCategory, searchQuery });
+  // Optimized filtering with debounced search and deferred heavy operations
+  const [debouncedSearchQuery] = useDebounce(searchQuery || '', 300);
+  const [debouncedCategory] = useDebounce(selectedCategory || '', 150);
+  
+  // Use deferred value for expensive fuzzy search
+  const deferredSearchQuery = useDeferredValue(debouncedSearchQuery);
 
 
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -175,8 +181,8 @@ const ProductsGrid = ({
   // Detect filter changes and show skeleton (only during active fetch)
   useEffect(() => {
     const currentFilters = {
-      selectedCategory: selectedCategory || '',
-      searchQuery: searchQuery || ''
+      selectedCategory: debouncedCategory || '',
+      searchQuery: debouncedSearchQuery || ''
     };
 
     const filtersChanged = JSON.stringify(currentFilters) !== JSON.stringify(previousFilters);
@@ -188,7 +194,7 @@ const ProductsGrid = ({
     }
 
     setPreviousFilters(currentFilters);
-  }, [selectedCategory, searchQuery, isInitialLoad]);
+  }, [debouncedCategory, debouncedSearchQuery, isInitialLoad, refetch]);
 
 
   // no-op
@@ -212,21 +218,30 @@ const ProductsGrid = ({
   // no-op
 
 
-  // Filter products directly without using the hook for now
-  const filteredProducts = useMemo(() => {
-    const productsToFilter = fetchedProducts;
+  // Optimized category filtering (much faster than client-side search)
+  const categoryFilteredProducts = useMemo(() => {
+    if (!fetchedProducts || fetchedProducts.length === 0) return [];
+    
+    if (!debouncedCategory || debouncedCategory === 'all' || debouncedCategory === '') {
+      return fetchedProducts;
+    }
+    
+    return fetchedProducts.filter(product => {
+      const productCategory = product.category?.toLowerCase();
+      const selectedCat = debouncedCategory.toLowerCase();
+      return productCategory === selectedCat || productCategory?.includes(selectedCat);
+    });
+  }, [fetchedProducts, debouncedCategory]);
 
-
-    if (!productsToFilter || productsToFilter.length === 0) return [];
-
-
-    let filtered = [...productsToFilter];
-
-
-    // Enhanced search filter - normalized substring match across multiple fields
-    if (searchQuery && searchQuery.trim()) {
-      const q = normalizeText(searchQuery);
-      filtered = filtered.filter(product => {
+  // Optimized fuzzy search - only run when search query changes significantly
+  const fuzzySearchResults = useMemo(() => {
+    if (!deferredSearchQuery || deferredSearchQuery.trim().length < 2) return null;
+    
+    const q = normalizeText(deferredSearchQuery);
+    const matches = getFuzzyMatches(categoryFilteredProducts, deferredSearchQuery, 20);
+    
+    return {
+      directMatches: categoryFilteredProducts.filter(product => {
         const name = normalizeText(product.name || '');
         const description = normalizeText(product.description || '');
         const category = normalizeText(product.category || '');
@@ -241,30 +256,27 @@ const ProductsGrid = ({
           unit.includes(q) ||
           badge.includes(q)
         );
-      });
+      }),
+      fuzzyMatches: matches.map(m => m.product)
+    };
+  }, [categoryFilteredProducts, deferredSearchQuery]);
 
-      // If no direct substring matches, fallback to fuzzy matches as primary results
-      if (filtered.length === 0) {
-        const matches = getFuzzyMatches(fetchedProducts, searchQuery, 20);
-        filtered = matches.map(m => m.product);
+  // Final filtered products - much lighter computation
+  const filteredProducts = useMemo(() => {
+    let products = categoryFilteredProducts;
+
+    // Apply search filtering
+    if (fuzzySearchResults) {
+      if (fuzzySearchResults.directMatches.length > 0) {
+        products = fuzzySearchResults.directMatches;
+      } else {
+        products = fuzzySearchResults.fuzzyMatches;
       }
     }
 
-
-    // Category filter - API dan kelgan kategoriyalar bilan to'g'ri solishtirish
-    if (selectedCategory && selectedCategory !== 'all' && selectedCategory !== '') {
-      filtered = filtered.filter(product => {
-        // API dan kelgan kategoriya nomini kichik harfga o'tkazib solishtirish
-        const productCategory = product.category?.toLowerCase();
-        const selectedCat = selectedCategory.toLowerCase();
-        return productCategory === selectedCat || productCategory?.includes(selectedCat);
-      });
-    }
-
-
-    // Price filter
+    // Price filter (fast operation)
     if (appliedMinPrice || appliedMaxPrice) {
-      filtered = filtered.filter(product => {
+      products = products.filter(product => {
         const price = parseInt(product.price?.toString().replace(/[^\d]/g, '') || '0');
         const min = appliedMinPrice ? parseInt(appliedMinPrice) : 0;
         const max = appliedMaxPrice ? parseInt(appliedMaxPrice) : Infinity;
@@ -272,71 +284,68 @@ const ProductsGrid = ({
       });
     }
 
-
-    // Sort based on quickFilter
-    filtered.sort((a, b) => {
+    // Quick filter/sort (optimized)
+    if (quickFilter !== 'all') {
       switch (quickFilter) {
         case 'mashhur':
-          // Prioritize items that have a "Mashhur" badge or marked as popular
-          const aHasPopularBadge = ((a.badge || '').toLowerCase().includes('mashhur')) || !!a.isPopular;
-          const bHasPopularBadge = ((b.badge || '').toLowerCase().includes('mashhur')) || !!b.isPopular;
-          if (aHasPopularBadge !== bHasPopularBadge) {
-            return bHasPopularBadge - aHasPopularBadge; // true first
-          }
-          // Fallback: sort by popularity score (reviews * rating), then by updatedAt
-          const aPopularity = (a.reviews || 0) * (a.rating || 0);
-          const bPopularity = (b.reviews || 0) * (b.rating || 0);
-          if (bPopularity !== aPopularity) {
-            return bPopularity - aPopularity; // Descending order
-          }
-          const aUpdatedAt = new Date(a.updatedAt || 0);
-          const bUpdatedAt = new Date(b.updatedAt || 0);
-          return bUpdatedAt - aUpdatedAt;
+          products.sort((a, b) => {
+            const aHasPopularBadge = ((a.badge || '').toLowerCase().includes('mashhur')) || !!a.isPopular;
+            const bHasPopularBadge = ((b.badge || '').toLowerCase().includes('mashhur')) || !!b.isPopular;
+            if (aHasPopularBadge !== bHasPopularBadge) {
+              return bHasPopularBadge - aHasPopularBadge;
+            }
+            const aPopularity = (a.reviews || 0) * (a.rating || 0);
+            const bPopularity = (b.reviews || 0) * (b.rating || 0);
+            return bPopularity - aPopularity;
+          });
+          break;
           
         case 'chegirma':
-          // Sort by discount (products with oldPrice first)
-          const aDiscount = a.oldPrice && a.oldPrice > a.price ? 
-            ((a.oldPrice - a.price) / a.oldPrice) * 100 : 0;
-          const bDiscount = b.oldPrice && b.oldPrice > b.price ? 
-            ((b.oldPrice - b.price) / b.oldPrice) * 100 : 0;
-          return bDiscount - aDiscount; // Descending order
+          products.sort((a, b) => {
+            const aDiscount = a.oldPrice && a.oldPrice > a.price ? 
+              ((a.oldPrice - a.price) / a.oldPrice) * 100 : 0;
+            const bDiscount = b.oldPrice && b.oldPrice > b.price ? 
+              ((b.oldPrice - b.price) / b.oldPrice) * 100 : 0;
+            return bDiscount - aDiscount;
+          });
+          break;
           
         case 'yangi':
-          // Prioritize items with "Yangi" badge or isNew flag, then by newest date
-          const aHasNewBadge = ((a.badge || '').toLowerCase().includes("yangi")) || !!a.isNew;
-          const bHasNewBadge = ((b.badge || '').toLowerCase().includes("yangi")) || !!b.isNew;
-          if (aHasNewBadge !== bHasNewBadge) {
-            return bHasNewBadge - aHasNewBadge; // true first
-          }
-          // Fallback by createdAt/updatedAt
-          const aDate = new Date(a.createdAt || a.updatedAt || 0);
-          const bDate = new Date(b.createdAt || b.updatedAt || 0);
-          return bDate - aDate; // Descending order (newest first)
-          
-        case 'all':
-        default:
-          // Default sort by updatedAt
-          const aUpdated = new Date(a.updatedAt || 0);
-          const bUpdated = new Date(b.updatedAt || 0);
-          return bUpdated - aUpdated; // Descending order
+          products.sort((a, b) => {
+            const aHasNewBadge = ((a.badge || '').toLowerCase().includes("yangi")) || !!a.isNew;
+            const bHasNewBadge = ((b.badge || '').toLowerCase().includes("yangi")) || !!b.isNew;
+            if (aHasNewBadge !== bHasNewBadge) {
+              return bHasNewBadge - aHasNewBadge;
+            }
+            const aDate = new Date(a.createdAt || a.updatedAt || 0);
+            const bDate = new Date(b.createdAt || b.updatedAt || 0);
+            return bDate - aDate;
+          });
+          break;
       }
-    });
+    } else {
+      // Default sort by updatedAt (fast operation)
+      products.sort((a, b) => {
+        const aUpdated = new Date(a.updatedAt || 0);
+        const bUpdated = new Date(b.updatedAt || 0);
+        return bUpdated - aUpdated;
+      });
+    }
 
-    return filtered;
-  }, [fetchedProducts, searchQuery, quickFilter, appliedMinPrice, appliedMaxPrice]);
+    return products;
+  }, [categoryFilteredProducts, fuzzySearchResults, appliedMinPrice, appliedMaxPrice, quickFilter]);
 
 
-  // Fuzzy suggestions when exact filter yields no results
+  // Optimized fuzzy suggestions - only when needed
   const fuzzyMatches = useMemo(() => {
-    if (!searchQuery) return [];
-    return getFuzzyMatches(fetchedProducts, searchQuery, 12);
-  }, [fetchedProducts, searchQuery]);
-
+    if (!deferredSearchQuery || deferredSearchQuery.trim().length < 3) return [];
+    return getFuzzyMatches(categoryFilteredProducts, deferredSearchQuery, 12);
+  }, [categoryFilteredProducts, deferredSearchQuery]);
 
   const didYouMeanTerms = useMemo(() => {
-    if (!searchQuery) return [];
+    if (!deferredSearchQuery || fuzzyMatches.length === 0) return [];
     return getDidYouMeanTerms(fuzzyMatches, 5);
-  }, [fuzzyMatches, searchQuery]);
+  }, [fuzzyMatches, deferredSearchQuery]);
 
 
   // Use centralized addToCart function

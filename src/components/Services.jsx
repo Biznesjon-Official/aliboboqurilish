@@ -1,4 +1,7 @@
 
+import React from 'react';
+import { ToolsFAIcon, PhoneFAIcon } from './FontAwesome';
+
 const Services = () => {
   return (
   <section id="services" className="py-20 bg-white">
@@ -24,7 +27,7 @@ const Services = () => {
 
             <div className="flex items-start space-x-4">
               <div className="bg-primary-orange w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
-                <i className="fas fa-tools text-white"></i>
+                <ToolsFAIcon className="text-white" />
               </div>
               <div>
                 <h3 className="text-xl font-bold text-primary-dark mb-2">O'rnatish xizmati</h3>
@@ -67,7 +70,7 @@ const Services = () => {
                 href="tel:+998948494956" 
                 className="inline-flex items-center justify-center gap-3 bg-primary-orange hover:bg-orange-600 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:scale-110 hover:-translate-y-1 active:scale-95"
               >
-                <i className="fas fa-phone text-base animate-pulse"></i>
+                <PhoneFAIcon className="text-base animate-pulse" />
                 <span className="tracking-wide">+998 94 849 49 56</span>
               </a>
             </div>
@@ -79,4 +82,4 @@ const Services = () => {
 );
 };
 
-export default Services; 
+export default Services;

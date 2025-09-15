@@ -1,13 +1,14 @@
-import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from './lib/queryClient';
-import socketService from './services/SocketService'; // Real-time updates
+import LCPOptimizer from './components/LCPOptimizer';
+import './App.css';
 import { useStockMonitor } from './hooks/useRealTimeStock'; // Real-time stock monitoring
 import { useGlobalStockListener } from './hooks/useGlobalStock'; // Global stock state
 import DiagnosticPanel from './components/DiagnosticPanel'; // Diagnostic panel for monitoring
 import AdminLoadingLayout from './components/skeletons/AdminLoadingLayout';
-import './App.css';
 import './utils/browserStockSync'; // Browser-based stock sync
 import './utils/forceRefresh'; // Force refresh utility
 import './utils/stockUpdateDebugger'; // Stock update debugging tool
@@ -189,6 +190,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <LCPOptimizer />
       <AppContent />
       
       {/* CRITICAL: Real-time Diagnostic Panel (Development only) */}

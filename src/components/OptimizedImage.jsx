@@ -28,7 +28,7 @@ const processImageSrc = (baseSrc, fallbackSrc) => {
   
   // Handle file paths - convert to full backend base URL
   if (baseSrc.startsWith('/uploads/')) {
-    const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
+    const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
     const baseNoApi = API_BASE.replace(/\/api$/, '');
     return `${baseNoApi}${baseSrc}`;
   }
@@ -46,6 +46,7 @@ const OptimizedImage = ({
   height,
   sizes,
   priority = false,
+  loading = 'lazy',
   placeholder = 'blur',
   blurDataURL,
   onLoad,
@@ -56,12 +57,9 @@ const OptimizedImage = ({
   quality = 80,
   ...props
 }) => {
-  const [imageState, setImageState] = useState({
-    loaded: false,
-    error: false,
-    src: priority ? processImageSrc(src, fallbackSrc) : null // Load immediately if priority
-  });
-  const [isInView, setIsInView] = useState(priority);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [isInView, setIsInView] = useState(priority || loading === 'eager');
   const imgRef = useRef(null);
   const observerRef = useRef(null);
 
@@ -98,11 +96,21 @@ const OptimizedImage = ({
 
   // Load image when in view
   useEffect(() => {
-    if (isInView && !imageState.src) {
+    if (isInView) {
       const processedSrc = processImageSrc(src, fallbackSrc);
-      setImageState(prev => ({ ...prev, src: processedSrc }));
+      const finalSrc = processedSrc || fallbackSrc;
+      setIsLoaded(false);
+      setHasError(false);
+      const img = new Image();
+      img.onload = () => {
+        setIsLoaded(true);
+      };
+      img.onerror = () => {
+        setHasError(true);
+      };
+      img.src = finalSrc;
     }
-  }, [isInView, src, imageState.src, fallbackSrc]);
+  }, [isInView, src, fallbackSrc]);
 
   // Handle image load
   const handleLoad = useCallback((e) => {
@@ -111,7 +119,7 @@ const OptimizedImage = ({
       console.log(`[OptimizedImage] Successfully loaded image: ${src}`);
     }
     
-    setImageState(prev => ({ ...prev, loaded: true, error: false }));
+    setIsLoaded(true);
     if (onLoad) onLoad(e);
   }, [onLoad, src]);
 
@@ -154,16 +162,9 @@ const OptimizedImage = ({
       }
     }
 
-    setImageState(prev => ({ 
-      ...prev, 
-      error: true, 
-      loaded: false,
-      src: fallbackSrc 
-    }));
+    setHasError(true);
     if (onError) onError(e);
   }, [onError, fallbackSrc, src]);
-
-
 
   // Generate responsive image URLs (if using a CDN or image service)
   const generateResponsiveUrls = useCallback((baseSrc) => {
@@ -225,7 +226,7 @@ const OptimizedImage = ({
     height: '100%',
     objectFit: objectFit,
     transition: 'opacity 0.3s ease-in-out',
-    opacity: imageState.loaded ? 1 : 0
+    opacity: isLoaded ? 1 : 0
   };
 
   // Placeholder styles
@@ -239,9 +240,11 @@ const OptimizedImage = ({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    opacity: imageState.loaded ? 0 : 1,
+    opacity: isLoaded ? 0 : 1,
     transition: 'opacity 0.3s ease-in-out'
   };
+
+  const finalSrc = processImageSrc(src, fallbackSrc) || fallbackSrc;
 
   return (
     <div 
@@ -251,7 +254,7 @@ const OptimizedImage = ({
       {...props}
     >
       {/* Blur placeholder */}
-      {placeholder === 'blur' && !imageState.loaded && (
+      {placeholder === 'blur' && !isLoaded && (
         <div style={placeholderStyles}>
           <img
             src={createBlurPlaceholder()}
@@ -269,7 +272,7 @@ const OptimizedImage = ({
       )}
 
       {/* Loading skeleton */}
-      {placeholder === 'skeleton' && !imageState.loaded && (
+      {placeholder === 'skeleton' && !isLoaded && (
         <div style={placeholderStyles}>
           <div className="animate-pulse bg-gray-200 w-full h-full flex items-center justify-center">
             <svg 
@@ -288,25 +291,31 @@ const OptimizedImage = ({
         </div>
       )}
 
-      {/* Main image */}
-      {imageState.src && (
-        <img
-          src={generateResponsiveUrls(imageState.src)}
-          srcSet={generateSrcSet(imageState.src)}
-          sizes={sizes}
-          alt={alt}
-          style={imageStyles}
-          loading={priority ? 'eager' : 'lazy'}
-          decoding="async"
-          onLoad={handleLoad}
-          onError={handleError}
-          width={width}
-          height={height}
-        />
-      )}
+      <img
+        ref={imgRef}
+        src={finalSrc}
+        alt={alt}
+        className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${className}`}
+        width={width}
+        height={height}
+        sizes={sizes}
+        onLoad={handleLoad}
+        onError={handleError}
+        loading={priority ? 'eager' : loading}
+        decoding={priority ? 'sync' : 'async'}
+        fetchPriority={priority ? 'high' : 'auto'}
+        style={{
+          backgroundColor: hasError ? '#f3f4f6' : 'transparent',
+          ...(blurDataURL && !isLoaded && !hasError ? {
+            backgroundImage: `url(${blurDataURL})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          } : {})
+        }}
+      />
 
       {/* Error state */}
-      {imageState.error && imageState.src === fallbackSrc && (
+      {hasError && (
         <div style={placeholderStyles}>
           <div className="text-center text-gray-500">
             <svg 
