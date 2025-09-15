@@ -8,8 +8,24 @@ let sharp;
 try {
   sharp = require('sharp');
 } catch (e) {
-  console.warn('⚠️  Skipping image optimization: "sharp" is not installed (dev dependency).');
-  process.exit(0); // Do not fail the build if sharp is unavailable
+  console.warn('⚠️  Sharp not installed. Falling back to copying logo.png to logo-32.png and logo-48.png.');
+  try {
+    const publicDir = require('path').resolve(__dirname, '..', 'public');
+    const fs = require('fs');
+    const src = require('path').join(publicDir, 'logo.png');
+    if (fs.existsSync(src)) {
+      for (const name of ['logo-32.png', 'logo-48.png']) {
+        const dest = require('path').join(publicDir, name);
+        fs.copyFileSync(src, dest);
+        console.log(`✅ Fallback: copied ${require('path').basename(src)} → ${name}`);
+      }
+    } else {
+      console.warn('⚠️  Fallback skipped: public/logo.png not found');
+    }
+  } catch (err) {
+    console.warn('⚠️  Fallback copy failed:', err.message);
+  }
+  process.exit(0); // Continue build
 }
 
 (async () => {
@@ -22,8 +38,8 @@ try {
     }
 
     const targets = [
-      { out: path.join(publicDir, 'logo.png'), width: 32, height: 32 },
-      { out: path.join(publicDir, 'logo.png'), width: 48, height: 48 },
+      { out: path.join(publicDir, 'logo-32.png'), width: 32, height: 32 },
+      { out: path.join(publicDir, 'logo-48.png'), width: 48, height: 48 },
     ];
 
     for (const t of targets) {

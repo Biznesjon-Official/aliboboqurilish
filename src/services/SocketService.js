@@ -15,7 +15,7 @@ class SocketService {
 
   initialize() {
     if (this.socket) {
-      console.log('🔗 Socket already initialized');
+      // Already initialized; avoid noisy logs
       return;
     }
 

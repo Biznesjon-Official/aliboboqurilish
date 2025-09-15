@@ -1,4 +1,5 @@
-import React, { useState, useCallback, memo, useEffect } from 'react';
+import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
+
 import { ShoppingCartIcon, EyeIcon } from './Icons';
 import Base64Image from './Base64Image';
 import { useStockMonitor } from '../hooks/useRealTimeStock';
@@ -19,6 +20,8 @@ const ModernProductCard = memo(({
   const [internalLastHoverTime, setInternalLastHoverTime] = useState(0);
   const [localStock, setLocalStock] = useState(product?.stock || 0);
   const [stockUpdateAnimation, setStockUpdateAnimation] = useState(false);
+  const containerRef = useRef(null);
+  const cachedWidthRef = useRef(0);
 
   // Initialize real-time stock monitoring
   const { isConnected } = useStockMonitor();
@@ -100,9 +103,11 @@ const ModernProductCard = memo(({
       return; // Too soon, ignore this hover
     }
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const width = rect.width;
+    // Use nativeEvent.offsetX to avoid layout thrash, and cache width
+    const width = cachedWidthRef.current || e.currentTarget.clientWidth;
+    const x = (e.nativeEvent && typeof e.nativeEvent.offsetX === 'number')
+      ? e.nativeEvent.offsetX
+      : (e.clientX - e.currentTarget.getBoundingClientRect().left);
 
     let newIndex;
 
@@ -210,6 +215,8 @@ const ModernProductCard = memo(({
               ? 'h-40 sm:h-48 lg:h-56' // Badge bor bo'lsa kichikroq
               : 'h-44 sm:h-52 lg:h-60' // Badge yo'q bo'lsa kattaroq
           }`}
+          ref={containerRef}
+          onMouseEnter={(e) => { cachedWidthRef.current = e.currentTarget.clientWidth; }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onTouchStart={handleTouchStart}

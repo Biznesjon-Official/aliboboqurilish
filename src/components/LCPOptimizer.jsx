@@ -39,14 +39,7 @@ const LCPOptimizer = () => {
       });
     });
 
-    // Optimize font loading
-    const fontLink = document.createElement('link');
-    fontLink.rel = 'preload';
-    fontLink.as = 'font';
-    fontLink.type = 'font/woff2';
-    fontLink.href = '/fonts/inter-var.woff2'; // If you have custom fonts
-    fontLink.crossOrigin = 'anonymous';
-    document.head.appendChild(fontLink);
+    // Note: custom font preload removed to avoid 404 if the file doesn't exist
 
   }, []);
 
