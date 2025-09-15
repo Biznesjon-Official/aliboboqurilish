@@ -1,6 +1,5 @@
 import React, { useState, useCallback, memo } from 'react';
 import ModernProductCard from './ModernProductCard';
-import ProductDetail from './ProductDetail';
 
 const ModernProductGrid = memo(({ 
   products, 
@@ -8,10 +7,8 @@ const ModernProductGrid = memo(({
   loading = false,
   className = ""
 }) => {
-  // Product detail modal states
-  const [isProductDetailOpen, setIsProductDetailOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  
+  // Product detail modal removed; we always navigate to route now
+
   // Image carousel states for product cards
   const [currentImageIndexes, setCurrentImageIndexes] = useState({});
   const [lastHoverTimes, setLastHoverTimes] = useState({});
@@ -20,16 +17,7 @@ const ModernProductGrid = memo(({
   const [showAddToCartNotification, setShowAddToCartNotification] = useState(false);
   const [notificationProduct, setNotificationProduct] = useState('');
 
-  // Product detail modal functions
-  const openProductDetail = useCallback((product) => {
-    setSelectedProduct(product);
-    setIsProductDetailOpen(true);
-  }, []);
-
-  const closeProductDetail = useCallback(() => {
-    setIsProductDetailOpen(false);
-    setSelectedProduct(null);
-  }, []);
+  // Modal handlers removed
 
   // Handle image change for product cards
   const handleImageChange = useCallback((productId, newIndex) => {
@@ -52,8 +40,6 @@ const ModernProductGrid = memo(({
       setShowAddToCartNotification(false);
     }, 3000);
   }, [onAddToCart]);
-
-
 
   // Loading skeleton
   if (loading && products.length === 0) {
@@ -118,7 +104,6 @@ const ModernProductGrid = memo(({
             key={product._id}
             product={product}
             onAddToCart={handleAddToCart}
-            onOpenDetail={openProductDetail}
             currentImageIndex={currentImageIndexes[product._id] || 0}
             onImageChange={handleImageChange}
             lastHoverTime={lastHoverTimes[product._id] || 0}
@@ -126,14 +111,6 @@ const ModernProductGrid = memo(({
           />
         ))}
       </div>
-
-      {/* Product Detail Modal */}
-      <ProductDetail
-        product={selectedProduct}
-        isOpen={isProductDetailOpen}
-        onClose={closeProductDetail}
-        onAddToCart={handleAddToCart}
-      />
     </>
   );
 });

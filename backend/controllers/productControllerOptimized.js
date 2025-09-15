@@ -59,8 +59,8 @@ const getProductsFast = async (req, res) => {
     
     // ULTRA-OPTIMIZED QUERY - Use simple, indexed fields only
     let query = {
-      isDeleted: { $ne: true }, // Use indexed field directly
-      status: 'active'          // Use indexed field directly
+      isDeleted: false,        // Equality filter to use composite index
+      status: 'active'         // Use indexed field directly
     };
     
     // Category filter (indexed)
@@ -146,7 +146,8 @@ const getProductsFast = async (req, res) => {
     // Hint the updatedAt index when sorting by updatedAt (matches schema index { updatedAt: -1, status: 1 })
     if (sort && Object.prototype.hasOwnProperty.call(sort, 'updatedAt')) {
       try {
-        queryExec = queryExec.hint({ updatedAt: -1, status: 1 });
+        // Composite index exists in schema: { status: 1, isDeleted: 1, updatedAt: -1 }
+        queryExec = queryExec.hint({ status: 1, isDeleted: 1, updatedAt: -1 });
       } catch (_) {}
     }
 

@@ -35,7 +35,6 @@ const Header = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [lastTap, setLastTap] = useState(0);
-  const [tapCount, setTapCount] = useState(0);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
@@ -88,33 +87,31 @@ const Header = ({
 
   // Removed close-on-scroll logic (no suggestions panel)
 
+  const openAdminModal = () => {
+    setShowLoginModal(true);
+    // Lock background scroll
+    document.body.style.overflow = 'hidden';
+    document.body.style.paddingRight = '17px';
+  };
+
   const handleLogoInteraction = (e) => {
     // Prevent default behavior for both click and touch events on mobile
     e.preventDefault();
-    
-    const currentTime = new Date().getTime();
-    const tapLength = currentTime - lastTap;
-    
-    // Reset tap count if too much time has passed
-    if (tapLength > 500) {
-      setTapCount(2);
-    } else {
-      setTapCount(prev => {
-        const newCount = prev + 1;
-        // Check if this is the second tap (double tap)
-        if (newCount === 2) {
-          console.log('Logo double tapped!');
-          setShowLoginModal(true);
-          // Lock background scroll
-          document.body.style.overflow = 'hidden';
-          document.body.style.paddingRight = '17px';
-          return 0; // Reset count
-        }
-        return newCount;
-      });
+
+    // Desktop double-click triggers via onDoubleClick
+    if (e.type === 'dblclick') {
+      openAdminModal();
+      return;
     }
-    
-    setLastTap(currentTime);
+
+    // Touch: detect double-tap within 400ms
+    const now = Date.now();
+    if (now - lastTap < 400) {
+      openAdminModal();
+      setLastTap(0);
+    } else {
+      setLastTap(now);
+    }
   };
 
   const handleLogin = (e) => {
@@ -180,7 +177,7 @@ const Header = ({
               {/* Logo */}
               <div
                 className="flex items-center space-x-3 cursor-pointer select-none"
-                onClick={handleLogoInteraction}
+                onDoubleClick={handleLogoInteraction}
                 onTouchEnd={handleLogoInteraction}
                 title="Admin panel uchun 2 marta bosing"
                 style={{ userSelect: 'none' }}
@@ -286,7 +283,7 @@ const Header = ({
             {/* Mobile Logo */}
             <div
               className="flex items-center space-x-2 cursor-pointer select-none min-w-fit"
-              onClick={handleLogoInteraction}
+              onDoubleClick={handleLogoInteraction}
               onTouchEnd={handleLogoInteraction}
               title="Admin panel uchun 2 marta bosing"
               style={{ userSelect: 'none' }}

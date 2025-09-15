@@ -1,4 +1,5 @@
 import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { ShoppingCartIcon, EyeIcon } from './Icons';
 import Base64Image from './Base64Image';
@@ -14,6 +15,7 @@ const ModernProductCard = memo(({
   onHoverTimeChange,
   className = ""
 }) => {
+  const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
   const [internalCurrentImageIndex, setInternalCurrentImageIndex] = useState(0);
@@ -180,21 +182,19 @@ const ModernProductCard = memo(({
     }
   }, [onImageChange, product._id]);
 
-  // Handle action buttons - Always open detail modal
+  // Handle action buttons - Navigate to detail route; add to cart only if no variants
   const handleAddToCart = useCallback((e) => {
     e.stopPropagation();
-    // Always open detail modal instead of adding directly to cart
-    onOpenDetail(product);
-  }, [onOpenDetail, product]);
+    navigate(`/product/${product._id}`);
+  }, [navigate, product]);
 
   const handleOpenDetail = useCallback(() => {
-    onOpenDetail(product);
-  }, [onOpenDetail, product]);
+    navigate(`/product/${product._id}`);
+  }, [navigate, product]);
 
   const handleCardClick = useCallback(() => {
-    // Always open detail modal when clicking on card
-    onOpenDetail(product);
-  }, [product, onOpenDetail]);
+    navigate(`/product/${product._id}`);
+  }, [product, navigate]);
 
   // Badge/chegirma borligini tekshirish
   const hasBadges = product.isNew || product.isPopular || (product.badge && product.badge !== 'Yo\'q') || 
@@ -403,21 +403,12 @@ const ModernProductCard = memo(({
         {/* Button - Kichraytirilgan */}
         <button
           onClick={handleAddToCart}
-          disabled={localStock === 0}
-          className={`w-full py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-200 mt-2 sm:mt-3 ${
-            localStock === 0
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'bg-gradient-to-r from-primary-orange to-orange-500 text-white hover:from-orange-600 hover:to-orange-600 hover:shadow-lg active:scale-[0.98] shadow-md'
-          }`}
+          className={`w-full py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-200 mt-2 sm:mt-3 bg-gradient-to-r from-primary-orange to-orange-500 text-white hover:from-orange-600 hover:to-orange-600 hover:shadow-lg active:scale-[0.98] shadow-md`}
         >
-          {localStock === 0 ? (
-            'Tugagan'
-          ) : (
-            <div className="flex items-center justify-center gap-2">
-              <EyeIcon className="w-4 h-4" />
-              <span>Ko'rish</span>
-            </div>
-          )}
+          <div className="flex items-center justify-center gap-2">
+            <EyeIcon className="w-4 h-4" />
+            <span>Ko'rish</span>
+          </div>
         </button>
       </div>
     </div>

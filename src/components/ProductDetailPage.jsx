@@ -11,7 +11,8 @@ const ProductDetailPage = () => {
   const [quantity, setQuantity] = useState(1);
 
   // Fetch product data with React Query caching
-  const { data: product, isLoading, error } = useProduct(id);
+  const { data, isLoading, error } = useProduct(id);
+  const product = data?.product;
 
   // Handle back navigation
   const handleBack = useCallback(() => {
