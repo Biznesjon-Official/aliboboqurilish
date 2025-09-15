@@ -4,23 +4,13 @@
   "description": "O'zbekistondagi eng yaxshi professional ustalar va sifatli qurilish materiallari platformasi",
   "icons": [
     {
-      "src": "favicon-16x16.png",
-      "type": "image/png",
-      "sizes": "16x16"
-    },
-    {
-      "src": "favicon-32x32.png",
-      "type": "image/png",
-      "sizes": "32x32"
-    },
-    {
-      "src": "android-chrome-192x192.png",
+      "src": "logo192.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
-      "src": "android-chrome-512x512.png",
+      "src": "logo512.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any maskable"
