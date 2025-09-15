@@ -4,7 +4,13 @@
 */
 const fs = require('fs');
 const path = require('path');
-const pngToIco = require('png-to-ico');
+let pngToIco;
+try {
+  pngToIco = require('png-to-ico');
+} catch (e) {
+  console.warn('⚠️  Skipping favicon generation: "png-to-ico" is not installed (dev dependency).');
+  process.exit(0); // Do not fail the build if png-to-ico is unavailable
+}
 
 (async () => {
   try {

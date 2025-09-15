@@ -4,7 +4,13 @@
 */
 const fs = require('fs');
 const path = require('path');
-const sharp = require('sharp');
+let sharp;
+try {
+  sharp = require('sharp');
+} catch (e) {
+  console.warn('⚠️  Skipping image optimization: "sharp" is not installed (dev dependency).');
+  process.exit(0); // Do not fail the build if sharp is unavailable
+}
 
 (async () => {
   try {
