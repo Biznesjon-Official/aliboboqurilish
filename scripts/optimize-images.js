@@ -22,8 +22,8 @@ try {
     }
 
     const targets = [
-      { out: path.join(publicDir, 'logo-32.png'), width: 32, height: 32 },
-      { out: path.join(publicDir, 'logo-48.png'), width: 48, height: 48 },
+      { out: path.join(publicDir, 'logo.png'), width: 32, height: 32 },
+      { out: path.join(publicDir, 'logo.png'), width: 48, height: 48 },
     ];
 
     for (const t of targets) {

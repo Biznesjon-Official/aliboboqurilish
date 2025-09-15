@@ -186,7 +186,7 @@ const Header = ({
                 style={{ userSelect: 'none' }}
               >
                 <img
-                  src="/logo-48.png"
+                  src="/log.png"
                   alt="Logo"
                   loading="eager"
                   decoding="sync"
