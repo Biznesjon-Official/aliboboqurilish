@@ -43,7 +43,10 @@
     "fast": "concurrently --kill-others-on-fail --raw \"npm run backend\" \"npm run frontend\"",
     "backend-only": "cd backend && npm run start:dev",
     "frontend-only": "cross-env PORT=3001 GENERATE_SOURCEMAP=false TSC_COMPILE_ON_ERROR=true ESLINT_NO_DEV_ERRORS=true react-scripts start",
+    "prebuild": "npm run assets:optimize && node scripts/generate-favicon.js",
     "build": "cross-env CI=false react-scripts build",
+    "gen:favicon": "node scripts/generate-favicon.js",
+    "assets:optimize": "node scripts/optimize-images.js",
     "build:backend": "cd backend && npm run build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
@@ -91,6 +94,8 @@
     "http-proxy-middleware": "^3.0.5",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",
-    "webpack-bundle-analyzer": "^4.10.2"
+    "webpack-bundle-analyzer": "^4.10.2",
+    "png-to-ico": "^2.1.8",
+    "sharp": "^0.33.4"
   }
 }

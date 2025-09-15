@@ -3,9 +3,11 @@
 
 User-agent: *
 Allow: /
+Allow: /favicon.ico
+Allow: /manifest.json
 
 # Sitemap location
-Sitemap: https://www.aliboboqurilish.uz/sitemap.xml
+Sitemap: https://aliboboqurilish.uz/sitemap.xml
 
 # Crawl-delay for respectful crawling
 Crawl-delay: 1
@@ -43,4 +45,4 @@ Allow: /api/products/fast
 Allow: /api/craftsmen
 
 # Host preference
-Host: https://www.aliboboqurilish.uz
+Host: https://aliboboqurilish.uz

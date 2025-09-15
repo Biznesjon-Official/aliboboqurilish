@@ -1,0 +1,27 @@
+/*
+ Generate public/favicon.ico from an existing PNG (logo.png or logo192.png)
+ Usage: npm run gen:favicon
+*/
+const fs = require('fs');
+const path = require('path');
+const pngToIco = require('png-to-ico');
+
+(async () => {
+  try {
+    const publicDir = path.resolve(__dirname, '..', 'public');
+    const candidates = ['logo.png', 'logo192.png', 'alibobo.png'];
+    const src = candidates.map((f) => path.join(publicDir, f)).find((p) => fs.existsSync(p));
+    if (!src) {
+      console.error('❌ No source PNG found in /public (looked for logo.png, logo192.png, alibobo.png)');
+      process.exit(1);
+    }
+
+    const out = path.join(publicDir, 'favicon.ico');
+    const buf = await pngToIco(src);
+    fs.writeFileSync(out, buf);
+    console.log(`✅ Generated favicon.ico from ${path.basename(src)} at ${out}`);
+  } catch (err) {
+    console.error('❌ Failed to generate favicon.ico:', err.message);
+    process.exit(1);
+  }
+})();

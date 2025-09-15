@@ -498,13 +498,14 @@ const ProductsGrid = ({
       <div className="mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3 lg:gap-4">
-            <span className="text-gray-700 font-medium text-sm lg:text-base">Saralash:</span>
+            <span id="sort-label" className="text-gray-700 font-medium text-sm lg:text-base">Saralash:</span>
             <div className="relative">
               <select
                 ref={selectRef}
                 value={quickFilter}
                 onChange={(e) => setQuickFilter(e.target.value)}
                 className="custom-select custom-select-main"
+                aria-labelledby="sort-label"
               >
                 <option value="all">Hammasi</option>
                 <option value="mashhur">Mashhur</option>
@@ -513,7 +514,6 @@ const ProductsGrid = ({
               </select>
 
             </div>
-
 
             {/* Price Filter (hidden on mobile) */}
             <span className="hidden sm:inline text-gray-700 font-medium text-sm lg:text-base">Narx:</span>
@@ -534,6 +534,7 @@ const ProductsGrid = ({
                     e.preventDefault();
                   }
                 }}
+                aria-label="Minimal narx"
                 className="w-20 lg:w-24 px-2 py-1.5 border border-gray-300 rounded-lg text-gray-700 text-sm focus:outline-none focus:border-primary-orange transition-colors duration-200 bg-white"
               />
               <span className="text-gray-400 text-sm">-</span>
@@ -553,6 +554,7 @@ const ProductsGrid = ({
                     e.preventDefault();
                   }
                 }}
+                aria-label="Maksimal narx"
                 className="w-20 lg:w-24 px-2 py-1.5 border border-gray-300 rounded-lg text-gray-700 text-sm focus:outline-none focus:border-primary-orange transition-colors duration-200 bg-white"
               />
 
@@ -570,10 +572,11 @@ const ProductsGrid = ({
               {(appliedMinPrice || appliedMaxPrice) && (
                 <button
                   onClick={clearPriceFilter}
-                  className="w-6 h-6 bg-gray-200 hover:bg-gray-300 text-gray-600 hover:text-gray-700 rounded transition-colors duration-200 flex items-center justify-center"
+                  aria-label="Filtrni tozalash"
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-700 hover:text-gray-800 rounded transition-colors duration-200 flex items-center justify-center p-2 min-w-[44px] min-h-[44px]"
                   title="Tozalash"
                 >
-                  <TimesIcon className="w-3 h-3" />
+                  <TimesIcon className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -593,11 +596,6 @@ const ProductsGrid = ({
 
         </div>
       </div>
-
-
-
-
-
 
       {/* Products Grid */}
       {filteredProducts.length > 0 ? (
@@ -706,8 +704,6 @@ const ProductsGrid = ({
         onCheckout={onCheckout}
       />
 
-
-
       {/* Bottom Sheet: Narx Filter (mobile) */}
       {isPriceRatingSheetOpen && (
         <div className="fixed inset-0 z-[60]">
@@ -716,10 +712,11 @@ const ProductsGrid = ({
             <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-3"></div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-semibold text-gray-800">Narx filtri</h3>
-              <button onClick={closePriceRatingSheet} className="text-gray-500 hover:text-gray-700">
+              <button onClick={closePriceRatingSheet} aria-label="Yopish" className="text-gray-600 hover:text-gray-800 p-2 min-w-[44px] min-h-[44px] rounded">
                 <TimesIcon className="w-4 h-4" />
               </button>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="block text-sm text-gray-700 mb-1">Minimal narx (so'm)</label>

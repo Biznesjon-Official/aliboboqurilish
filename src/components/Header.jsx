@@ -186,7 +186,7 @@ const Header = ({
                 style={{ userSelect: 'none' }}
               >
                 <img
-                  src="/logo.png"
+                  src="/logo-48.png"
                   alt="Logo"
                   loading="eager"
                   decoding="sync"
@@ -230,7 +230,8 @@ const Header = ({
                   />
                   <button
                     type="submit"
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-primary-orange transition duration-300"
+                    aria-label="Qidirish"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-primary-orange transition duration-300"
                   >
                     <SearchFAIcon className="text-base" />
                   </button>
@@ -263,6 +264,7 @@ const Header = ({
             <div className="flex items-center min-w-fit ml-auto">
               <button
                 onClick={toggleCart}
+                aria-label="Savatchani ochish"
                 className="relative bg-transparent hover:bg-gray-700 hover:bg-opacity-20 text-primary-orange px-3 py-2 rounded-lg transition duration-300"
               >
                 <CartFAIcon className="text-xl" />
@@ -331,7 +333,8 @@ const Header = ({
                 />
                 <button
                   type="submit"
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-primary-orange transition duration-300"
+                  aria-label="Qidirish"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-primary-orange transition duration-300 p-2"
                 >
                   <SearchFAIcon className="text-xs" />
                 </button>

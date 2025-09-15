@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from './lib/queryClient';
 import LCPOptimizer from './components/LCPOptimizer';
 import './App.css';
@@ -9,11 +8,6 @@ import { useStockMonitor } from './hooks/useRealTimeStock'; // Real-time stock m
 import { useGlobalStockListener } from './hooks/useGlobalStock'; // Global stock state
 import DiagnosticPanel from './components/DiagnosticPanel'; // Diagnostic panel for monitoring
 import AdminLoadingLayout from './components/skeletons/AdminLoadingLayout';
-import './utils/browserStockSync'; // Browser-based stock sync
-import './utils/forceRefresh'; // Force refresh utility
-import './utils/stockUpdateDebugger'; // Stock update debugging tool
-import './utils/stockNotification'; // Visual stock notifications
-import './testOptimisticUpdates'; // Test optimisticUpdates import
 import socketService from './services/SocketService';
 
 const MainPage = lazy(() => import('./components/MainPage'));
@@ -155,6 +149,21 @@ function AppContent() {
 // Main App component with QueryClientProvider
 function App() {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+
+  // Load development-only side effects dynamically so they are not bundled in production
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      Promise.all([
+        import('./utils/browserStockSync'),
+        import('./utils/forceRefresh'),
+        import('./utils/stockUpdateDebugger'),
+        import('./utils/stockNotification'),
+        import('./testOptimisticUpdates'),
+      ]).catch(() => {
+        // Swallow errors in dev helpers to avoid breaking the app
+      });
+    }
+  }, []);
 
   // CRITICAL: Initialize Socket.IO for real-time stock updates
   useEffect(() => {

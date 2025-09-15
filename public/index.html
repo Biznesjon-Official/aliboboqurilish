@@ -5,11 +5,17 @@
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
+    <link rel="canonical" href="https://aliboboqurilish.uz/" />
     <meta
       name="description"
       content="Alibobo - Professional craftsmen and quality building materials"
     />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <!-- Favicon links: ensure search engines can find a valid icon -->
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/logo.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="shortcut icon" href="%PUBLIC_URL%/logo.png" />
     <!--
       manifest.json provides metadata used when your web app is installed on a
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
@@ -31,7 +37,8 @@
     <link rel="dns-prefetch" href="http://localhost:5000">
     <!-- Preload critical images for LCP optimization -->
     <link rel="preload" as="image" href="%PUBLIC_URL%/alibobo.png" imagesizes="(max-width: 1024px) 96px, 144px" fetchpriority="high" />
-    <link rel="preload" as="image" href="%PUBLIC_URL%/logo.png" imagesizes="(max-width: 1024px) 32px, 48px" fetchpriority="high" />
+    <link rel="preload" as="image" href="%PUBLIC_URL%/logo.png" imagesizes="48px" media="(min-width: 1024px)" fetchpriority="high" />
+    <link rel="preload" as="image" href="%PUBLIC_URL%/logo.png" imagesizes="32px" media="(max-width: 1023.98px)" fetchpriority="high" />
     <link rel="preload" as="image" href="%PUBLIC_URL%/assets/default-product.svg" fetchpriority="high" />
     
     <!-- Preconnect to image domains -->
