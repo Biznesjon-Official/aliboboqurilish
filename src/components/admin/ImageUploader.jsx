@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
+import { PlusFAIcon, ChevronUpFAIcon, ChevronDownFAIcon, TimesFAIcon, ExclamationTriangleFAIcon } from '../FontAwesome';
 
 const ImageUploader = ({ 
   images = [], 
@@ -10,104 +11,68 @@ const ImageUploader = ({
   className = "",
   onError = null
 }) => {
-
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
-  const fileInputRef = useRef(null);
+  const [urlInput, setUrlInput] = useState('');
 
-  // Handle file selection
-  const handleFileSelect = (files) => {
+  // URL validation helper
+  const isValidUrl = (val) => {
+    try {
+      const s = String(val || '').trim();
+      if (!s) return false;
+      // Allow absolute http(s)
+      if (/^https?:\/\//i.test(s)) return true;
+      // Allow site-relative paths like /uploads/... or /assets/...
+      if (s.startsWith('/uploads/') || s.startsWith('/assets/')) return true;
+      // Allow legacy paths like uploads/... (we'll normalize to /uploads/...)
+      if (s.startsWith('uploads/')) return true;
+      return false;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const normalizeUrl = (val) => {
+    let s = String(val || '').trim();
+    // Fix backslashes
+    s = s.replace(/\\/g, '/');
+    // Normalize legacy uploads path
+    if (s.startsWith('uploads/')) s = '/' + s;
+    return s;
+  };
+
+  const handleAddUrls = () => {
     setError(null);
-    const fileArray = Array.from(files);
-    
-    // Validate file count
-    if (fileArray.length === 0) {
+    // Split by newline, comma, or whitespace
+    const parts = urlInput
+      .split(/\s|,|\n|\r/g)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    if (parts.length === 0) return;
+
+    const invalid = parts.filter((p) => !isValidUrl(p));
+    if (invalid.length > 0) {
+      const msg = `Quyidagi URL manzillar noto'g'ri:\n${invalid.join('\n')}`;
+      setError(msg);
+      if (onError) onError(msg);
+      // Continue with only valid ones
+    }
+
+    const valid = parts.filter((p) => isValidUrl(p)).map(normalizeUrl);
+    if (valid.length === 0) return;
+
+    // Remove duplicates (including already existing)
+    const existingSet = new Set(images);
+    const toAdd = valid.filter((u) => !existingSet.has(u));
+
+    if (toAdd.length === 0) {
+      setUrlInput('');
       return;
     }
 
-    const filesToProcess = fileArray;
-    const invalidFiles = [];
-    const validFiles = [];
-
-    // Validate files
-    filesToProcess.forEach(file => {
-      // Check file type
-      if (!file.type.startsWith('image/')) {
-        invalidFiles.push(`${file.name} - noto'g'ri fayl turi`);
-        return;
-      }
-      
-      // Check file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        invalidFiles.push(`${file.name} - fayl hajmi katta (5MB dan oshmasligi kerak)`);
-        return;
-      }
-      
-      validFiles.push(file);
-    });
-
-    // Show validation errors
-    if (invalidFiles.length > 0) {
-      const errorMsg = `Quyidagi fayllar yuklana olmadi:\n${invalidFiles.join('\n')}`;
-      setError(errorMsg);
-      if (onError) onError(errorMsg);
-    }
-
-    if (validFiles.length === 0) {
-      return;
-    }
-
-    setUploading(true);
-
-    const processFiles = async () => {
-      const newImages = [];
-      const processingErrors = [];
-      
-      for (const file of validFiles) {
-        try {
-          const base64 = await convertToBase64(file);
-          newImages.push(base64);
-        } catch (error) {
-          console.error('Rasm yuklashda xatolik:', error);
-          processingErrors.push(`${file.name} - yuklashda xatolik`);
-        }
-      }
-
-      if (processingErrors.length > 0) {
-        const errorMsg = `Quyidagi fayllar yuklana olmadi:\n${processingErrors.join('\n')}`;
-        setError(errorMsg);
-        if (onError) onError(errorMsg);
-      }
-
-      if (newImages.length > 0) {
-        const updatedImages = [...images, ...newImages];
-        onImagesChange(updatedImages);
-      }
-      
-      setUploading(false);
-    };
-
-    processFiles();
-  };
-
-  // Convert file to base64
-  const convertToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
-
-
-  // Handle file input change
-  const handleInputChange = (e) => {
-    const files = e.target.files;
-    handleFileSelect(files);
-    // Reset input value to allow selecting same file again
-    e.target.value = '';
+    const updated = [...images, ...toAdd];
+    onImagesChange(updated);
+    setUrlInput('');
   };
 
   // Remove image
@@ -133,13 +98,6 @@ const ImageUploader = ({
     onImagesChange(updatedImages);
   };
 
-  // Open file dialog
-  const openFileDialog = () => {
-    fileInputRef.current?.click();
-  };
-
-
-
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Title */}
@@ -148,40 +106,32 @@ const ImageUploader = ({
           {title}
         </label>
         <span className="text-sm text-gray-500">
-          {images.length} / {maxImages}
+          {images.length} ta rasm
         </span>
       </div>
 
-      {/* Upload Button */}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={openFileDialog}
-          disabled={uploading}
-          className="bg-primary-orange text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          {uploading ? (
-            <>
-              <i className="fas fa-spinner fa-spin"></i>
-              Yuklanmoqda...
-            </>
-          ) : (
-            <>
-              <i className="fas fa-plus"></i>
-              Rasm qo'shish
-            </>
-          )}
-        </button>
-        <span className="text-sm text-gray-500">PNG, JPG, GIF, WebP</span>
-        
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleInputChange}
-          className="hidden"
-        />
+      {/* URL Input */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddUrls(); } }}
+            placeholder="Rasm URL manzili yoki bir nechta URL (bo'sh joy/newline bilan ajrating): https://..., /uploads/..., /assets/..."
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent"
+          />
+          <button
+            type="button"
+            onClick={handleAddUrls}
+            className="bg-primary-orange text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-colors flex items-center gap-2"
+            title="URL qo'shish"
+          >
+            <PlusFAIcon />
+            Qo'shish
+          </button>
+        </div>
+        <span className="text-xs text-gray-500">Misollar: https://domain.com/image.jpg yoki /uploads/mahsulotlar/rasm.jpg</span>
       </div>
 
       {/* Images Grid */}
@@ -209,7 +159,7 @@ const ImageUploader = ({
                       className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Yuqoriga"
                     >
-                      <i className="fas fa-chevron-up"></i>
+                      <ChevronUpFAIcon />
                     </button>
                   )}
                   
@@ -222,7 +172,7 @@ const ImageUploader = ({
                       className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Pastga"
                     >
-                      <i className="fas fa-chevron-down"></i>
+                      <ChevronDownFAIcon />
                     </button>
                   )}
                   
@@ -234,7 +184,7 @@ const ImageUploader = ({
                       className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
                       title="O'chirish"
                     >
-                      <i className="fas fa-times"></i>
+                      <TimesFAIcon />
                     </button>
                   )}
                 </div>
@@ -252,7 +202,7 @@ const ImageUploader = ({
       {/* Info Text */}
       {images.length === 0 && (
         <div className="text-center py-4">
-          <p className="text-sm text-gray-500">Hali rasmlar yuklanmagan</p>
+          <p className="text-sm text-gray-500">Hali rasmlar qo'shilmagan. URL kiritib "Qo'shish" tugmasini bosing.</p>
         </div>
       )}
 
@@ -260,7 +210,7 @@ const ImageUploader = ({
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3">
           <div className="flex items-start">
-            <i className="fas fa-exclamation-triangle text-red-600 mr-2 mt-0.5"></i>
+            <ExclamationTriangleFAIcon className="text-red-600 mr-2 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm text-red-800 whitespace-pre-line">{error}</p>
               <button
@@ -274,8 +224,6 @@ const ImageUploader = ({
           </div>
         </div>
       )}
-
-
     </div>
   );
 };

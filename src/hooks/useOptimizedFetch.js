@@ -127,7 +127,7 @@ export const useParallelFetch = (urls, options = {}) => {
       try {
         const response = await fetch(url, {
           signal: controller.signal,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           credentials: 'include', // Include credentials for CORS
           mode: 'cors', // Enable CORS
           cache: 'no-cache', // Disable cache for real-time data

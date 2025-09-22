@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 // Ultra-fast API base URL - Direct connection to backend
 const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+const USE_FAST = (process.env.REACT_APP_USE_FAST || '').toLowerCase() === 'true';
 
 // Ultra-fast fetch function - minimal data, no images
 const fetchUltraFastProducts = async ({ category, page = 1, limit = 20, signal }) => {
@@ -16,7 +17,11 @@ const fetchUltraFastProducts = async ({ category, page = 1, limit = 20, signal }
     params.append('category', category);
   }
   
-  const response = await fetch(`${API_BASE}/products/fast?${params.toString()}`, {
+  const endpoint = USE_FAST
+    ? `${API_BASE}/products/fast?${params.toString()}`
+    : `${API_BASE}/products?${params.toString()}`;
+
+  const response = await fetch(endpoint, {
     signal,
     headers: { 'Content-Type': 'application/json' },
   });

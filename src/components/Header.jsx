@@ -10,7 +10,7 @@ import {
   CartFAIcon, 
   BoxFAIcon, 
   PhoneFAIcon, 
-  UserFAIcon, 
+  UsersFAIcon, 
   ExclamationTriangleFAIcon,
   GraduationCapFAIcon 
 } from './FontAwesome';
@@ -266,7 +266,7 @@ const Header = ({
               >
                 <CartFAIcon className="text-xl" />
                 {getTotalItems() > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                  <span className="absolute -top-1.5 -right-1.5 z-10 bg-red-600 text-white text-[10px] font-bold leading-none min-w-[16px] h-[16px] flex items-center justify-center rounded-full px-[5px] shadow-sm select-none pointer-events-none">
                     {getTotalItems()}
                   </span>
                 )}
@@ -362,8 +362,8 @@ const Header = ({
         </div>
       </header>
 
-      {/* Mobile Bottom Navigation - Orqa fon bilan */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white border-t border-gray-200 shadow-lg" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}>
+      {/* Mobile Bottom Navigation - always visible */}
+      <nav className={"fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white border-t border-gray-200 shadow-lg"} style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}>
         <ul className="flex items-center justify-around py-4">
           {/* 1. Akademiya */}
           <li className="flex-1">
@@ -420,7 +420,7 @@ const Header = ({
           {/* 3. Aloqa */}
           <li className="flex-1">
             <a
-              href="tel:+998948494956"
+              href="tel:+998919771111"
               onClick={() => {
                 // Close cart if open
                 if (isCartOpen) {
@@ -443,7 +443,7 @@ const Header = ({
               <CartFAIcon className="text-[18px]" />
               <span className="text-[11px] sm:text-xs font-medium">Savatcha</span>
               {getTotalItems() > 0 && (
-                <span className="absolute -top-1 right-3 bg-red-500 text-white text-[8px] rounded-full h-3 w-3 flex items-center justify-center font-bold">
+                <span className="absolute -top-1 right-2 z-10 bg-red-600 text-white text-[9px] font-bold leading-none min-w-[14px] h-[14px] flex items-center justify-center rounded-full px-[4px] shadow-sm select-none pointer-events-none">
                   {getTotalItems()}
                 </span>
               )}
@@ -468,7 +468,7 @@ const Header = ({
               }}
               className="flex flex-col items-center px-1 text-gray-700 hover:text-primary-orange transition duration-200 w-full"
             >
-              <UserFAIcon className="text-[18px]" />
+              <UsersFAIcon className="text-[18px]" />
               <span className="text-[11px] sm:text-xs font-medium">Ustalar</span>
             </button>
           </li>

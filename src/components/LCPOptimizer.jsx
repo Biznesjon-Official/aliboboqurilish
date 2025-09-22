@@ -22,9 +22,12 @@ const LCPOptimizer = () => {
     // Preload critical API endpoints
     const API_BASE = process.env.REACT_APP_API_BASE || 
       (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
-    
+    const USE_FAST = (process.env.REACT_APP_USE_FAST || '').toLowerCase() === 'true';
+
     const criticalEndpoints = [
-      `${API_BASE}/products/fast?limit=8&page=1`,
+      USE_FAST
+        ? `${API_BASE}/products/fast?limit=8&page=1`
+        : `${API_BASE}/products?limit=8&page=1&sortBy=updatedAt&sortOrder=desc`,
       `${API_BASE}/craftsmen?limit=8&status=active`
     ];
 

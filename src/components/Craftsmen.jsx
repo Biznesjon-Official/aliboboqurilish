@@ -1,14 +1,19 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { TimesFAIcon, PhoneFAIcon } from './FontAwesome';
 import { CraftsmenGridSkeleton } from './LoadingSkeleton';
 
-const Craftsmen = ({ craftsmenData = [], loading = false }) => {
+const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' }) => {
   // Filter only active craftsmen for the main page
   const activeCraftsmen = craftsmenData.filter(craftsman => craftsman.status === 'active');
   
   // Category filter and search state
-  const [selectedSpecialty, setSelectedSpecialty] = useState('');
+  const [selectedSpecialty, setSelectedSpecialty] = useState(initialSpecialty || '');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Sync with initialSpecialty from route changes
+  useEffect(() => {
+    setSelectedSpecialty(initialSpecialty || '');
+  }, [initialSpecialty]);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);

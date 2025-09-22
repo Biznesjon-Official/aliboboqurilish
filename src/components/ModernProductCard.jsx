@@ -2,8 +2,9 @@ import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { ShoppingCartIcon, EyeIcon } from './Icons';
-import Base64Image from './Base64Image';
+import OptimizedImage from './OptimizedImage';
 import { useStockMonitor } from '../hooks/useRealTimeStock';
+import { useProduct } from '../hooks/useProductQueries';
 
 const ModernProductCard = memo(({
   product,
@@ -51,7 +52,7 @@ const ModernProductCard = memo(({
     return Math.round(((oldPrice - currentPrice) / oldPrice) * 100);
   };
 
-  // Get all product images from variants
+  // Get all product images from variants (do NOT de-duplicate)
   const getAllProductImages = () => {
     const allImages = [];
     
@@ -79,27 +80,60 @@ const ModernProductCard = memo(({
       }
     }
     
-    // Remove duplicates and ensure at least one image
-    const uniqueImages = [...new Set(allImages)];
-    return uniqueImages.length > 0 ? uniqueImages : ['/assets/default-product.svg'];
+    // Ensure at least one image
+    return allImages.length > 0 ? allImages : ['/assets/default-product.svg'];
   };
 
   const productImages = getAllProductImages();
+
+  // Lazy fetch full product details to get complete images list (variants + gallery)
+  const [shouldFetchDetails, setShouldFetchDetails] = useState(false);
+  const { data: detailData } = useProduct(product?._id, shouldFetchDetails);
+
+  const getImagesFromDetail = useCallback((detail) => {
+    if (!detail) return [];
+    const p = detail.product || detail;
+    const imgs = [];
+    if (p?.hasVariants && Array.isArray(p?.variants)) {
+      p.variants.forEach(variant => {
+        if (Array.isArray(variant?.options)) {
+          variant.options.forEach(option => {
+            if (Array.isArray(option?.images) && option.images.length > 0) {
+              imgs.push(...option.images);
+            } else if (option?.image) {
+              imgs.push(option.image);
+            }
+          });
+        }
+      });
+    }
+    if (imgs.length === 0) {
+      if (Array.isArray(p?.images) && p.images.length > 0) imgs.push(...p.images);
+      else if (p?.image) imgs.push(p.image);
+    }
+    return imgs.length > 0 ? imgs : [];
+  }, []);
+
+  const detailedImages = getImagesFromDetail(detailData);
+  const images = detailedImages.length > 0 ? detailedImages : productImages;
 
   // Use external state if provided, otherwise use internal state
   const currentImageIndex = onImageChange ? externalCurrentImageIndex : internalCurrentImageIndex;
   const lastHoverTime = onHoverTimeChange ? externalLastHoverTime : internalLastHoverTime;
 
-  const currentImage = productImages[currentImageIndex] || productImages[0];
+  const currentImage = images[currentImageIndex] || images[0];
   const discount = product.oldPrice ? calculateDiscount(product.price, product.oldPrice) : 0;
-  const hasMultipleImages = productImages.length > 1;
+  const hasMultipleImages = images.length > 1;
 
   // Handle hover-based image navigation (from original ProductCard.jsx)
   const handleMouseMove = useCallback((e) => {
-    if (productImages.length <= 1) return;
+    if (images.length <= 1) {
+      // Avoid auto-fetching detail for images to reduce backend load
+      return;
+    }
 
     const currentTime = Date.now();
-    const hoverDelay = 800; // 800ms delay between changes
+    const hoverDelay = 300; // Faster response on desktop hover
 
     if (currentTime - lastHoverTime < hoverDelay) {
       return; // Too soon, ignore this hover
@@ -118,7 +152,7 @@ const ModernProductCard = memo(({
       newIndex = currentImageIndex > 0 ? currentImageIndex - 1 : currentImageIndex;
     } else {
       // Right side - next image
-      newIndex = currentImageIndex < productImages.length - 1 ? currentImageIndex + 1 : currentImageIndex;
+      newIndex = currentImageIndex < images.length - 1 ? currentImageIndex + 1 : currentImageIndex;
     }
 
     if (newIndex !== currentImageIndex) {
@@ -140,37 +174,122 @@ const ModernProductCard = memo(({
     }
   }, [onHoverTimeChange, product._id]);
 
-  // Handle touch events for mobile
-  const handleTouchStart = useCallback((e) => {
-    if (productImages.length <= 1) return;
+  // Handle touch events for mobile (real swipe)
+  const touchDataRef = useRef({ startX: 0, startY: 0, time: 0, active: false });
+  const SWIPE_THRESHOLD = 40; // px
+  const SWIPE_TIME_LIMIT = 800; // ms
 
-    const touch = e.touches[0];
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const width = rect.width;
+  const pendingNavRef = useRef(null);
 
-    let newIndex;
-
-    if (x < width / 2) {
-      // Left side - previous image
-      newIndex = currentImageIndex > 0 ? currentImageIndex - 1 : currentImageIndex;
-    } else {
-      // Right side - next image
-      newIndex = currentImageIndex < productImages.length - 1 ? currentImageIndex + 1 : currentImageIndex;
+  const setImageIndex = useCallback((newIndex) => {
+    if (newIndex === currentImageIndex) return;
+    // If images not ready yet, queue the nav and force details fetch
+    if (!Array.isArray(images) || images.length <= 1) {
+      setShouldFetchDetails(true);
+      pendingNavRef.current = newIndex;
+      return;
     }
+    if (onImageChange) {
+      onImageChange(product._id, newIndex);
+    } else {
+      setInternalCurrentImageIndex(newIndex);
+    }
+    if (onHoverTimeChange) {
+      onHoverTimeChange(product._id, Date.now());
+    } else {
+      setInternalLastHoverTime(Date.now());
+    }
+  }, [currentImageIndex, onImageChange, onHoverTimeChange, product._id, images]);
 
-    if (newIndex !== currentImageIndex) {
-      if (onImageChange && onHoverTimeChange) {
-        // Use external state management
-        onImageChange(product._id, newIndex);
-        onHoverTimeChange(product._id, Date.now());
+  // When images become available, execute any pending navigation
+  useEffect(() => {
+    if (Array.isArray(images) && images.length > 1 && pendingNavRef.current != null) {
+      const target = Math.max(0, Math.min(images.length - 1, pendingNavRef.current));
+      pendingNavRef.current = null;
+      if (onImageChange) {
+        onImageChange(product._id, target);
       } else {
-        // Use internal state management
-        setInternalCurrentImageIndex(newIndex);
-        setInternalLastHoverTime(Date.now());
+        setInternalCurrentImageIndex(target);
       }
     }
-  }, [productImages.length, currentImageIndex, onImageChange, onHoverTimeChange, product._id]);
+  }, [images, onImageChange, product._id]);
+
+  // Click to navigate left/right on desktop
+  const handleImageClick = useCallback((e) => {
+    e.stopPropagation();
+    if (images.length <= 1) {
+      setShouldFetchDetails(true);
+      // We'll still compute the intended direction and queue it in setImageIndex
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const width = rect.width;
+    const x = e.clientX - rect.left;
+    if (x < width / 2) {
+      // Left
+      const prevIndex = Math.max(0, currentImageIndex - 1);
+      setImageIndex(prevIndex);
+    } else {
+      // Right
+      const nextIndex = Math.min(Math.max(images.length - 1, 1), currentImageIndex + 1);
+      setImageIndex(nextIndex);
+    }
+  }, [images.length, currentImageIndex, setImageIndex]);
+
+  const handleTouchStart = useCallback((e) => {
+    // Do not trigger detail prefetch automatically on touch
+    if (images.length <= 1) return;
+    const touch = e.touches[0];
+    touchDataRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      time: Date.now(),
+      active: true
+    };
+  }, [images.length]);
+
+  const handleTouchMove = useCallback((e) => {
+    // Do not call preventDefault here to avoid passive listener warning.
+    // Horizontal vs vertical intent is handled via touch-action CSS and thresholds in touchEnd.
+    if (!touchDataRef.current.active) return;
+  }, []);
+
+  const handleTouchEnd = useCallback((e) => {
+    if (!touchDataRef.current.active || images.length <= 1) return;
+    const dt = Date.now() - touchDataRef.current.time;
+    const touch = e.changedTouches && e.changedTouches[0];
+    const endX = touch ? touch.clientX : 0;
+    const dx = endX - touchDataRef.current.startX;
+
+    touchDataRef.current.active = false;
+
+    if (dt <= SWIPE_TIME_LIMIT && Math.abs(dx) >= SWIPE_THRESHOLD) {
+      if (dx < 0) {
+        // Swipe left -> next image
+        const nextIndex = Math.min(images.length - 1, currentImageIndex + 1);
+        setImageIndex(nextIndex);
+      } else {
+        // Swipe right -> previous image
+        const prevIndex = Math.max(0, currentImageIndex - 1);
+        setImageIndex(prevIndex);
+      }
+    }
+  }, [images.length, currentImageIndex, setImageIndex]);
+  
+  // Start fetching details when image container is visible or on interaction
+  // Disabled viewport-triggered detail prefetch to prevent many concurrent /products/:id requests
+  // useEffect(() => {
+  //   if (!containerRef.current || shouldFetchDetails) return;
+  //   const el = containerRef.current;
+  //   const obs = new IntersectionObserver((entries) => {
+  //     const first = entries[0];
+  //     if (first.isIntersecting) {
+  //       setShouldFetchDetails(true);
+  //       obs.disconnect();
+  //     }
+  //   }, { rootMargin: '100px', threshold: 0.1 });
+  //   obs.observe(el);
+  //   return () => obs.disconnect();
+  // }, [shouldFetchDetails]);
 
   // Handle dot navigation
   const handleDotClick = useCallback((index, e) => {
@@ -185,16 +304,37 @@ const ModernProductCard = memo(({
   // Handle action buttons - Navigate to detail route; add to cart only if no variants
   const handleAddToCart = useCallback((e) => {
     e.stopPropagation();
-    navigate(`/product/${product._id}`);
-  }, [navigate, product]);
+    if (onOpenDetail) {
+      onOpenDetail(product);
+    } else {
+      try {
+        sessionStorage.setItem('homeScroll', String(window.scrollY || window.pageYOffset || 0));
+      } catch (err) {}
+      navigate(`/product/${product._id}`);
+    }
+  }, [navigate, product, onOpenDetail]);
 
   const handleOpenDetail = useCallback(() => {
-    navigate(`/product/${product._id}`);
-  }, [navigate, product]);
+    if (onOpenDetail) {
+      onOpenDetail(product);
+    } else {
+      try {
+        sessionStorage.setItem('homeScroll', String(window.scrollY || window.pageYOffset || 0));
+      } catch (err) {}
+      navigate(`/product/${product._id}`);
+    }
+  }, [navigate, product, onOpenDetail]);
 
   const handleCardClick = useCallback(() => {
-    navigate(`/product/${product._id}`);
-  }, [product, navigate]);
+    if (onOpenDetail) {
+      onOpenDetail(product);
+    } else {
+      try {
+        sessionStorage.setItem('homeScroll', String(window.scrollY || window.pageYOffset || 0));
+      } catch (err) {}
+      navigate(`/product/${product._id}`);
+    }
+  }, [product, navigate, onOpenDetail]);
 
   // Badge/chegirma borligini tekshirish
   const hasBadges = product.isNew || product.isPopular || (product.badge && product.badge !== 'Yo\'q') || 
@@ -202,6 +342,7 @@ const ModernProductCard = memo(({
 
   return (
     <div
+      id={`product-${product?._id || product?.id}`}
       className={`group bg-white rounded-lg shadow-md p-2 sm:p-2.5 md:p-3 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 border border-gray-200 hover:border-orange-200 relative h-full flex flex-col cursor-pointer ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -210,33 +351,31 @@ const ModernProductCard = memo(({
       {/* Image Container - Dinamik height */}
       <div className="relative cursor-pointer overflow-hidden rounded-lg mb-2 sm:mb-3 border border-gray-100" onClick={handleOpenDetail}>
         <div
-          className={`relative w-full bg-white rounded-lg overflow-hidden ${
+          className={`relative w-full bg-white rounded-lg overflow-hidden touch-pan-y select-none ${
             hasBadges 
               ? 'h-40 sm:h-48 lg:h-56' // Badge bor bo'lsa kichikroq
               : 'h-44 sm:h-52 lg:h-60' // Badge yo'q bo'lsa kattaroq
           }`}
           ref={containerRef}
-          onMouseEnter={(e) => { cachedWidthRef.current = e.currentTarget.clientWidth; }}
+          onMouseEnter={(e) => { cachedWidthRef.current = e.currentTarget.clientWidth; /* prefetch disabled */ }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onClick={handleImageClick}
           onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
-          {/* Main Image */}
+          {/* Main Image (lazy-loaded and URL-optimized) */}
           <div className="w-full h-full overflow-hidden rounded-lg flex items-center justify-center">
-            <Base64Image
+            <OptimizedImage
               src={currentImage || '/assets/default-product.svg'}
               alt={product.name}
-              className={`w-full h-full object-contain transition-all duration-500 ${isHovered ? 'scale-105' : 'scale-100'
-                } ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
-              fallbackSrc="/assets/default-product.svg"
+              className={`w-full h-full ${isHovered ? 'scale-105' : 'scale-100'}`}
+              placeholder="skeleton"
+              objectFit="contain"
+              loading="lazy"
               onLoad={() => setImageLoading(false)}
               onError={() => setImageLoading(false)}
-              style={{
-                transition: 'opacity 0.3s ease-in-out, transform 0.5s ease-in-out',
-                maxWidth: '100%',
-                maxHeight: '100%',
-                objectFit: 'contain'
-              }}
             />
           </div>
 
@@ -251,29 +390,15 @@ const ModernProductCard = memo(({
 
           {/* Hover Areas Indicator (only visible on hover for multiple images) */}
           {hasMultipleImages && (
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-              <div className="absolute left-0 top-0 w-1/2 h-full bg-gradient-to-r from-black/5 to-transparent"></div>
-              <div className="absolute right-0 top-0 w-1/2 h-full bg-gradient-to-l from-black/5 to-transparent"></div>
-            </div>
+            <>
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                <div className="absolute left-0 top-0 w-1/2 h-full bg-gradient-to-r from-black/5 to-transparent"></div>
+                <div className="absolute right-0 top-0 w-1/2 h-full bg-gradient-to-l from-black/5 to-transparent"></div>
+              </div>
+            </>
           )}
 
-          {/* Progress Indicators - Show current image position */}
-          {hasMultipleImages && (
-            <div className="absolute bottom-0 left-0 right-0 flex gap-1 px-2 pb-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
-              {productImages.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={(e) => handleDotClick(index, e)}
-                  className={`flex-1 h-0.5 rounded-full transition-all duration-300 ${index === currentImageIndex
-                    ? 'bg-primary-orange shadow-sm'
-                    : 'bg-gray-400/70 hover:bg-gray-500/80'
-                    }`}
-                  aria-label={`Rasm ${index + 1}`}
-                  title={`Rasm ${index + 1}`}
-                />
-              ))}
-            </div>
-          )}
+          {/* Removed overlay progress indicators (we will render persistent bars below the image) */}
 
           {/* Badges - Left side - Telefon uchun kichraytirilgan */}
           <div className="absolute top-1 left-1 z-10 flex flex-col gap-0.5">
@@ -318,6 +443,26 @@ const ModernProductCard = memo(({
           )}
         </div>
       </div>
+
+      {/* Persistent Image Progress Bars (visible under image) */}
+      {hasMultipleImages && (
+        <div className="px-1.5 sm:px-2 pt-1 sm:pt-1.5">
+          <div className="flex items-center gap-1 justify-center">
+            {images.map((_, index) => (
+              <button
+                key={index}
+                onClick={(e) => handleDotClick(index, e)}
+                className={`${index === currentImageIndex
+                  ? 'w-5 sm:w-6 h-0.5 sm:h-1 bg-primary-orange rounded-full'
+                  : 'w-1.5 h-1.5 bg-gray-300 rounded-full hover:bg-gray-400'
+                } transition-all duration-200`}
+                aria-label={`Rasm ${index + 1}`}
+                title={`Rasm ${index + 1}`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Product Info - Kichraytirilgan */}
       <div className="flex flex-col flex-1 justify-between">

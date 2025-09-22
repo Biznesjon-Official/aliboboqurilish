@@ -34,10 +34,10 @@ const AdminBottomNav = ({ counts = defaultCounts }) => {
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-[-2px] bg-primary-dark border-t border-gray-700 shadow-2xl z-40 lg:hidden"
+      className="fixed bottom-0 left-0 right-0 bg-primary-dark border-t border-gray-700 shadow-2xl z-40 lg:hidden w-full"
       role="navigation"
       aria-label="Admin bottom navigation"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px)' }}
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
     >
       <ul className="flex items-stretch justify-around">
         {links.map((link) => {

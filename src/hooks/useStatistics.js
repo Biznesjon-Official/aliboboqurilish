@@ -7,9 +7,26 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
+  // Feature flag: allow disabling network calls for statistics in production until backend endpoints exist
+  const ENABLE_STATS_API = (process.env.REACT_APP_ENABLE_STATS || '').toLowerCase() === 'true';
+
   // Fetch dashboard statistics
   const fetchDashboardStats = useCallback(async () => {
     try {
+      if (!ENABLE_STATS_API) {
+        // Return fallback immediately without hitting backend
+        const fallbackData = {
+          products: { total: 0, byCategory: [] },
+          craftsmen: { total: 0, active: 0, inactive: 0 },
+          orders: { total: 0, thisMonth: 0, lastMonth: 0, growth: 0, recent: [] },
+          revenue: { total: 0, thisMonth: 0, lastMonth: 0, growth: 0 },
+          timestamp: new Date().toISOString()
+        };
+        setStatistics(fallbackData);
+        setLastUpdated(new Date());
+        setError(null);
+        return fallbackData;
+      }
       // NOTE: Using direct backend URL instead of proxy due to setupProxy.js issues
       // This ensures statistics work reliably in development environment
       const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
@@ -63,6 +80,20 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
   // Fetch edit statistics
   const fetchEditStats = useCallback(async (days = 30) => {
     try {
+      if (!ENABLE_STATS_API) {
+        const fallbackData = {
+          total: 0,
+          today: 0,
+          thisWeek: 0,
+          period: days,
+          byDay: [],
+          mostEdited: [],
+          timestamp: new Date().toISOString()
+        };
+        setEditStats(fallbackData);
+        setError(null);
+        return fallbackData;
+      }
       // NOTE: Using direct backend URL instead of proxy due to setupProxy.js issues
       const base2 = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
       const response = await fetch(`${base2}/statistics/edits?days=${days}`);
@@ -147,7 +178,7 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
 
   // Auto-refresh setup
   useEffect(() => {
-    if (!autoRefresh || refreshInterval <= 0) return;
+    if (!autoRefresh || refreshInterval <= 0 || !ENABLE_STATS_API) return;
 
     const interval = setInterval(() => {
       fetchAllStats();

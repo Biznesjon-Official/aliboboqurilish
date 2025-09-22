@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { BarsFAIcon, SearchFAIcon, PlusFAIcon, SpinnerFAIcon, TimesFAIcon, UserFAIcon, PhoneFAIcon, EyeFAIcon, EditFAIcon, TrashFAIcon, ChevronLeftFAIcon, ChevronRightFAIcon } from './FontAwesome';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AdminNotificationBell from './AdminNotificationBell';
 import AdminNotificationModals from './AdminNotificationModals';
@@ -6,7 +7,7 @@ import LoadingSpinner from './LoadingSpinner';
 import LoadingCard from './LoadingCard';
 import useNotifications from '../hooks/useNotifications';
 import useRealNotifications from '../hooks/useRealNotifications';
-import { useCraftsmen, useCreateCraftsman, useUpdateCraftsman, useDeleteCraftsman } from '../hooks/useCraftsmanQueries';
+import { useCraftsmen, useCraftsman, useCreateCraftsman, useUpdateCraftsman, useDeleteCraftsman } from '../hooks/useCraftsmanQueries';
 import { queryKeys, queryClient } from '../lib/queryClient';
 
 const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
@@ -87,6 +88,8 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const path = (location && location.pathname) || '';
+  // Detail data for selected craftsman (used to prefill price reliably)
+  const { data: selectedCraftDetail } = useCraftsman(selectedCraftsman?._id, !!selectedCraftsman);
   
   // Debounce refs
   const debounceTimeoutRef = useRef(null);
@@ -129,6 +132,56 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
     inactive: { text: 'Faol emas', class: 'bg-red-100 text-red-800' }
   };
 
+  // Subcomponent: robust price resolver using list item; fetch detail ONLY if needed
+  const CraftsmanPrice = ({ craft }) => {
+    const listPrice = getCraftsmanPrice(craft);
+    const shouldFetchDetail = listPrice == null;
+    const { data: detailData } = useCraftsman(craft?._id, shouldFetchDetail);
+    const p = listPrice ?? getCraftsmanPrice(detailData);
+    return (
+      <span className="text-orange-600 font-bold text-sm sm:text-base">
+        {p != null ? formatCurrency(p) : 'Narx belgilanmagan'}
+      </span>
+    );
+  };
+
+  // Normalize price from possible backend field names (robust)
+  const getCraftsmanPrice = (craftsman) => {
+    try {
+      if (!craftsman || typeof craftsman !== 'object') return null;
+      // Common direct keys first
+      const directKeys = ['price', 'hourlyRate', 'pricePerHour', 'rate', 'hourly_price', 'hourly_rate', 'rate_per_hour'];
+      for (const k of directKeys) {
+        if (craftsman[k] !== undefined && craftsman[k] !== null && craftsman[k] !== '') {
+          const n = parseInt(String(craftsman[k]).replace(/[^\d]/g, ''), 10);
+          if (Number.isFinite(n)) return n;
+        }
+      }
+
+      // Fallback: scan any key containing price/rate
+      const scan = (obj, depth = 0) => {
+        if (!obj || typeof obj !== 'object' || depth > 2) return null;
+        for (const [key, val] of Object.entries(obj)) {
+          if (val === undefined || val === null || val === '') continue;
+          if (/(price|rate)/i.test(key)) {
+            const n = parseInt(String(val).replace(/[^\d]/g, ''), 10);
+            if (Number.isFinite(n)) return n;
+          }
+          if (typeof val === 'object') {
+            const nested = scan(val, depth + 1);
+            if (nested != null) return nested;
+          }
+        }
+        return null;
+      };
+      const nestedFound = scan(craftsman);
+      if (nestedFound != null) return nestedFound;
+      return null;
+    } catch (_) {
+      return null;
+    }
+  };
+
   // React Query: fetch craftsmen with debounced inputs
   const { data: craftsmenData, isLoading, isFetching, isFetched, isSuccess, isError, error } = useCraftsmen(
     currentPage,
@@ -157,13 +210,16 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
   const craftsmen = craftsmenData?.craftsmen || [];
   const totalPages = craftsmenData?.totalPages || 1;
   const totalCount = craftsmenData?.totalCount || 0;
+  
+  // Show skeleton when query hasn't succeeded yet or while loading/fetching
+  const showSkeleton = (!isSuccess && !isError) || isLoading || (isFetching && craftsmen.length === 0);
 
-  // Update count when data changes
+  // Update count only after a successful fetch to avoid showing 0 prematurely
   useEffect(() => {
-    if (onCountChange) {
+    if (isSuccess && onCountChange) {
       onCountChange(totalCount);
     }
-  }, [totalCount, onCountChange]);
+  }, [totalCount, isSuccess, onCountChange]);
 
   // Reset page when search or filter changes
   useEffect(() => {
@@ -225,7 +281,7 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
       phone: craftsman.phone || '',
       specialty: isPredefinedSpecialty ? craftsman.specialty : 'Boshqa',
       customSpecialty: isPredefinedSpecialty ? '' : (craftsman.specialty || ''),
-      price: craftsman.price ? craftsman.price.toString() : '',
+      price: (() => { const p = getCraftsmanPrice(craftsman); return p != null ? String(p) : ''; })(),
       status: craftsman.status || 'active',
       description: craftsman.description || '',
       portfolio: craftsman.portfolio || []
@@ -242,6 +298,27 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
     setShowCustomSpecialty(!isPredefinedSpecialty);
     setIsModalOpen(true);
   };
+
+  // When edit modal is open and initial list item had no price, prefill from detail
+  useEffect(() => {
+    if (!isModalOpen || !selectedCraftsman) return;
+    const src = selectedCraftDetail || selectedCraftsman;
+    // Prefill price if empty
+    if (!formData.price || String(formData.price).length === 0) {
+      const p = getCraftsmanPrice(src);
+      if (p != null) {
+        setFormData(prev => ({ ...prev, price: String(p) }));
+      }
+    }
+    // Prefill description if empty
+    if ((!formData.description || formData.description.length === 0) && src && src.description) {
+      setFormData(prev => ({ ...prev, description: src.description }));
+    }
+    // Prefill portfolio if empty
+    if ((!formData.portfolio || formData.portfolio.length === 0) && src && Array.isArray(src.portfolio) && src.portfolio.length > 0) {
+      setFormData(prev => ({ ...prev, portfolio: src.portfolio.slice(0, 12) }));
+    }
+  }, [isModalOpen, selectedCraftsman, selectedCraftDetail]);
 
   const openViewModal = (craftsman) => {
     setSelectedCraftsman(craftsman);
@@ -283,14 +360,24 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     console.log('🔄 Input changed:', name, '=', value);
-    setFormData(prev => {
-      const newData = {
-        ...prev,
-        [name]: value
-      };
-      console.log('📝 Updated form data:', newData);
-      return newData;
-    });
+    // Special handling for numeric price: keep only digits in state for reliability
+    if (name === 'price') {
+      const digitsOnly = String(value || '').replace(/[^\d]/g, '');
+      setFormData(prev => {
+        const newData = { ...prev, price: digitsOnly };
+        console.log('📝 Updated form data (digits price):', newData);
+        return newData;
+      });
+    } else {
+      setFormData(prev => {
+        const newData = {
+          ...prev,
+          [name]: value
+        };
+        console.log('📝 Updated form data:', newData);
+        return newData;
+      });
+    }
 
     if (name === 'specialty' && value === 'Boshqa') {
       setShowCustomSpecialty(true);
@@ -348,11 +435,32 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
     setIsSubmitting(true);
 
     try {
+      // Sanitize and validate price (digits only)
+      const sanitizedPrice = (() => {
+        try {
+          const digits = String(formData.price ?? '')
+            .replace(/[^\d]/g, '');
+          const n = digits ? parseInt(digits, 10) : NaN;
+          return Number.isFinite(n) && n >= 0 ? n : NaN;
+        } catch (_) {
+          return NaN;
+        }
+      })();
+
+      if (!Number.isFinite(sanitizedPrice)) {
+        setIsSubmitting(false);
+        safeNotifyError('Narx noto\'g\'ri kiritilgan. Faqat raqam kiriting (masalan, 50000).');
+        return;
+      }
+
       const craftsmanData = {
         name: formData.name,
         phone: formData.phone,
         specialty: showCustomSpecialty ? formData.customSpecialty : formData.specialty,
-        price: Number(formData.price),
+        price: sanitizedPrice,
+        hourlyRate: sanitizedPrice,
+        pricePerHour: sanitizedPrice,
+        rate: sanitizedPrice,
         status: formData.status,
         description: formData.description,
         portfolio: formData.portfolio
@@ -370,6 +478,8 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
         console.log('✅ Muvaffaqiyatli yangilandi:', updatedCraftsman);
         safeNotifySuccess('Usta ma\'lumotlari yangilandi');
         notifyCraftsmanEdited(updatedCraftsman);
+        // Update local selected state so View modal shows fresh data
+        setSelectedCraftsman(updatedCraftsman);
         
         // GENTLE: Only basic cache management
         // Single invalidation without forced refetch
@@ -546,7 +656,7 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
               onClick={onMobileToggle}
               className="hidden"
             >
-              <i className="fas fa-bars text-lg sm:text-xl"></i>
+              <BarsFAIcon className="text-lg sm:text-xl" />
             </button>
             <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-primary-dark">Ustalar</h2>
           </div>
@@ -578,7 +688,7 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-orange text-sm sm:text-base"
                 />
-                <i className="fas fa-search absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                <SearchFAIcon className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
               </div>
               {/* Row 2: Filter + Add in one row on mobile (use grid to avoid overflow) */}
               <div className="w-full grid grid-cols-2 gap-2 sm:flex sm:items-center">
@@ -600,7 +710,7 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                   onClick={openAddModal}
                   className="col-span-1 sm:w-auto flex-shrink-0 bg-primary-orange text-white px-3 sm:px-4 lg:px-6 py-2 rounded-lg hover:bg-opacity-90 transition duration-300 whitespace-nowrap text-sm sm:text-base"
                 >
-                  <i className="fas fa-plus mr-2"></i>
+                  <PlusFAIcon className="mr-2" />
                   <span>Yangi usta</span>
                 </button>
               </div>
@@ -612,19 +722,28 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
             {/* Table wrapper without scroll */}
             <div className="overflow-hidden">
               {/* Enhanced loading overlay */}
-              {isLoading && craftsmen.length === 0 ? (
+              {showSkeleton ? (
                 <div className="p-3 sm:p-6">
                   <LoadingCard count={8} type="craftsman" />
                 </div>
+              ) : isError ? (
+                <div className="p-8 text-center">
+                  <div className="flex flex-col items-center justify-center">
+                    <SearchFAIcon className="text-6xl text-red-300 mb-4" />
+                    <h3 className="text-xl font-semibold text-red-600 mb-2">Xatolik yuz berdi</h3>
+                    <p className="text-gray-500 mb-2">Ustalar ro'yxatini yuklashda muammo yuz berdi. Iltimos, qayta urinib ko'ring.</p>
+                    <div className="text-xs text-gray-400">{String(error?.message || '')}</div>
+                  </div>
+                </div>
               ) : isFetching && craftsmen.length > 0 ? (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center m-3 sm:m-6">
-                  <i className="fas fa-spinner fa-spin text-blue-600 mr-2"></i>
+                  <SpinnerFAIcon className="text-blue-600 mr-2" />
                   <span className="text-blue-700 text-sm">Ustalar yangilanmoqda...</span>
                 </div>
               ) : craftsmen.length === 0 ? (
                 <div className="p-8 text-center">
                   <div className="flex flex-col items-center justify-center">
-                    <i className="fas fa-search text-6xl text-gray-300 mb-4"></i>
+                    <SearchFAIcon className="text-6xl text-gray-300 mb-4" />
                     <h3 className="text-xl font-semibold text-gray-600 mb-2">
                       {filterSpecialty || searchTerm ? 'Hech narsa topilmadi' : 'Ustalar mavjud emas'}
                     </h3>
@@ -646,7 +765,7 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                         }}
                         className="bg-primary-orange text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition duration-300"
                       >
-                        <i className="fas fa-times mr-2"></i>
+                        <TimesFAIcon className="mr-2" />
                         Filterni tozalash
                       </button>
                     )}
@@ -661,11 +780,11 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                           {/* Profile and Name */}
                           <div className="flex items-center mb-3">
                             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center shadow-lg mr-3 flex-shrink-0">
-                              <i className="fas fa-user text-white text-sm sm:text-base"></i>
+                              <UserFAIcon className="text-white text-sm sm:text-base" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <h3 className="font-semibold text-gray-900 text-sm sm:text-base mb-1 truncate">{c.name}</h3>
-                              <span className="text-orange-600 font-bold text-sm sm:text-base">{c.price ? formatCurrency(c.price) : 'Narx belgilanmagan'}</span>
+                              <CraftsmanPrice craft={c} />
                             </div>
                           </div>
 
@@ -682,7 +801,7 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
 
                           {/* Phone */}
                           <div className="flex items-center text-xs text-gray-600 mb-3">
-                            <i className="fas fa-phone text-green-600 mr-2 w-3"></i>
+                            <PhoneFAIcon className="text-green-600 mr-2 w-3" />
                             <a href={`tel:${c.phone}`} className="truncate hover:underline">{c.phone}</a>
                           </div>
 
@@ -696,15 +815,15 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                           {/* Admin Action Buttons - always at bottom */}
                           <div className="mt-auto flex gap-1.5 pt-2">
                             <button onClick={() => openViewModal(c)} className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 py-2 px-1 rounded-md font-medium transition-colors duration-200 flex items-center justify-center border border-green-200" title="Ko'rish">
-                              <i className="fas fa-eye text-green-600 text-sm"></i>
+                              <EyeFAIcon className="text-green-600 text-sm" />
                               <span className="hidden sm:inline ml-1 text-xs">Ko'rish</span>
                             </button>
                             <button onClick={() => openEditModal(c)} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 py-2 px-1 rounded-md font-medium transition-colors duration-200 flex items-center justify-center border border-blue-200" title="Tahrir">
-                              <i className="fas fa-edit text-blue-600 text-sm"></i>
+                              <EditFAIcon className="text-blue-600 text-sm" />
                               <span className="hidden sm:inline ml-1 text-xs">Tahrir</span>
                             </button>
                             <button onClick={() => openDeleteConfirm(c)} className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 py-2 px-1 rounded-md font-medium transition-colors duration-200 flex items-center justify-center border border-red-200" title="O'chir">
-                              <i className="fas fa-trash text-red-600 text-sm"></i>
+                              <TrashFAIcon className="text-red-600 text-sm" />
                               <span className="hidden sm:inline ml-1 text-xs">O'chir</span>
                             </button>
                           </div>
@@ -727,7 +846,7 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                   disabled={currentPage === 1}
                   className="pagination-btn px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <i className="fas fa-chevron-left mr-1"></i>
+                  <ChevronLeftFAIcon className="mr-1" />
                   <span className="hidden sm:inline">Oldingi</span>
                   <span className="sm:hidden">Old</span>
                 </button>
@@ -738,7 +857,7 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                 >
                   <span className="hidden sm:inline">Keyingi</span>
                   <span className="sm:hidden">Key</span>
-                  <i className="fas fa-chevron-right ml-1"></i>
+                  <ChevronRightFAIcon className="ml-1" />
                 </button>
               </div>
             </div>
@@ -761,7 +880,7 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                 {selectedCraftsman ? 'Ustani tahrirlash' : 'Yangi usta qo\'shish'}
               </h3>
               <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
-                <i className="fas fa-times text-xl"></i>
+                <TimesFAIcon className="text-xl" />
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-3 sm:p-5 space-y-3">
@@ -832,6 +951,13 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                     name="price"
                     value={formData.price}
                     onChange={handleInputChange}
+                    onKeyDown={(e) => {
+                      // Block invalid characters for numeric input
+                      if (['e','E','-','+','.','=',','].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    inputMode="numeric"
                     required
                     min="0"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-orange"
@@ -883,6 +1009,8 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                           <img
                             src={image}
                             alt={`Portfolio ${index + 1}`}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-24 object-cover rounded-lg border border-gray-200"
                           />
                           <button
@@ -914,7 +1042,7 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                 >
                   {isSubmitting ? (
                     <span className="flex items-center justify-center">
-                      <i className="fas fa-spinner fa-spin mr-2"></i>
+                      <SpinnerFAIcon className="mr-2" />
                       Saqlanmoqda...
                     </span>
                   ) : (
@@ -940,67 +1068,62 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
             <div className="p-3 sm:p-5 border-b flex justify-between items-center">
               <h3 className="text-base sm:text-lg font-bold text-primary-dark">Usta ma'lumotlari</h3>
               <button onClick={() => setIsViewModalOpen(false)} className="text-gray-500 hover:text-gray-700">
-                <i className="fas fa-times text-xl"></i>
+                <TimesFAIcon className="text-xl" />
               </button>
             </div>
             <div className="p-3 sm:p-5 space-y-4">
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-primary-orange rounded-full flex items-center justify-center shadow-lg">
-                  <i className="fas fa-user text-white text-2xl"></i>
-                </div>
-                <div>
-                  <h4 className="text-xl font-bold text-gray-900">{selectedCraftsman.name}</h4>
-                  <p className="text-gray-600">{selectedCraftsman.specialty}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
-                  <p className="text-gray-900">{selectedCraftsman.phone}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Narx</label>
-                  <p className="text-gray-900">{formatCurrency(selectedCraftsman.price)}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <span className={`status-badge ${statusMap[selectedCraftsman.status]?.class || statusMap.active.class}`}>
-                    {statusMap[selectedCraftsman.status]?.text || statusMap.active.text}
-                  </span>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Qo'shilgan sana</label>
-                  <p className="text-gray-900">{formatDate(selectedCraftsman.joinDate)}</p>
-                </div>
-              </div>
-
-              {selectedCraftsman.description && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tavsif</label>
-                  <p className="text-gray-900">{selectedCraftsman.description}</p>
-                </div>
-              )}
-
-              {selectedCraftsman.portfolio && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Portfolio</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {selectedCraftsman.portfolio.map((image, index) => (
-                      <div key={index} className="relative">
-                        <img src={image} alt="Portfolio image" className="w-full h-full object-cover" />
-                        <button
-                          onClick={() => removeExistingPortfolioImage(index)}
-                          className="absolute top-2 right-2 text-red-500 hover:text-red-700"
-                        >
-                          <i className="fas fa-times text-lg"></i>
-                        </button>
-                      </div>
-                    ))}
+              {(() => { var _data = selectedCraftDetail || selectedCraftsman; return (
+                <>
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-primary-orange rounded-full flex items-center justify-center shadow-lg">
+                      <UserFAIcon className="text-white text-2xl" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-gray-900">{_data.name}</h4>
+                      <p className="text-gray-600">{_data.specialty}</p>
+                    </div>
                   </div>
-                </div>
-              )}
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+                      <p className="text-gray-900">{_data.phone}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Narx</label>
+                      <p className="text-gray-900">{(() => { const p = getCraftsmanPrice(_data); return p != null ? formatCurrency(p) : 'Narx belgilanmagan'; })()}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                      <span className={`status-badge ${statusMap[_data.status]?.class || statusMap.active.class}`}>
+                        {statusMap[_data.status]?.text || statusMap.active.text}
+                      </span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Qo'shilgan sana</label>
+                      <p className="text-gray-900">{formatDate(_data.joinDate)}</p>
+                    </div>
+                  </div>
+
+                  {_data.description && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tavsif</label>
+                      <p className="text-gray-900">{_data.description}</p>
+                    </div>
+                  )}
+
+                  {_data.portfolio && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Portfolio</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {(_data.portfolio || []).map((img, idx) => (
+                          <img key={idx} src={img} alt={`Portfolio ${idx+1}`} loading="lazy" decoding="async" className="w-full h-32 object-cover rounded-lg border" />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ); })()}
               <div className="flex space-x-3 pt-4">
                 <button
                   onClick={() => setIsViewModalOpen(false)}

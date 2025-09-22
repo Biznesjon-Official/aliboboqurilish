@@ -331,7 +331,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
 
       {/* Shopping Cart Sidebar */}
       <div
-        className={`fixed inset-y-0 right-0 w-full sm:w-96 md:w-[28rem] lg:w-[32rem] bg-white shadow-2xl transform transition-transform duration-300 z-40 flex flex-col ${
+        className={`fixed inset-y-0 right-0 w-full sm:w-96 md:w-[28rem] lg:w-[32rem] bg-white shadow-2xl transform transition-transform duration-300 z-[70] flex flex-col ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -357,7 +357,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
               <p>Mahsulot yoki xizmat qo'shing</p>
             </div>
           ) : (
-            <div className="p-4 space-y-4">
+            <div className="p-4 pb-28 space-y-4">
               {cart.map((item) => {
                 const price = parseInt(item.price?.toString().replace(/[^\d]/g, '') || '0');
                 const totalPrice = (price * item.quantity).toLocaleString();
@@ -411,7 +411,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
 
         {/* Cart Footer */}
         {cart.length > 0 && (
-          <div className="border-t p-4 pt-3 pb-4 space-y-3 bg-white mb-12 sm:mb-0">
+          <div className="sticky z-10 border-t p-4 pt-3 space-y-3 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.06)]" style={{ bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
             <div className="flex justify-between items-center">
               <span className="font-semibold text-primary-dark">Jami:</span>
               <span className="text-2xl font-bold text-primary-orange">

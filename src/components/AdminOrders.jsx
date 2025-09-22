@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { BarsFAIcon, EyeFAIcon, TrashFAIcon, SpinnerFAIcon, CartFAIcon, SearchFAIcon, ChevronLeftFAIcon, ChevronRightFAIcon } from './FontAwesome';
 
 import AdminNotificationBell from './AdminNotificationBell';
 import AdminNotificationModals from './AdminNotificationModals';
@@ -20,7 +21,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     deleteAllNotifications,
     notifyOrderReceived,
     notifyOrderDeleted
-  } = useRealNotifications(true, 30000);
+} = useRealNotifications(true, 30000);
 
   // Demo notification system for modals (keep existing modal functionality)
   const {
@@ -599,18 +600,15 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         </div>
       );
     }
-    
+
     if (!loading && !filteredOrders.length) {
       return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-          <i className="fas fa-shopping-cart text-gray-400 text-4xl mb-4"></i>
+          <CartFAIcon className="text-gray-400 text-4xl mb-4" />
           <p className="text-gray-500">Buyurtmalar topilmadi</p>
           {(searchTerm || filterStatus) && (
-            <button 
-              onClick={() => {
-                setSearchTerm('');
-                setFilterStatus('');
-              }}
+            <button
+              onClick={() => { setSearchTerm(''); setFilterStatus(''); }}
               className="mt-2 text-blue-500 hover:text-blue-700 text-sm"
             >
               Filtrni tozalash
@@ -619,15 +617,12 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         </div>
       );
     }
-    
-    // OrderCard component for better mobile experience
+
     const OrderCard = ({ order, orderNumber }) => (
       <div 
         className={`bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer ${
           selectionMode && selectedOrders.has(order._id) ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-        } ${
-          order.isDeleting ? 'opacity-50 pointer-events-none bg-red-50' : ''
-        }`}
+        } ${order.isDeleting ? 'opacity-50 pointer-events-none bg-red-50' : ''}`}
         onClick={() => !order.isDeleting && handleOrderClick(order)}
       >
         <div className="p-3 sm:p-4">
@@ -648,50 +643,40 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
                 )}
                 <div className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   {order.isDeleting ? (
-                    <i className="fas fa-spinner fa-spin text-red-600 text-xs"></i>
+                    <SpinnerFAIcon className="text-red-600 text-xs" />
                   ) : (
-                    <i className="fas fa-shopping-cart text-orange-600 text-xs"></i>
+                    <CartFAIcon className="text-orange-600 text-xs" />
                   )}
                 </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                        order.isDeleting 
-                          ? 'bg-red-100 text-red-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        #{orderNumber}{order.isDeleting ? ' - O\'chirilmoqda...' : ''}
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-500 block">{formatDate(order.createdAt || order.orderDate)}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${order.isDeleting ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
+                      #{orderNumber}{order.isDeleting ? ' - O\'chirilmoqda...' : ''}
+                    </span>
                   </div>
+                  <span className="text-xs text-gray-500 block">{formatDate(order.createdAt || order.orderDate)}</span>
+                </div>
               </div>
               {!selectionMode && (
                 <div className="flex gap-1 flex-shrink-0">
                   <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openViewModal(order);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); openViewModal(order); }}
                     className="w-6 h-6 bg-gray-50 hover:bg-green-50 text-gray-600 hover:text-green-600 rounded-md transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-green-200"
                     title="Ko'rish"
                   >
-                    <i className="fas fa-eye text-xs"></i>
+                    <EyeFAIcon className="text-xs" />
                   </button>
                   <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openDeleteConfirm(order);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); openDeleteConfirm(order); }}
                     className="w-6 h-6 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-md transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-red-200"
                     title="O'chirish"
                   >
-                    <i className="fas fa-trash text-xs"></i>
+                    <TrashFAIcon className="text-xs" />
                   </button>
                 </div>
               )}
             </div>
-            
+
             <div className="space-y-2">
               <div>
                 <p className="font-medium text-gray-900 text-sm truncate">{order.customerName}</p>
@@ -703,33 +688,24 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
                   <div className="flex-shrink-0">
                     <select
                       value={order.status}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        updateOrderStatus(order._id, e.target.value);
-                      }}
+                      onChange={(e) => { e.stopPropagation(); updateOrderStatus(order._id, e.target.value); }}
                       disabled={order.isUpdating}
-                      className={`px-2 py-1 rounded text-xs font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 mobile-friendly-options ${statusMap[order.status]?.class} ${order.isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`px-2 py-1 rounded text-xs font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mobile-friendly-options ${statusMap[order.status]?.class} ${order.isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {order.isUpdating ? (
                         <option value={order.status}>Yuklanmoqda...</option>
                       ) : (
                         statusOptions.slice(1).map(option => (
-                          <option key={option.value} value={option.value}>
-                            {statusMap[option.value]?.text}
-                          </option>
+                          <option key={option.value} value={option.value}>{statusMap[option.value]?.text}</option>
                         ))
                       )}
                     </select>
                   </div>
                 )}
                 <div className="text-right flex-shrink-0">
-                  <div className="text-sm font-bold text-orange-600">
-                    {formatCurrency(order.totalAmount)}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {(order.items && order.items.length) || 0} mahsulot
-                  </div>
+                  <div className="text-sm font-bold text-orange-600">{formatCurrency(order.totalAmount)}</div>
+                  <div className="text-xs text-gray-500">{(order.items && order.items.length) || 0} mahsulot</div>
                 </div>
               </div>
             </div>
@@ -737,14 +713,13 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
 
           {/* Desktop Layout */}
           <div className="hidden sm:flex items-center gap-4">
-            {/* Checkbox for selection mode */}
             {selectionMode && (
               <div className="flex items-center justify-center flex-shrink-0">
                 <input
                   type="checkbox"
                   checked={selectedOrders.has(order._id)}
                   onChange={() => handleOrderClick(order)}
-                 className="w-4 h-4 text-orange-500 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 touch-manipulation"
+                  className="w-4 h-4 text-orange-500 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 touch-manipulation"
                   onClick={(e) => e.stopPropagation()}
                 />
               </div>
@@ -754,18 +729,14 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
             <div className="flex items-center space-x-3 flex-shrink-0">
               <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
                 {order.isDeleting ? (
-                  <i className="fas fa-spinner fa-spin text-red-600 text-sm"></i>
+                  <SpinnerFAIcon className="text-red-600 text-sm" />
                 ) : (
-                  <i className="fas fa-shopping-cart text-orange-600 text-sm"></i>
+                  <CartFAIcon className="text-orange-600 text-sm" />
                 )}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-sm px-3 py-1 rounded font-medium ${
-                    order.isDeleting 
-                      ? 'bg-red-100 text-red-800' 
-                      : 'bg-blue-100 text-blue-800'
-                  }`}>
+                  <span className={`text-sm px-3 py-1 rounded font-medium ${order.isDeleting ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
                     #{orderNumber}{order.isDeleting ? ' - O\'chirilmoqda...' : ''}
                   </span>
                 </div>
@@ -784,13 +755,9 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
               <div className="space-y-1">
                 {(order.items && order.items.length > 0) ? (
                   <>
-                    <div className="text-sm text-gray-900 truncate">
-                      {order.items[0].name} x{order.items[0].quantity}
-                    </div>
+                    <div className="text-sm text-gray-900 truncate">{order.items[0].name} x{order.items[0].quantity}</div>
                     {order.items.length > 1 && (
-                      <div className="text-xs text-gray-500">
-                        +{order.items.length - 1} boshqa
-                      </div>
+                      <div className="text-xs text-gray-500">+{order.items.length - 1} boshqa</div>
                     )}
                   </>
                 ) : (
@@ -804,21 +771,16 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
               <div className="flex-shrink-0">
                 <select
                   value={order.status}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    updateOrderStatus(order._id, e.target.value);
-                  }}
+                  onChange={(e) => { e.stopPropagation(); updateOrderStatus(order._id, e.target.value); }}
                   disabled={order.isUpdating}
-                  className={`px-3 py-2 rounded text-sm font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 ${statusMap[order.status]?.class} ${order.isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`px-3 py-2 rounded text-sm font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${statusMap[order.status]?.class} ${order.isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   {order.isUpdating ? (
                     <option value={order.status}>Yuklanmoqda...</option>
                   ) : (
                     statusOptions.slice(1).map(option => (
-                      <option key={option.value} value={option.value}>
-                        {statusMap[option.value]?.text}
-                      </option>
+                      <option key={option.value} value={option.value}>{statusMap[option.value]?.text}</option>
                     ))
                   )}
                 </select>
@@ -827,33 +789,25 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
 
             {/* Amount */}
             <div className="flex-shrink-0 text-right">
-              <div className="text-lg font-bold text-orange-600">
-                {formatCurrency(order.totalAmount)}
-              </div>
+              <div className="text-lg font-bold text-orange-600">{formatCurrency(order.totalAmount)}</div>
             </div>
 
             {/* Action Buttons - Icon Only */}
             {!selectionMode && (
               <div className="flex gap-1 flex-shrink-0">
                 <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openViewModal(order);
-                  }}
+                  onClick={(e) => { e.stopPropagation(); openViewModal(order); }}
                   className="w-8 h-8 bg-gray-50 hover:bg-green-50 text-gray-600 hover:text-green-600 rounded-lg transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-green-200"
                   title="Ko'rish"
                 >
-                  <i className="fas fa-eye text-xs"></i>
+                  <EyeFAIcon className="text-xs" />
                 </button>
                 <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openDeleteConfirm(order);
-                  }}
+                  onClick={(e) => { e.stopPropagation(); openDeleteConfirm(order); }}
                   className="w-8 h-8 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-lg transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-red-200"
                   title="O'chirish"
                 >
-                  <i className="fas fa-trash text-xs"></i>
+                  <TrashFAIcon className="text-xs" />
                 </button>
               </div>
             )}
@@ -861,7 +815,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         </div>
       </div>
     );
-    
+
     return (
       <div className="space-y-2">
         {paginatedOrders.map((order, index) => (
@@ -874,7 +828,6 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
       </div>
     );
   }, [orders, loading, filteredOrders, paginatedOrders, totalCount, currentPage, itemsPerPage, statusMap, statusOptions, formatDate, formatPhoneNumber, formatCurrency, updateOrderStatus, openViewModal, openDeleteConfirm, searchTerm, filterStatus]);
-
   // The main render with original styling
   return (
     <div className="min-h-screen bg-gray-50">
@@ -903,10 +856,11 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
                 onClick={onMobileToggle}
                 className="lg:hidden mr-4 text-gray-600 hover:text-gray-900"
               >
-                <i className="fas fa-bars text-xl"></i>
+                <BarsFAIcon className="text-xl" />
               </button>
+              
               <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center">
-                <i className="fas fa-shopping-cart text-white text-xs sm:text-sm"></i>
+                <CartFAIcon className="text-white text-xs sm:text-sm" />
               </div>
               <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Buyurtmalar</h1>
             </div>
@@ -932,7 +886,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <div className="flex-1">
                 <div className="relative flex">
-                  <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                  <SearchFAIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
                   <input
                     type="text"
                     placeholder="Qidirish..."
@@ -1032,7 +986,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
                   disabled={currentPage === 1}
                   className="pagination-btn px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <i className="fas fa-chevron-left mr-1"></i>
+                  <ChevronLeftFAIcon className="mr-1" />
                   <span className="hidden sm:inline">Oldingi</span>
                   <span className="sm:hidden">Old</span>
                 </button>
@@ -1043,7 +997,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
                 >
                   <span className="hidden sm:inline">Keyingi</span>
                   <span className="sm:hidden">Key</span>
-                  <i className="fas fa-chevron-right ml-1"></i>
+                  <ChevronRightFAIcon className="ml-1" />
                 </button>
               </div>
             </div>

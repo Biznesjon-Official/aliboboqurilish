@@ -144,7 +144,7 @@ const AdminRoutes = ({
 
   return (
     <>
-      <div className="flex">
+      <div className="flex overflow-x-hidden w-full">
         <AdminSidebar
           onLogout={onLogout}
           isMobileOpen={isMobileOpen}
@@ -152,7 +152,7 @@ const AdminRoutes = ({
           counts={counts}
           active={activeSection}
         />
-        <div className="flex-1 lg:ml-64 pb-16 lg:pb-0 min-h-screen">
+        <div className="flex-1 lg:ml-64 pb-16 lg:pb-0 min-h-screen overflow-x-hidden max-w-full">
           <ErrorBoundary FallbackComponent={ErrorFallback}>
             <Suspense fallback={
               <AdminLoadingLayout 

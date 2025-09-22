@@ -488,14 +488,30 @@ const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
                 </div>
               </div>
 
-              {/* Add to Cart Button */}
-              <button
-                onClick={handleAddToCart}
-                className="w-full py-3 px-6 rounded-lg transition-all duration-200 font-medium text-base flex items-center justify-center gap-2 shadow-md bg-primary-orange text-white hover:bg-opacity-90"
-              >
-                <CartFAIcon className="text-sm" />
-                Savatga qo'shish
-              </button>
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="w-full sm:w-auto px-5 py-3 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 font-medium flex items-center justify-center gap-2"
+                    aria-label="Yopish"
+                    title="Yopish"
+                  >
+                    <TimesFAIcon className="text-sm" />
+                    Yopish
+                  </button>
+                  <button
+                    onClick={handleAddToCart}
+                    className="w-full sm:flex-1 py-3 px-6 rounded-lg transition-all duration-200 font-medium text-base flex items-center justify-center gap-2 shadow-md bg-primary-orange text-white hover:bg-opacity-90"
+                    aria-label="Savatga qo'shish"
+                    title="Savatga qo'shish"
+                  >
+                    <CartFAIcon className="text-sm" />
+                    Savatga qo'shish
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

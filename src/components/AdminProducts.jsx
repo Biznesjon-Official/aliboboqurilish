@@ -8,9 +8,10 @@ import {
   TrashFAIcon, 
   ChevronLeftFAIcon, 
   ChevronRightFAIcon, 
-  SpinnerFAIcon 
+  SpinnerFAIcon, 
+  RotateLeftFAIcon 
 } from './FontAwesome';
-import { useProducts, useDeleteProduct, useRestoreProduct, useUpdateProduct, useCreateProduct } from '../hooks/useProductQueries';
+import { useDeleteProduct, useRestoreProduct, useUpdateProduct, useCreateProduct } from '../hooks/useProductQueries';
 import { useProductsFast } from '../hooks/useProductsFast';
 import { useRecentActivitiesCache } from '../hooks/useRecentActivities';
 import { queryClient, queryKeys } from '../lib/queryClient';
@@ -26,7 +27,6 @@ import VariantEditor from './admin/VariantEditor';
 import SimpleProductForm from './admin/SimpleProductForm';
 import VariantManager from './admin/VariantManager';
 import OptimizedImage from './OptimizedImage';
-import Base64Image from './Base64Image';
 import '../styles/select-styles.css';
 
 const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
@@ -78,7 +78,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 50;
+  const ITEMS_PER_PAGE = 20; // Reduced for faster initial load (aligns with homepage)
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [sortField, setSortField] = useState('createdAt');
@@ -114,6 +114,10 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [debouncedCategory, setDebouncedCategory] = useState('');
 
+  // React Query: fetch products (fast mode only)
+  const { data: productsData, isLoading, isFetching, isFetched, isSuccess, isError, error } =
+    useProductsFast(debouncedCategory, debouncedSearch, currentPage, ITEMS_PER_PAGE);
+
   // Image slideshow state (per product)
   const imageIndexRef = useRef(new Map()); // productId -> current image index
   const [, setImageStateVersion] = useState(0); // bump to trigger rerender
@@ -138,9 +142,18 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       const response = await fetch('http://localhost:5000/api/products/categories/list');
       if (response.ok) {
         const categoriesData = await response.json();
-        // console.log('📋 Loaded categories from API:', categoriesData);
-        // Ensure categoriesData is an array before spreading
-        const categoryArray = Array.isArray(categoriesData) ? categoriesData : [];
+        // Normalize API response to an array of category strings.
+        // It may be: ["Elektrika", ...] OR { categories: [{ _id: 'Elektrika', count: 12}, ...] }
+        const extract = (data) => {
+          if (Array.isArray(data)) return data;
+          if (data && Array.isArray(data.categories)) {
+            return data.categories
+              .map((c) => (typeof c === 'string' ? c : (c?._id || c?.name)))
+              .filter(Boolean);
+          }
+          return [];
+        };
+        const categoryArray = extract(categoriesData);
         setCategories(['Barcha kategoriyalar', ...categoryArray]);
       } else {
         console.log('⚠️ API failed, using main categories as fallback');
@@ -153,6 +166,32 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       setCategories(['Barcha kategoriyalar', ...categoryArray]);
     }
   }, []);
+
+  // Load categories on mount so selects are populated
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
+  // Build a merged, unique categories list for selects.
+  // Ensures the current product's category (formData.category) is present.
+  const mergedCategories = useMemo(() => {
+    const set = new Set();
+    // Add main categories first (priority order)
+    mainCategories.forEach((c) => c && set.add(c));
+    // Add dynamic categories (skip the placeholder)
+    categories.forEach((c) => {
+      if (!c) return;
+      if (typeof c === 'string') {
+        if (c !== 'Barcha kategoriyalar') set.add(c);
+      } else {
+        const val = c?._id || c?.name;
+        if (val && val !== 'Barcha kategoriyalar') set.add(val);
+      }
+    });
+    // Ensure currently selected form category is selectable
+    if (formData?.category) set.add(formData.category);
+    return Array.from(set);
+  }, [mainCategories, categories, formData?.category]);
 
   // React Query mutations for product actions
   const { mutateAsync: softDeleteProductMutate } = useDeleteProduct();
@@ -205,7 +244,20 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       // ignore, fallback below
     }
     const unique = [...new Set(allImages.filter(Boolean))];
-    return unique.length > 0 ? unique : [];
+    // Normalize paths for frontend rendering
+    const normalized = unique.map((img) => {
+      try {
+        let s = String(img || '');
+        // Fix Windows backslashes
+        s = s.replace(/\\/g, '/');
+        // Ensure leading slash for uploads
+        if (s.startsWith('uploads/')) s = '/' + s;
+        return s;
+      } catch (_) {
+        return img;
+      }
+    });
+    return normalized.length > 0 ? normalized : [];
   }, []);
 
   // Handlers to change images on hover/move and touch
@@ -283,23 +335,6 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     };
   }, []);
 
-  // Fast mode toggle
-  const [fastMode, setFastMode] = useState(true);
-  
-  // React Query: fetch products with debounced inputs
-  // Call both hooks unconditionally to follow Rules of Hooks
-  const fastProducts = useProductsFast(debouncedCategory, currentPage, ITEMS_PER_PAGE);
-  const normalProducts = useProducts(debouncedCategory, debouncedSearch, currentPage, ITEMS_PER_PAGE);
-  
-  // Conditionally use the appropriate result based on fastMode
-  const { data: productsData, isLoading, isFetching, isFetched, isSuccess, isError, error } = 
-    fastMode ? fastProducts : normalProducts;
-
-  // Load categories on component mount
-  useEffect(() => {
-    loadCategories();
-  }, [loadCategories]);
-
   // Debounce search/filter to reduce query churn
   useEffect(() => {
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
@@ -307,7 +342,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       setDebouncedSearch(searchTerm);
       setDebouncedCategory(filterCategory);
       setCurrentPage(1);
-    }, 500);
+    }, 300);
     return () => {
       if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     };
@@ -430,7 +465,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     setSelectedProduct(product);
     setFormData({
       name: product.name || '',
-      category: product.category || '',
+      category: (product.category || '').trim(),
       description: product.description || '',
       price: product.price ? product.price.toString() : '',
       oldPrice: product.oldPrice ? product.oldPrice.toString() : '',
@@ -830,7 +865,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       });
     }
   };
-
+  
   // Derive products and pagination from query
   const queriedProducts = productsData?.products || [];
   useEffect(() => {
@@ -841,8 +876,9 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   }, [productsData]);
 
   const loading = isLoading;
-  const showSkeleton = loading || (isFetching && (products?.length || 0) === 0);
-  const showEmpty = !loading && !isFetching && isSuccess && (products?.length || 0) === 0;
+  // Show skeleton until we have a successful response; also during loading/fetching states
+  const showSkeleton = (!isSuccess && !isError) || loading || isFetching;
+  const showEmpty = isSuccess && !loading && !isFetching && (products?.length || 0) === 0;
 
   return (
   <div className="min-h-screen bg-gray-50">
@@ -884,18 +920,6 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-primary-dark">Mahsulotlar</h2>
         <div className="flex items-center gap-3">
-          {/* Fast Mode Toggle */}
-          <button
-            onClick={() => setFastMode(!fastMode)}
-            className={`px-3 py-1 text-sm rounded-full transition-colors ${
-              fastMode 
-                ? 'bg-green-100 text-green-700 border border-green-300' 
-                : 'bg-gray-100 text-gray-600 border border-gray-300'
-            }`}
-            title={fastMode ? 'Tez rejim (rasmlar yo\'q)' : 'Oddiy rejim (rasmlar bilan)'}
-          >
-            ⚡ {fastMode ? 'Tez' : 'Oddiy'}
-          </button>
           <AdminNotificationBell 
             notifications={realNotifications} 
             setNotifications={setRealNotifications}
@@ -961,7 +985,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
               className="custom-select flex-1"
             >
               <option value="">Barcha kategoriyalar</option>
-              {mainCategories.map(category => (
+              {mergedCategories.map(category => (
                 <option key={category} value={category}>
                   {category}
                 </option>
@@ -982,8 +1006,8 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       {/* Products Grid */}
       <div className="mb-6">
         {showSkeleton ? (
-          <div className="col-span-full">
-            <LoadingCard count={6} />
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4" role="status" aria-label="Yuklanmoqda">
+            <LoadingCard count={8} />
           </div>
         ) : showEmpty ? (
           <div className="col-span-full text-center py-12">
@@ -1003,12 +1027,12 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                     onTouchEnd={(e) => handleTouchEndOnImage(product, e)}
                   >
                     {(function(){ const imgs = getAllProductImages(product); return imgs && imgs.length > 0; })() ? (
-                      <Base64Image 
+                      <OptimizedImage 
                         src={(function(){ const imgs = getAllProductImages(product); const id = product?._id || product?.id; const idx = (id && imageIndexRef.current.get(id)) || 0; return imgs[idx] || imgs[0]; })()} 
                         alt={product.name}
-                        className="w-full h-full object-contain p-2 bg-white transition-transform duration-300 group-hover:scale-105"
-                        fallbackSrc="/assets/default-product.svg"
+                        className="w-full h-full p-2 bg-white transition-transform duration-300 group-hover:scale-105"
                         placeholder="skeleton"
+                        objectFit="contain"
                         loading="lazy"
                       />
                     ) : (
@@ -1081,7 +1105,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                           title="Tiklash"
                           aria-label="Tiklash"
                         >
-                          <i className="fas fa-rotate-left text-green-600 text-sm"></i>
+                          <RotateLeftFAIcon className="text-green-600 text-sm" />
                           <span className="hidden sm:inline ml-1 text-xs">Tiklash</span>
                         </button>
                       )}
@@ -1184,7 +1208,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                     required
                   >
                     <option value="">Kategoriya tanlang</option>
-                    {mainCategories.map(category => (
+                    {mergedCategories.map(category => (
                       <option key={category} value={category}>
                         {category}
                       </option>
@@ -1358,7 +1382,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                     {selectedProduct.images && selectedProduct.images.length > 0 ? (
                       selectedProduct.images.map((image, index) => (
                         <div key={index} className="relative group">
-                          <Base64Image 
+                          <OptimizedImage 
                             src={image} 
                             alt={`${selectedProduct.name} - ${index + 1}`}
                             className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"
@@ -1372,7 +1396,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                       ))
                     ) : selectedProduct.image && (
                       <div className="relative group">
-                        <Base64Image 
+                        <OptimizedImage 
                           src={selectedProduct.image} 
                           alt={selectedProduct.name}
                           className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"

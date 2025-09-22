@@ -157,7 +157,7 @@ const OptimizedImage = ({
             }
           })
           .catch(() => {
-            console.warn('[OptimizedImage] Backend is not responding - ensure backend server is running on port 5000');
+            console.warn('[OptimizedImage] Backend is not responding - ensure backend is reachable at aliboboqurilish.uz');
           });
       }
     }
@@ -303,8 +303,13 @@ const OptimizedImage = ({
         onError={handleError}
         loading={priority ? 'eager' : loading}
         decoding={priority ? 'sync' : 'async'}
-        fetchPriority={priority ? 'high' : 'auto'}
+        fetchpriority={priority ? 'high' : 'auto'}
         style={{
+          // Ensure image does not get stretched
+          width: '100%',
+          height: '100%',
+          objectFit: objectFit,
+          objectPosition: 'center',
           backgroundColor: hasError ? '#f3f4f6' : 'transparent',
           ...(blurDataURL && !isLoaded && !hasError ? {
             backgroundImage: `url(${blurDataURL})`,

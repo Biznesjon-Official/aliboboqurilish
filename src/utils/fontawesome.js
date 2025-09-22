@@ -4,6 +4,7 @@ import {
   faSearch,
   faShoppingCart,
   faUser,
+  faUsers,
   faHeart,
   faStar,
   faPlus,
@@ -89,6 +90,7 @@ import {
   faRuler,
   faCrop,
   faRotate,
+  faRotateLeft,
   faExpand,
   faCompress,
   faWindowMaximize,
@@ -140,14 +142,20 @@ import {
   faMeh,
   faAngry,
   faSadTear,
+  faShieldAlt,
+  faHeadset,
+  faInbox,
+  faThLarge,
   faTired
 } from '@fortawesome/free-solid-svg-icons';
+import { faFacebookF, faInstagram, faTelegramPlane } from '@fortawesome/free-brands-svg-icons';
 
 // Add icons to the library
 library.add(
   faSearch,
   faShoppingCart,
   faUser,
+  faUsers,
   faHeart,
   faStar,
   faPlus,
@@ -232,6 +240,7 @@ library.add(
   faRuler,
   faCrop,
   faRotate,
+  faRotateLeft,
   faExpand,
   faCompress,
   faWindowMaximize,
@@ -283,9 +292,20 @@ library.add(
   faMeh,
   faAngry,
   faSadTear,
+  faShieldAlt,
+  faHeadset,
+  faInbox,
+  faThLarge,
   faTired
 );
 
 library.add(
   faGraduationCap
+);
+
+// Brand icons
+library.add(
+  faFacebookF,
+  faInstagram,
+  faTelegramPlane
 );

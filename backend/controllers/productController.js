@@ -517,27 +517,69 @@ const getProductById = async (req, res) => {
       });
     }
 
-    // Find product with optimized query
-    const product = await Product.findOne({
-      _id: id,
-      status: 'active',
-      isDeleted: false
-    }).lean();
+    // Find product with safe projections and timeout
+    const doc = await Product.findById(id)
+      .select({
+        name: 1,
+        price: 1,
+        oldPrice: 1,
+        description: 1,
+        category: 1,
+        image: 1,
+        images: 1,
+        stock: 1,
+        unit: 1,
+        badge: 1,
+        rating: 1,
+        isNew: 1,
+        isPopular: 1,
+        hasVariants: 1,
+        variants: 1, // Keep variants for detail view
+        createdAt: 1,
+        updatedAt: 1,
+        status: 1,
+        isDeleted: 1
+      })
+      .lean()
+      .maxTimeMS(5000);
 
-    if (!product) {
+    if (!doc || doc.isDeleted || doc.status === 'inactive') {
       return res.status(404).json({
         error: 'Product not found',
         timestamp: new Date().toISOString()
       });
     }
 
-    // Cache the result
-    setCache(cacheKey, { product });
+    // Sanitize images to avoid returning base64 data
+    const sanitizeImage = (p) => {
+      if (!p || typeof p !== 'string') return p;
+      if (p.startsWith('data:image/')) return '/assets/default-product.svg';
+      return p.replace(/\\/g, '/');
+    };
+    const sanitized = {
+      ...doc,
+      image: sanitizeImage(doc.image) || '/assets/default-product.svg',
+      images: Array.isArray(doc.images)
+        ? doc.images.map((i) => (typeof i === 'string' && i.startsWith('data:image/')) ? '/assets/default-product.svg' : (typeof i === 'string' ? i.replace(/\\/g, '/') : i))
+        : []
+    };
 
-    res.json({ product });
+    // Cache the result
+    setCache(cacheKey, { product: sanitized });
+
+    res.json({ product: sanitized });
 
   } catch (error) {
     console.error('Error fetching product:', error);
+
+    if (error.name === 'MongoNetworkTimeoutError' || (error.message || '').includes('timed out')) {
+      return res.status(503).json({
+        error: 'Service temporarily unavailable',
+        message: 'Database connection timeout. Please try again in a few moments.',
+        retryAfter: 30
+      });
+    }
+
     res.status(500).json({
       error: 'Failed to fetch product',
       message: error.message,

@@ -125,17 +125,15 @@ const getProductsFast = async (req, res) => {
       }
     ];
 
-    // Helper: choose medium-sized image to reduce LCP
+    // Helper: normalize path slashes; do NOT force medium folder (fallback avoids 404s)
     const toMedium = (p) => {
       if (!p || typeof p !== 'string') return p;
       const norm = p.replace(/\\/g, '/');
-      return norm
-        .replace('/uploads/products/original/', '/uploads/products/medium/')
-        .replace('/uploads/products/large/', '/uploads/products/medium/');
+      return norm;
     };
 
     // OPTIMIZED query - include only essential image fields and prefer index when applicable
-    let queryExec = Product.find(query)
+    const baseQuery = Product.find(query)
       .select('_id name price oldPrice category stock unit badge rating isNew isPopular image images.0 updatedAt createdAt')
       .sort(sort)
       .skip(skip)
@@ -143,15 +141,24 @@ const getProductsFast = async (req, res) => {
       .lean()
       .maxTimeMS(3000); // Even stricter timeout
 
-    // Hint the updatedAt index when sorting by updatedAt (matches schema index { updatedAt: -1, status: 1 })
-    if (sort && Object.prototype.hasOwnProperty.call(sort, 'updatedAt')) {
-      try {
-        // Composite index exists in schema: { status: 1, isDeleted: 1, updatedAt: -1 }
-        queryExec = queryExec.hint({ status: 1, isDeleted: 1, updatedAt: -1 });
-      } catch (_) {}
+    // Execute with safe hint usage and robust fallback
+    let products;
+    try {
+      let exec = baseQuery;
+      // Only apply hint when explicitly allowed to avoid 500s if index is missing on the cluster
+      if (sort && Object.prototype.hasOwnProperty.call(sort, 'updatedAt') && String(process.env.ALLOW_FAST_HINTS).toLowerCase() === 'true') {
+        exec = exec.hint({ status: 1, isDeleted: 1, updatedAt: -1 });
+      }
+      products = await exec;
+    } catch (err) {
+      const msg = (err && err.message) ? err.message.toLowerCase() : '';
+      // If hint/index related failure occurred, rerun without hint as a fallback
+      if (msg.includes('hint') || msg.includes('failed') || msg.includes('index')) {
+        products = await baseQuery;
+      } else {
+        throw err;
+      }
     }
-
-    const products = await queryExec;
     
     // OPTIMIZED processing - include real images with fallback
     const productsWithImages = products.map(product => {
@@ -218,20 +225,87 @@ const getProductsFast = async (req, res) => {
       stack: error.stack,
       name: error.name
     });
-    
-    // Handle timeout errors specifically
-    if (error.name === 'MongoNetworkTimeoutError' || error.message.includes('timed out')) {
-      return res.status(503).json({
-        error: 'Service temporarily unavailable',
-        message: 'Database connection timeout. Please try again in a few moments.',
-        retryAfter: 30
+
+    // Attempt a safe fallback using a very simple query (no hints, slightly higher timeout)
+    try {
+      const limit = Math.min(parseInt(req.query.limit) || 12, 24);
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const skip = (page - 1) * limit;
+
+      const query = {
+        isDeleted: false,
+        status: 'active',
+        ...(req.query.category && req.query.category.trim() !== '' ? { category: req.query.category.trim() } : {})
+      };
+      const sort = req.query.sortBy === 'price'
+        ? { price: req.query.sortOrder === 'asc' ? 1 : -1, updatedAt: -1 }
+        : { updatedAt: -1 };
+
+      const products = await Product.find(query)
+        .select('_id name price oldPrice category stock unit badge rating isNew isPopular image images.0 updatedAt createdAt')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .maxTimeMS(5000);
+
+      const toMedium = (p) => {
+        if (!p || typeof p !== 'string') return p;
+        const norm = p.replace(/\\/g, '/');
+        return norm;
+      };
+
+      const productsWithImages = products.map(product => ({
+        _id: product._id,
+        name: product.name,
+        price: product.price,
+        oldPrice: product.oldPrice,
+        category: product.category,
+        stock: product.stock,
+        unit: product.unit || 'dona',
+        badge: product.badge,
+        rating: product.rating || 0,
+        isNew: product.isNew || false,
+        isPopular: product.isPopular || false,
+        image: (product.image && product.image !== '/assets/default-product.svg')
+          ? toMedium(product.image)
+          : (product.images && product.images[0]) ? toMedium(product.images[0]) : '/assets/default-product.svg',
+        updatedAt: product.updatedAt,
+        createdAt: product.createdAt
+      }));
+
+      return res.json({
+        products: productsWithImages,
+        pagination: {
+          currentPage: page,
+          limit,
+          hasNextPage: products.length === limit,
+          hasPrevPage: page > 1,
+          total: null
+        },
+        performance: {
+          optimized: false,
+          cached: false,
+          fallback: true
+        }
+      });
+    } catch (fallbackErr) {
+      console.error('[getProductsFast] Fallback failed:', fallbackErr?.message || fallbackErr);
+
+      // Handle timeout errors specifically
+      if (fallbackErr.name === 'MongoNetworkTimeoutError' || (fallbackErr.message || '').includes('timed out')) {
+        return res.status(503).json({
+          error: 'Service temporarily unavailable',
+          message: 'Database connection timeout. Please try again in a few moments.',
+          retryAfter: 30
+        });
+      }
+
+      res.status(500).json({
+        error: 'Failed to fetch products',
+        message: fallbackErr.message || error.message
       });
     }
-    
-    res.status(500).json({
-      error: 'Failed to fetch products',
-      message: error.message
-    });
   }
 };
 

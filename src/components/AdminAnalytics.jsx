@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import ReactDOM from 'react-dom/client';
 import debounce from 'lodash/debounce';
 import { useQueryClient } from '@tanstack/react-query';
 import Chart from 'chart.js/auto';
 import AdminNotificationBell from './AdminNotificationBell';
+import { BarsFAIcon, InfoCircleFAIcon, CheckCircleFAIcon, TimesFAIcon, TimesCircleFAIcon } from './FontAwesome';
+
 import useRealNotifications from '../hooks/useRealNotifications';
 import { queryKeys } from '../lib/queryClient';
 
@@ -178,37 +181,50 @@ const AdminAnalytics = ({ onMobileToggle, notifications, setNotifications }) => 
   
   // Utility functions
   const showNotification = useCallback((message, type = 'info') => {
-    const notification = document.createElement('div');
+    const container = document.createElement('div');
     const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
-    const icon = type === 'success' ? 'fa-check' : type === 'error' ? 'fa-times' : 'fa-info';
-    
-    notification.className = `fixed bottom-4 left-1/2 transform -translate-x-1/2 ${bgColor} text-white px-6 py-4 rounded-lg shadow-lg z-50 translate-y-full transition-transform duration-300 max-w-sm w-full mx-4 sm:w-auto sm:mx-0`;
-    notification.innerHTML = `
-      <div class="flex items-center justify-center space-x-3">
-        <i class="fas ${icon}-circle text-lg"></i>
-        <span class="text-sm font-medium text-center flex-1">${message}</span>
-        <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-gray-200 transition-colors">
-          <i class="fas fa-times text-sm"></i>
-        </button>
-      </div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-      notification.classList.remove('translate-y-full');
-    }, 100);
-    
-    setTimeout(() => {
-      if (document.body.contains(notification)) {
-        notification.classList.add('translate-y-full');
-        setTimeout(() => {
-          if (document.body.contains(notification)) {
-            document.body.removeChild(notification);
-          }
-        }, 300);
+    container.className = `fixed bottom-4 left-1/2 transform -translate-x-1/2 ${bgColor} text-white px-6 py-4 rounded-lg shadow-lg z-50 transition-all duration-300 max-w-sm w-full mx-4 sm:w-auto sm:mx-0 opacity-0 translate-y-4`;
+
+    document.body.appendChild(container);
+    const root = ReactDOM.createRoot(container);
+
+    const Toast = ({ message, type, onClose }) => {
+      const Icon = type === 'success' ? CheckCircleFAIcon : type === 'error' ? TimesCircleFAIcon : InfoCircleFAIcon;
+      return (
+        <div className="flex items-center justify-center space-x-3">
+          <Icon className="text-lg" />
+          <span className="text-sm font-medium text-center flex-1">{message}</span>
+          <button onClick={onClose} className="text-white hover:text-gray-200 transition-colors" aria-label="Yopish">
+            <TimesFAIcon className="text-sm" />
+          </button>
+        </div>
+      );
+    };
+
+    const unmount = () => {
+      try {
+        root.unmount();
+      } catch {}
+      if (document.body.contains(container)) {
+        document.body.removeChild(container);
       }
-    }, 4000);
+    };
+
+    const handleClose = () => {
+      // Animate out then remove
+      container.classList.add('opacity-0', 'translate-y-4');
+      setTimeout(unmount, 250);
+    };
+
+    root.render(<Toast message={message} type={type} onClose={handleClose} />);
+
+    // Animate in
+    setTimeout(() => {
+      container.classList.remove('opacity-0', 'translate-y-4');
+    }, 20);
+
+    // Auto close
+    setTimeout(handleClose, 4000);
   }, []);
 
   const showConfirm = useCallback((title, message, onConfirm, onCancel = null, type = 'warning') => {
@@ -432,8 +448,9 @@ const AdminAnalytics = ({ onMobileToggle, notifications, setNotifications }) => 
             onClick={onMobileToggle}
             className="lg:hidden mr-4 text-gray-600 hover:text-gray-900"
           >
-            <i className="fas fa-bars text-xl"></i>
+            <BarsFAIcon className="text-xl" />
           </button>
+          
           <h1 className="text-2xl font-semibold text-gray-800">Analitika</h1>
         </div>
         

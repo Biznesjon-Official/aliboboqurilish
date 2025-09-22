@@ -27,7 +27,13 @@ router.get('/dashboard', async (req, res) => {
       thisMonthOrders,
       lastMonthOrders
     ] = await Promise.all([
-      Product.countDocuments(),
+      // Align with products list: include only active (or missing status) & not-deleted (or missing flag)
+      Product.countDocuments({
+        $and: [
+          { $or: [{ status: 'active' }, { status: { $exists: false } }] },
+          { $or: [{ isDeleted: false }, { isDeleted: { $exists: false } }] }
+        ]
+      }),
       Craftsman.countDocuments(),
       Order.countDocuments(),
       Order.countDocuments({ createdAt: { $gte: startOfMonth } }),
@@ -273,7 +279,13 @@ router.get('/edits', async (req, res) => {
 router.get('/summary', async (req, res) => {
   try {
     const [totalProducts, totalCraftsmen, totalOrders] = await Promise.all([
-      Product.countDocuments(),
+      // Align with products list filters
+      Product.countDocuments({
+        $and: [
+          { $or: [{ status: 'active' }, { status: { $exists: false } }] },
+          { $or: [{ isDeleted: false }, { isDeleted: { $exists: false } }] }
+        ]
+      }),
       Craftsman.countDocuments(),
       Order.countDocuments()
     ]);

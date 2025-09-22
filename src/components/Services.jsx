@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ToolsFAIcon, PhoneFAIcon } from './FontAwesome';
+import { ToolsFAIcon, PhoneFAIcon, TruckFAIcon, ShieldAltFAIcon, HeadsetFAIcon } from './FontAwesome';
 
 const Services = () => {
   return (
@@ -17,11 +17,11 @@ const Services = () => {
           <div className="space-y-8">
             <div className="flex items-start space-x-4">
               <div className="bg-primary-orange w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
-                <i className="fas fa-truck text-white"></i>
+                <TruckFAIcon className="text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-primary-dark mb-2">Bepul yetkazib berish</h3>
-                <p className="text-gray-600">Toshkent shahri bo'ylab bepul yetkazib berish xizmati</p>
+                <h3 className="text-xl font-bold text-primary-dark mb-2">Yetkazib berish</h3>
+                <p className="text-gray-600">Buxoro bo'ylab yetkazib berish xizmati</p>
               </div>
             </div>
 
@@ -37,7 +37,7 @@ const Services = () => {
 
             <div className="flex items-start space-x-4">
                 <div className="bg-primary-orange w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
-                <i className="fas fa-shield-alt text-white"></i>
+                <ShieldAltFAIcon className="text-white" />
                 </div>
                 <div>
                 <h3 className="text-xl font-bold text-primary-dark mb-2">Kafolat</h3>
@@ -47,7 +47,7 @@ const Services = () => {
 
             <div className="flex items-start space-x-4">
               <div className="bg-primary-orange w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
-                <i className="fas fa-headset text-white"></i>
+                <HeadsetFAIcon className="text-white" />
                 </div>
               <div>
                 <h3 className="text-xl font-bold text-primary-dark mb-2">24/7 qo'llab-quvvatlash</h3>
@@ -67,11 +67,11 @@ const Services = () => {
               </p>
               
               <a 
-                href="tel:+998948494956" 
+                href="tel:+998919771111" 
                 className="inline-flex items-center justify-center gap-3 bg-primary-orange hover:bg-orange-600 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:scale-110 hover:-translate-y-1 active:scale-95"
               >
                 <PhoneFAIcon className="text-base animate-pulse" />
-                <span className="tracking-wide">+998 94 849 49 56</span>
+                <span className="tracking-wide">+998 91 977 11 11</span>
               </a>
             </div>
           </div>

@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useEffect, memo } from 'react';
+import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
 import { ChevronLeftFAIcon, ChevronRightFAIcon } from './FontAwesome';
 import { useNavigate } from 'react-router-dom';
 import OptimizedImage from './OptimizedImage';
+import { useProduct } from '../hooks/useProductQueries';
 
 const ProductCard = memo(({
   product,
@@ -26,7 +27,7 @@ const ProductCard = memo(({
     return Math.round(((oldPrice - currentPrice) / oldPrice) * 100);
   };
 
-  // Get all product images from variants
+  // Get all product images from variants (do NOT de-duplicate)
   const getAllProductImages = () => {
     const allImages = [];
 
@@ -54,18 +55,75 @@ const ProductCard = memo(({
       }
     }
 
-    // Remove duplicates and ensure at least one image
-    const uniqueImages = [...new Set(allImages)];
-    return uniqueImages.length > 0 ? uniqueImages : ['/assets/default-product.svg'];
+    // Ensure at least one image
+    return allImages.length > 0 ? allImages : ['/assets/default-product.svg'];
   };
 
   const productImages = getAllProductImages();
-  const currentImage = productImages[currentImageIndex];
+
+  // Lazily fetch product details to obtain full images list for indicators
+  // Prefetch disabled to avoid spamming backend with many /products/:id requests
+  const [shouldFetchDetails, setShouldFetchDetails] = useState(false);
+  const { data: detailData } = useProduct(product?._id, shouldFetchDetails);
+  const imageContainerRef = useRef(null);
+
+  // Start fetching details once the image container is in view (or on interaction)
+  // Disabled viewport-triggered detail prefetch to reduce backend load
+  // useEffect(() => {
+  //   if (!imageContainerRef.current || shouldFetchDetails) return;
+  //   const el = imageContainerRef.current;
+  //   const obs = new IntersectionObserver((entries) => {
+  //     const first = entries[0];
+  //     if (first.isIntersecting) {
+  //       setShouldFetchDetails(true);
+  //       obs.disconnect();
+  //     }
+  //   }, { root: null, rootMargin: '100px', threshold: 0.1 });
+  //   obs.observe(el);
+  //   return () => obs.disconnect();
+  // }, [shouldFetchDetails]);
+
+  const getImagesFromDetail = useCallback((detail) => {
+    if (!detail) return [];
+    const p = detail.product || detail; // backend may return {product: {...}} or direct product
+    const imgs = [];
+    if (p?.hasVariants && Array.isArray(p?.variants)) {
+      p.variants.forEach(variant => {
+        if (Array.isArray(variant?.options)) {
+          variant.options.forEach(option => {
+            if (Array.isArray(option?.images) && option.images.length > 0) {
+              imgs.push(...option.images);
+            } else if (option?.image) {
+              imgs.push(option.image);
+            }
+          });
+        }
+      });
+    }
+    if (imgs.length === 0) {
+      if (Array.isArray(p?.images) && p.images.length > 0) imgs.push(...p.images);
+      else if (p?.image) imgs.push(p.image);
+    }
+    return imgs.length > 0 ? imgs : [];
+  }, []);
+
+  const detailedImages = getImagesFromDetail(detailData);
+  const images = detailedImages.length > 0 ? detailedImages : productImages;
+  const currentImage = images[currentImageIndex];
   const discount = product.oldPrice ? calculateDiscount(product.price, product.oldPrice) : 0;
+  const ctaLabel = product.stock === 0
+    ? 'Tugagan'
+    : (product.hasVariants && product.variants && product.variants.length > 0)
+      ? "Ko'rish"
+      : 'Savatga';
 
   // Handle card click - navigate to product detail page
   const handleCardClick = useCallback(() => {
     if (enableRouteNavigation) {
+      try {
+        // Save current scroll position so we can restore it when user navigates back
+        sessionStorage.setItem('homeScroll', String(window.scrollY || window.pageYOffset || 0));
+      } catch (e) {}
       navigate(`/product/${product._id}`);
     } else {
       // Fallback to modal for quick preview
@@ -91,6 +149,9 @@ const ProductCard = memo(({
     if (product.hasVariants && product.variants && product.variants.length > 0) {
       // For products with variants, open detail page or modal
       if (enableRouteNavigation) {
+        try {
+          sessionStorage.setItem('homeScroll', String(window.scrollY || window.pageYOffset || 0));
+        } catch (e) {}
         navigate(`/product/${product._id}`);
       } else {
         onOpenDetail(product);
@@ -102,6 +163,7 @@ const ProductCard = memo(({
 
   return (
     <div
+      id={`product-${product?._id || product?.id}`}
       className={`bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-orange-200 relative h-full flex flex-col cursor-pointer ${className}`}
       onClick={handleCardClick}
     >
@@ -129,6 +191,7 @@ const ProductCard = memo(({
         )}
       </div>
 
+      
       {/* Discount Badge */}
       {discount > 0 && (
         <div className="absolute top-2 right-2 z-10">
@@ -139,7 +202,11 @@ const ProductCard = memo(({
       )}
 
       {/* Image Container */}
-      <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden relative group">
+      <div
+        ref={imageContainerRef}
+        className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden relative group"
+        // Prefetch disabled on hover/touch to avoid extra detail requests
+      >
         <OptimizedImage
           src={currentImage}
           alt={product.name}
@@ -154,15 +221,13 @@ const ProductCard = memo(({
         />
 
         {/* Image Navigation - Show only if multiple images */}
-        {productImages.length > 1 && (
+        {images.length > 1 && (
           <>
             {/* Previous Button */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setCurrentImageIndex(prev =>
-                  prev === 0 ? productImages.length - 1 : prev - 1
-                );
+                setCurrentImageIndex(prev => (prev === 0 ? images.length - 1 : prev - 1));
               }}
               className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md"
             >
@@ -173,49 +238,51 @@ const ProductCard = memo(({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setCurrentImageIndex(prev =>
-                  prev === productImages.length - 1 ? 0 : prev + 1
-                );
+                setCurrentImageIndex(prev => (prev === images.length - 1 ? 0 : prev + 1));
               }}
               className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md"
             >
               <ChevronRightFAIcon className="text-xs text-gray-600" />
             </button>
 
-            {/* Image Indicators */}
+            {/* Image Indicators (overlay) */}
             <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              {productImages.map((_, index) => (
+              {images.map((_, index) => (
                 <button
                   key={index}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentImageIndex(index);
-                  }}
-                  className={`w-1.5 h-1.5 rounded-full transition-colors duration-200 ${index === currentImageIndex
-                    ? 'bg-primary-orange'
-                    : 'bg-white bg-opacity-60 hover:bg-opacity-80'
-                    }`}
+                  onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(index); }}
+                  className={`w-1.5 h-1.5 rounded-full transition-colors duration-200 ${index === currentImageIndex ? 'bg-primary-orange' : 'bg-white bg-opacity-60 hover:bg-opacity-80'}`}
                 />
               ))}
             </div>
 
             {/* Image Counter */}
             <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              {currentImageIndex + 1}/{productImages.length}
+              {currentImageIndex + 1}/{images.length}
             </div>
           </>
         )}
       </div>
 
+      {/* Persistent Image Progress Bars (visible under image) */}
+      {images.length > 1 && (
+        <div className="px-3 pt-2">
+          <div className="flex items-center gap-1 justify-center">
+            {images.map((_, index) => (
+              <button
+                key={index}
+                onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(index); }}
+                className={`${index === currentImageIndex ? 'w-6 h-1.5 bg-primary-orange rounded-full' : 'w-1.5 h-1.5 bg-gray-300 rounded-full hover:bg-gray-400'} transition-all duration-200`}
+                aria-label={`Rasm ${index + 1}`}
+                title={`Rasm ${index + 1}`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Product Info */}
       <div className="p-3 flex flex-col flex-grow">
-        {/* Brand */}
-        {product.brand && (
-          <div className="text-xs text-gray-400 mb-1 uppercase tracking-wide">
-            {product.brand}
-          </div>
-        )}
-
         {/* Product Name */}
         <h3 className="font-semibold text-gray-800 text-sm md:text-base mb-2 leading-tight line-clamp-2 min-h-[2.5rem]">
           {product.name || 'Noma\'lum mahsulot'}
@@ -262,8 +329,7 @@ const ProductCard = memo(({
               : 'bg-primary-orange text-white hover:bg-opacity-90 hover:shadow-md'
               }`}
           >
-            {product.stock === 0 ? 'Tugagan' : 
-             (product.hasVariants && product.variants && product.variants.length > 0) ? 'Ko\'rish' : 'Savatga'}
+            {ctaLabel}
           </button>
           
           {/* Quick Preview Button (only show if modal handler exists) */}

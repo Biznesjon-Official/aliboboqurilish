@@ -20,6 +20,10 @@ export const UserFAIcon = ({ className, ...props }) => (
   <FontAwesomeIcon icon="user" className={className} {...props} />
 );
 
+export const UsersFAIcon = ({ className, ...props }) => (
+  <FontAwesomeIcon icon="users" className={className} {...props} />
+);
+
 export const HeartFAIcon = ({ className, ...props }) => (
   <FontAwesomeIcon icon="heart" className={className} {...props} />
 );
@@ -102,6 +106,48 @@ export const SortFAIcon = ({ className, ...props }) => (
 
 export const SpinnerFAIcon = ({ className, ...props }) => (
   <FontAwesomeIcon icon="spinner" className={`${className} fa-spin`} {...props} />
+);
+
+// Additional commonly used icons
+export const TruckFAIcon = ({ className, ...props }) => (
+  <FontAwesomeIcon icon="truck" className={className} {...props} />
+);
+
+export const ShieldAltFAIcon = ({ className, ...props }) => (
+  <FontAwesomeIcon icon="shield-alt" className={className} {...props} />
+);
+
+export const HeadsetFAIcon = ({ className, ...props }) => (
+  <FontAwesomeIcon icon="headset" className={className} {...props} />
+);
+
+export const ThLargeFAIcon = ({ className, ...props }) => (
+  <FontAwesomeIcon icon="th-large" className={className} {...props} />
+);
+
+export const InboxFAIcon = ({ className, ...props }) => (
+  <FontAwesomeIcon icon="inbox" className={className} {...props} />
+);
+
+export const RotateLeftFAIcon = ({ className, ...props }) => (
+  <FontAwesomeIcon icon="rotate-left" className={className} {...props} />
+);
+
+export const LayerGroupFAIcon = ({ className, ...props }) => (
+  <FontAwesomeIcon icon="layer-group" className={className} {...props} />
+);
+
+// Brand icons
+export const FacebookFAIcon = ({ className, ...props }) => (
+  <FontAwesomeIcon icon={["fab", "facebook-f"]} className={className} {...props} />
+);
+
+export const InstagramFAIcon = ({ className, ...props }) => (
+  <FontAwesomeIcon icon={["fab", "instagram"]} className={className} {...props} />
+);
+
+export const TelegramPlaneFAIcon = ({ className, ...props }) => (
+  <FontAwesomeIcon icon={["fab", "telegram-plane"]} className={className} {...props} />
 );
 
 export const BellFAIcon = ({ className, ...props }) => (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { TimesFAIcon, ThLargeFAIcon, TagFAIcon, InboxFAIcon } from './FontAwesome';
 
 const Catalog = ({ onCategorySelect, onClose, selectedCategory }) => {
   // Static categories from admin panel - Main categories first, matching CategoryNavigation.jsx format and order
@@ -59,7 +60,7 @@ const Catalog = ({ onCategorySelect, onClose, selectedCategory }) => {
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition duration-300"
           >
-            <i className="fas fa-times text-xl"></i>
+            <TimesFAIcon className="text-xl" />
           </button>
         </div>
 
@@ -77,7 +78,7 @@ const Catalog = ({ onCategorySelect, onClose, selectedCategory }) => {
                     : 'hover:bg-gray-100 text-gray-700'
                 }`}
               >
-                <i className="fas fa-th-large text-lg"></i>
+                <ThLargeFAIcon className="text-lg" />
                 <span className="font-medium">Barcha mahsulotlar</span>
               </button>
             </div>
@@ -116,7 +117,7 @@ const Catalog = ({ onCategorySelect, onClose, selectedCategory }) => {
                           : 'hover:bg-gray-100 text-gray-700'
                       }`}
                     >
-                      <i className="fas fa-tag text-lg"></i>
+                      <TagFAIcon className="text-lg" />
                       <span className="font-medium">{category.name}</span>
                     </button>
                   ))}
@@ -136,7 +137,7 @@ const Catalog = ({ onCategorySelect, onClose, selectedCategory }) => {
                   : 'hover:bg-gray-100 text-gray-700'
               }`}
             >
-              <i className="fas fa-th-large text-lg"></i>
+              <ThLargeFAIcon className="text-lg" />
               <span className="font-medium">Barcha mahsulotlar</span>
             </button>
 
@@ -151,14 +152,14 @@ const Catalog = ({ onCategorySelect, onClose, selectedCategory }) => {
                     : 'hover:bg-gray-100 text-gray-700'
                 }`}
               >
-                <i className="fas fa-tag text-lg"></i>
+                <TagFAIcon className="text-lg" />
                 <span className="font-medium">{category.name}</span>
               </button>
             ))}
 
             {categories.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                <i className="fas fa-inbox text-3xl mb-3"></i>
+                <InboxFAIcon className="text-3xl mb-3" />
                 <p>Hech qanday kategoriya topilmadi</p>
               </div>
             )}

@@ -3,9 +3,11 @@ import { queryKeys, invalidateQueries, queryClient } from '../lib/queryClient';
 
 // API base URL - Direct connection to backend
 const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+// Feature flag: allow disabling the fast endpoint if it's unstable in production
+const USE_FAST_DEFAULT = (process.env.REACT_APP_USE_FAST || '').toLowerCase() === 'true';
 
 // Fetch functions
-const fetchProducts = async ({ category = '', search = '', page = 1, limit = 200, sortBy = 'updatedAt', sortOrder = 'desc', signal, useFastEndpoint = true }) => {
+const fetchProducts = async ({ category = '', search = '', page = 1, limit = 200, sortBy = 'updatedAt', sortOrder = 'desc', signal, useFastEndpoint = USE_FAST_DEFAULT }) => {
   // Build query parameters
   const params = new URLSearchParams({
     limit: limit.toString(),
@@ -31,12 +33,15 @@ const fetchProducts = async ({ category = '', search = '', page = 1, limit = 200
 
   let response = await fetch(primaryUrl, {
     signal,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
   });
 
-  if (!response.ok) {
+  // Helper to detect JSON content
+  const isJson = (res) => (res.headers.get('content-type') || '').includes('application/json');
+
+  if (!response.ok || !isJson(response)) {
     if (process.env.NODE_ENV === 'development') {
-      console.warn('[fetchProducts] Primary endpoint failed:', primaryUrl, response.status, response.statusText);
+      console.warn('[fetchProducts] Primary endpoint failed or not JSON:', primaryUrl, response.status, response.statusText, response.headers.get('content-type'));
     }
     
     // Handle rate limiting specifically
@@ -46,18 +51,18 @@ const fetchProducts = async ({ category = '', search = '', page = 1, limit = 200
       console.log(`⏳ Rate limited, waiting ${waitTime}ms before retrying`);
       await new Promise(resolve => setTimeout(resolve, waitTime));
       // Retry the request
-      response = await fetch(primaryUrl, { signal, headers: { 'Content-Type': 'application/json' } });
-      if (!response.ok) {
+      response = await fetch(primaryUrl, { signal, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } });
+      if (!response.ok || !isJson(response)) {
         // Try fallback once
-        response = await fetch(fallbackUrl, { signal, headers: { 'Content-Type': 'application/json' } });
-        if (!response.ok) {
+        response = await fetch(fallbackUrl, { signal, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } });
+        if (!response.ok || !isJson(response)) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
       }
     } else {
       // Try fallback once
-      response = await fetch(fallbackUrl, { signal, headers: { 'Content-Type': 'application/json' } });
-      if (!response.ok) {
+      response = await fetch(fallbackUrl, { signal, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } });
+      if (!response.ok || !isJson(response)) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
     }
@@ -195,6 +200,8 @@ export const useCreateProduct = () => {
       // console.log('✅ Product created successfully:', data);
       // OPTIMIZED: Only invalidate specific query patterns, no await
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists(), exact: false });
+      // Also invalidate admin fast list queries so AdminProducts refreshes immediately
+      queryClient.invalidateQueries({ queryKey: ['products-fast'], exact: false });
       // GENTLE: Only invalidate recent activities, don't force immediate refetch
       queryClient.invalidateQueries({ queryKey: queryKeys.recentActivities.all });
       
@@ -226,12 +233,16 @@ export const useUpdateProduct = () => {
     },
     onSuccess: async (data, variables) => {
       // OPTIMIZED: Immediate cache update + gentle background invalidation
+      // Align cache shape with GET /products/:id which returns { product }
+      const detailPayload = data && data.product ? data : (data && data._id ? { product: data } : data);
       queryClient.setQueryData(
         queryKeys.products.detail(variables.id),
-        data
+        detailPayload
       );
       // Background invalidation without waiting
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists(), exact: false });
+      // Ensure AdminProducts (which uses ['products-fast', ...]) gets updated too
+      queryClient.invalidateQueries({ queryKey: ['products-fast'], exact: false });
       // GENTLE: Only invalidate recent activities, don't force immediate refetch
       queryClient.invalidateQueries({ queryKey: queryKeys.recentActivities.all });
     },
@@ -269,6 +280,8 @@ export const useDeleteProduct = () => {
       queryClient.removeQueries({ queryKey: queryKeys.products.detail(id) });
       // Invalidate products list
       invalidateQueries.products();
+      // Also invalidate the fast products list to refresh AdminProducts immediately
+      queryClient.invalidateQueries({ queryKey: ['products-fast'], exact: false });
       // GENTLE: Only invalidate recent activities, don't force immediate refetch
       queryClient.invalidateQueries({ queryKey: queryKeys.recentActivities.all });
     },

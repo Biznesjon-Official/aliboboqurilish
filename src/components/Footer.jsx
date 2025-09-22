@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { HammerFAIcon, PhoneFAIcon, EnvelopeFAIcon, MapMarkerAltFAIcon } from './FontAwesome';
+import { Link } from 'react-router-dom';
+import { PhoneFAIcon, MapMarkerAltFAIcon, HammerFAIcon, FacebookFAIcon, InstagramFAIcon, TelegramPlaneFAIcon } from './FontAwesome';
 
 const Footer = () => {
   const [expandedSections, setExpandedSections] = useState({});
@@ -99,17 +100,24 @@ const Footer = () => {
                 <div className="space-y-3">
                   <div className="flex items-center text-gray-300">
                     <PhoneFAIcon className="mr-3 text-primary-orange text-sm" />
-                    <a href="tel:+998948494956" className="hover:text-primary-orange transition duration-300 text-sm">
-                      +998 94 849 49 56
+                    <a href="tel:+998919771111" className="hover:text-primary-orange transition duration-300 text-sm">
+                      +998 91 977 11 11
                     </a>
                   </div>
                   <div className="flex items-center text-gray-300">
-                    <EnvelopeFAIcon className="mr-3 text-primary-orange text-sm" />
-                    <span className="text-sm">info@alibobo.uz</span>
+                    <InstagramFAIcon className="mr-3 text-primary-orange text-sm" />
+                    <a
+                      href="https://instagram.com/alibobo_qurilishmollari"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm hover:text-primary-orange"
+                    >
+                      @alibobo_qurilishmollari
+                    </a>
                   </div>
                   <div className="flex items-center text-gray-300">
                     <MapMarkerAltFAIcon className="mr-3 text-primary-orange text-sm" />
-                    <span className="text-sm">Toshkent, O'zbekiston</span>
+                    <span className="text-sm">Gijduvon, Buxoro</span>
                   </div>
                   <div className="mt-4 pt-3 border-t border-gray-600">
                     <p className="text-xs text-gray-400 leading-relaxed">
@@ -125,14 +133,14 @@ const Footer = () => {
           {/* Bottom Row - Social Icons on Side & Copyright */}
           <div className="flex items-center justify-between">
             <div className="flex space-x-4">
-              <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                <i className="fab fa-facebook-f text-lg"></i>
+              <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300" aria-label="Facebook">
+                <FacebookFAIcon className="text-lg" />
               </a>
-              <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                <i className="fab fa-instagram text-lg"></i>
+              <a href="https://instagram.com/alibobo_qurilishmollari" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-primary-orange transition duration-300" aria-label="Instagram">
+                <InstagramFAIcon className="text-lg" />
               </a>
-              <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                <i className="fab fa-telegram-plane text-lg"></i>
+              <a href="https://t.me/mountain_peak" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-primary-orange transition duration-300" aria-label="Telegram">
+                <TelegramPlaneFAIcon className="text-lg" />
               </a>
             </div>
             <p className="text-gray-400 text-xs"> 2025 Alibobo</p>
@@ -151,40 +159,45 @@ const Footer = () => {
               qurishda yordam beramiz.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                <i className="fab fa-facebook-f"></i>
+              <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300" aria-label="Facebook">
+                <FacebookFAIcon />
               </a>
-              <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                <i className="fab fa-instagram"></i>
+              <a href="https://instagram.com/alibobo_qurilishmollari" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-primary-orange transition duration-300" aria-label="Instagram">
+                <InstagramFAIcon />
               </a>
-              <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                <i className="fab fa-telegram-plane"></i>
+              <a href="https://t.me/mountain_peak" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-primary-orange transition duration-300" aria-label="Telegram">
+                <TelegramPlaneFAIcon />
               </a>
             </div>
           </div>
 
           <div>
-            <h4 className="text-lg font-semibold mb-4">Mollalar</h4>
+            <h4 className="text-lg font-semibold mb-4">Mahsulotlar</h4>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                  G'isht va bloklar
-                </a>
+                <Link to="/products?category=santexnika" className="text-gray-300 hover:text-primary-orange transition duration-300">
+                  Santexnika
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                  Asbob-uskunalar
-                </a>
+                <Link to="/products?category=yevro-remont" className="text-gray-300 hover:text-primary-orange transition duration-300">
+                  Yevro remont
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                  Bo'yoq va lak
-                </a>
+                <Link to="/products?category=elektrika" className="text-gray-300 hover:text-primary-orange transition duration-300">
+                  Elektrika
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                  Elektr mollalari
-                </a>
+                <Link to="/products?category=xoz-mag" className="text-gray-300 hover:text-primary-orange transition duration-300">
+                  Xoz-mag
+                </Link>
+              </li>
+              <li>
+                <Link to="/products?category=dekorativ-mahsulotlar" className="text-gray-300 hover:text-primary-orange transition duration-300">
+                  Dekorativ mahsulotlar
+                </Link>
               </li>
             </ul>
           </div>
@@ -193,24 +206,29 @@ const Footer = () => {
             <h4 className="text-lg font-semibold mb-4">Ustalar</h4>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                  Bosh ustalar
-                </a>
+                <Link to="/craftsmen?specialty=Elektrik" className="text-gray-300 hover:text-primary-orange transition duration-300">
+                  Elektrik
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                  Santexniklar
-                </a>
+                <Link to="/craftsmen?specialty=Santexnik" className="text-gray-300 hover:text-primary-orange transition duration-300">
+                  Santexnik
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                  Elektriklar
-                </a>
+                <Link to="/craftsmen?specialty=Quruvchi" className="text-gray-300 hover:text-primary-orange transition duration-300">
+                  Quruvchi
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-300 hover:text-primary-orange transition duration-300">
-                  Bezak ustalar
-                </a>
+                <Link to="/craftsmen?specialty=Duradgor" className="text-gray-300 hover:text-primary-orange transition duration-300">
+                  Duradgor
+                </Link>
+              </li>
+              <li>
+                <Link to="/craftsmen?specialty=Plitka%20yotqizuvchi" className="text-gray-300 hover:text-primary-orange transition duration-300">
+                  Plitka yotqizuvchi
+                </Link>
               </li>
             </ul>
           </div>
@@ -220,17 +238,24 @@ const Footer = () => {
             <ul className="space-y-2">
               <li className="flex items-center text-gray-300">
                 <PhoneFAIcon className="mr-2 text-primary-orange" />
-                <a href="tel:+998948494956" className="hover:text-primary-orange transition duration-300">
-                  +998 94 849 49 56
+                <a href="tel:+998919771111" className="hover:text-primary-orange transition duration-300">
+                  +998 91 977 11 11
                 </a>
               </li>
               <li className="flex items-center text-gray-300">
-                <EnvelopeFAIcon className="mr-2 text-primary-orange" />
-                info@alibobo.uz
+                <InstagramFAIcon className="mr-2 text-primary-orange" />
+                <a
+                  href="https://instagram.com/alibobo_qurilishmollari"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary-orange"
+                >
+                  @alibobo_qurilishmollari
+                </a>
               </li>
               <li className="flex items-center text-gray-300">
                 <MapMarkerAltFAIcon className="mr-2 text-primary-orange" />
-                Toshkent, O'zbekiston
+                Gijduvon, Buxoro
               </li>
             </ul>
           </div>

@@ -65,8 +65,8 @@ export const queryKeys = {
   craftsmen: {
     all: ['craftsmen'],
     lists: () => [...queryKeys.craftsmen.all, 'list'],
-    list: (specialty, search, page = 1, limit = 50, sortBy = 'joinDate', sortOrder = 'desc') =>
-      [...queryKeys.craftsmen.lists(), { specialty, search, page, limit, sortBy, sortOrder }],
+    list: (specialty, search, page = 1, limit = 50, status = '', sortBy = 'joinDate', sortOrder = 'desc') =>
+      [...queryKeys.craftsmen.lists(), { specialty, search, status, page, limit, sortBy, sortOrder }],
     details: () => [...queryKeys.craftsmen.all, 'detail'],
     detail: (id) => [...queryKeys.craftsmen.details(), id],
   },

@@ -9,6 +9,7 @@ import { useGlobalStockListener } from './hooks/useGlobalStock'; // Global stock
 import DiagnosticPanel from './components/DiagnosticPanel'; // Diagnostic panel for monitoring
 import AdminLoadingLayout from './components/skeletons/AdminLoadingLayout';
 import socketService from './services/SocketService';
+import useStatistics from './hooks/useStatistics';
 
 const MainPage = lazy(() => import('./components/MainPage'));
 const ProductDetailPage = lazy(() => import('./components/ProductDetailPage'));
@@ -18,14 +19,16 @@ const AdminRoutes = lazy(() => import('./components/AdminRoutes'));
 // App content component that uses QueryClient context
 function AppContent() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [craftsmenCount, setCraftsmenCount] = useState(5); // Initialize with 5 craftsmen
-  const [productsCount, setProductsCount] = useState(5); // Initialize with 5 products
-  const [ordersCount, setOrdersCount] = useState(5); // Initialize with 5 orders (total count)
+  const [craftsmenCount, setCraftsmenCount] = useState(0); // Real totals filled from statistics
+  const [productsCount, setProductsCount] = useState(0); // Real totals filled from statistics
+  const [ordersCount, setOrdersCount] = useState(0); // Real totals filled from statistics
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Authentication state
   const [showDiagnostics, setShowDiagnostics] = useState(false); // Diagnostic panel state
 
   // Initialize real-time stock monitoring for the entire app (now inside QueryClientProvider)
   const { isConnected, connectionStatus } = useStockMonitor(true); // Enable debug mode
+  // Fetch dashboard statistics globally to supply sidebar counts instantly
+  const { formattedStats } = useStatistics(true, 300000);
   
   // CRITICAL: Initialize global stock listener for immediate UI updates
   useGlobalStockListener();
@@ -37,6 +40,15 @@ function AppContent() {
       delete window.queryClient;
     };
   }, []);
+
+  // Update sidebar counts whenever dashboard statistics are fetched/refreshed
+  useEffect(() => {
+    if (formattedStats) {
+      setCraftsmenCount(formattedStats.craftsmenCount || 0);
+      setProductsCount(formattedStats.productsCount || 0);
+      setOrdersCount(formattedStats.ordersCount || 0);
+    }
+  }, [formattedStats]);
 
   // CRITICAL: Initialize Socket.IO for real-time stock updates
   useEffect(() => {
@@ -121,6 +133,16 @@ function AppContent() {
         <Route path="/product/:id" element={
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="text-lg">Mahsulot yuklanmoqda...</div></div>}>
             <ProductDetailPage />
+          </Suspense>
+        } />
+        <Route path="/products" element={
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="text-lg">Yuklanmoqda...</div></div>}>
+            <MainPage onSuccessfulLogin={handleSuccessfulLogin} initialSection="products" />
+          </Suspense>
+        } />
+        <Route path="/craftsmen" element={
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="text-lg">Yuklanmoqda...</div></div>}>
+            <MainPage onSuccessfulLogin={handleSuccessfulLogin} initialSection="craftsmen" />
           </Suspense>
         } />
         <Route path="/admin/*" element={

@@ -37,6 +37,9 @@ const ProductsGrid = ({
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [currentCategory, setCurrentCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const hasSignaledInitialRenderRef = useRef(false);
+  const restoreAttemptsRef = useRef(0);
+  const restoreFoundRef = useRef(false);
 
   const [quickFilter, setQuickFilter] = useState('all');
   // Track previous filters to detect changes
@@ -58,6 +61,8 @@ const ProductsGrid = ({
 
   const selectRef = useRef(null);
 
+  // Sentinel for automatic infinite scroll (IntersectionObserver)
+  const loadMoreRef = useRef(null);
 
   // Category mapping function - frontend to backend
   const getCategoryApiValue = (frontendCategory) => {
@@ -112,6 +117,20 @@ const ProductsGrid = ({
       if (!isLoading && !isFetching) setShowSkeleton(false);
     }
   }, [data, isLoading, isFetching]);
+
+  // Notify parent once when products are first rendered (used to restore scroll)
+  useEffect(() => {
+    if (hasSignaledInitialRenderRef.current) return;
+    const skeletonGone = !showSkeleton && !isInitialLoad;
+    if (skeletonGone) {
+      hasSignaledInitialRenderRef.current = true;
+      if (typeof onInitialProductsLoaded === 'function') {
+        onInitialProductsLoaded();
+      }
+    }
+  }, [showSkeleton, isInitialLoad, onInitialProductsLoaded]);
+
+  
 
   // Background prefetch: defer until after first paint/load to avoid LCP contention
   useEffect(() => {
@@ -172,6 +191,31 @@ const ProductsGrid = ({
       setIsInitialLoad(false);
     }
   }, [apiError]);
+
+  // Automatic infinite scroll using IntersectionObserver
+  useEffect(() => {
+    if (!hasNextPage) return; // nothing to observe
+    const el = loadMoreRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && !isFetchingNextPage) {
+          // Trigger next page fetch when sentinel comes into view
+          fetchNextPage();
+        }
+      },
+      {
+        root: null,
+        rootMargin: '200px', // prefetch a bit earlier for smoother UX
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
 
   // Initial loading state - ensure loading is true on first render
@@ -606,6 +650,9 @@ const ProductsGrid = ({
             onAddToCart={addToCart}
             loading={isLoading && filteredProducts.length === 0}
           />
+
+          {/* Infinite Scroll Sentinel - invisible spacer to trigger next page */}
+          <div ref={loadMoreRef} aria-hidden="true" className="h-1 w-full"></div>
 
           {/* Load More Button */}
           {(hasNextPage || isFetchingNextPage) && (

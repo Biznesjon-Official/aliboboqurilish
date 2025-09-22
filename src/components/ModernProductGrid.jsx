@@ -7,7 +7,7 @@ const ModernProductGrid = memo(({
   loading = false,
   className = ""
 }) => {
-  // Product detail modal removed; we always navigate to route now
+  // Route-only behavior: no modal state
 
   // Image carousel states for product cards
   const [currentImageIndexes, setCurrentImageIndexes] = useState({});
@@ -17,7 +17,7 @@ const ModernProductGrid = memo(({
   const [showAddToCartNotification, setShowAddToCartNotification] = useState(false);
   const [notificationProduct, setNotificationProduct] = useState('');
 
-  // Modal handlers removed
+  // No modal handlers (route-only)
 
   // Handle image change for product cards
   const handleImageChange = useCallback((productId, newIndex) => {
@@ -40,6 +40,8 @@ const ModernProductGrid = memo(({
       setShowAddToCartNotification(false);
     }, 3000);
   }, [onAddToCart]);
+
+  // Route-only: no modal-specific add-to-cart and no detail prefetch here
 
   // Loading skeleton
   if (loading && products.length === 0) {

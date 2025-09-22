@@ -9,67 +9,68 @@ const mongoose = require('mongoose');
 const DEFAULT_QUERY_TIMEOUT = 5000;  // 5 seconds
 const SLOW_QUERY_THRESHOLD = 1000;   // 1 second
 
+// Avoid repeated prototype wrapping across requests (which leads to deep wrapper chains)
+let QUERY_PATCHED = false;
+let currentTimeoutMs = DEFAULT_QUERY_TIMEOUT;
+let originalExecRef = null;
+
 /**
  * Middleware to add timeout to all mongoose queries
  */
 const queryTimeoutMiddleware = (timeout = DEFAULT_QUERY_TIMEOUT) => {
-  return (req, res, next) => {
-    // Store original query methods
-    const originalFind = mongoose.Query.prototype.exec;
-    
-    // Override exec method to add timeout
+  // Update the shared timeout value on each initialization
+  currentTimeoutMs = timeout;
+
+  // One-time global patch to avoid stacking wrappers per request
+  if (!QUERY_PATCHED) {
+    QUERY_PATCHED = true;
+    originalExecRef = mongoose.Query.prototype.exec;
+
     mongoose.Query.prototype.exec = function(callback) {
-      // Add timeout to this query
-      this.maxTimeMS(timeout);
-      
-      // Track query performance
+      // Apply the latest configured timeout
+      try { this.maxTimeMS(currentTimeoutMs); } catch (_) {}
+
       const startTime = Date.now();
       const queryType = this.op;
       const modelName = this.model?.modelName || 'Unknown';
-      
-      // Execute original query
-      const result = originalFind.call(this, callback);
-      
-      // If it's a promise, add performance tracking
+
+      const result = originalExecRef.call(this, callback);
+
       if (result && typeof result.then === 'function') {
         return result
           .then(data => {
             const duration = Date.now() - startTime;
-            
-            // Log slow queries in development
             if (process.env.NODE_ENV === 'development' && duration > SLOW_QUERY_THRESHOLD) {
               console.log(`🐌 Slow query detected: ${modelName}.${queryType} took ${duration}ms`);
             }
-            
             return data;
           })
           .catch(error => {
             const duration = Date.now() - startTime;
-            
-            // Handle timeout errors specifically
-            if (error.name === 'MongoNetworkTimeoutError' || 
+            if (
+              error?.name === 'MongoNetworkTimeoutError' ||
+              (typeof error?.message === 'string' && (
                 error.message.includes('timed out') ||
-                error.message.includes('maxTimeMS')) {
-              console.error(`⏰ Query timeout: ${modelName}.${queryType} exceeded ${timeout}ms`);
-              
-              // Create a more user-friendly error
+                error.message.includes('maxTimeMS')
+              ))
+            ) {
+              console.error(`⏰ Query timeout: ${modelName}.${queryType} exceeded ${currentTimeoutMs}ms`);
               const timeoutError = new Error('Database query timeout - please try again');
               timeoutError.name = 'QueryTimeoutError';
               timeoutError.statusCode = 503;
               timeoutError.retryAfter = 5;
               throw timeoutError;
             }
-            
-            console.error(`❌ Query error: ${modelName}.${queryType} failed after ${duration}ms:`, error.message);
+            console.error(`❌ Query error: ${modelName}.${queryType} failed after ${duration}ms:`, error?.message || error);
             throw error;
           });
       }
-      
+
       return result;
     };
-    
-    next();
-  };
+  }
+
+  return (req, res, next) => next();
 };
 
 /**

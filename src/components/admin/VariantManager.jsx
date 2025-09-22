@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import VariantEditor from './VariantEditor';
+import { PlusFAIcon, LayerGroupFAIcon } from '../FontAwesome';
 
 const VariantManager = ({ variants = [], onVariantsChange }) => {
   const [expandedVariants, setExpandedVariants] = useState(new Set([0])); // First variant expanded by default
@@ -89,7 +90,7 @@ const VariantManager = ({ variants = [], onVariantsChange }) => {
         onClick={addVariant}
         className="w-full py-4 px-6 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-primary-orange hover:text-primary-orange transition-colors flex items-center justify-center space-x-2"
       >
-        <i className="fas fa-plus"></i>
+        <PlusFAIcon />
         <span>Yangi variant turi qo'shish</span>
       </button>
 
@@ -97,7 +98,7 @@ const VariantManager = ({ variants = [], onVariantsChange }) => {
       {variants.length === 0 && (
         <div className="text-center py-8">
           <div className="text-gray-500">
-            <i className="fas fa-layer-group text-3xl mb-3"></i>
+            <LayerGroupFAIcon className="text-3xl mb-3" />
             <h4 className="text-lg font-medium mb-2">Variantlar qo'shilmagan</h4>
             <p className="text-sm text-gray-400 mb-4">
               Mahsulot uchun turli variantlar yarating (rang, o'lcham, xotira va h.k.)

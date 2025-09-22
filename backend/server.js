@@ -454,6 +454,9 @@ if (enableClustering && cluster.isPrimary) {
   app.use('/api/upload', uploadRoutes);
   app.use('/api/recent-activities', recentActivitiesRoutes);
 
+  // Global error handler for DB query timeouts (must be after routes)
+  app.use(handleQueryTimeout);
+
   // Health check endpoint
   app.get('/api/health', (req, res) => {
     res.json({

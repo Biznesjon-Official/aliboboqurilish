@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ImageUploader from './ImageUploader';
+import { TrashFAIcon, ChevronUpFAIcon, ChevronDownFAIcon, ChevronRightFAIcon, TimesFAIcon, PlusFAIcon, InfoCircleFAIcon } from '../FontAwesome';
 
 const VariantEditor = ({ 
   variant, 
@@ -127,7 +128,11 @@ const VariantEditor = ({
               onClick={onToggleExpand}
               className="text-gray-500 hover:text-gray-700 transition-colors"
             >
-              <i className={`fas fa-chevron-${isExpanded ? 'down' : 'right'} text-sm`}></i>
+              {isExpanded ? (
+                <ChevronDownFAIcon className="text-sm" />
+              ) : (
+                <ChevronRightFAIcon className="text-sm" />
+              )}
             </button>
             
             <div className="flex-1">
@@ -157,7 +162,7 @@ const VariantEditor = ({
                 className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
                 title="Variantni o'chirish"
               >
-                <i className="fas fa-trash text-sm"></i>
+                <TrashFAIcon className="text-sm" />
               </button>
             </div>
           </div>
@@ -182,7 +187,7 @@ const VariantEditor = ({
                     className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Yuqoriga ko'chirish"
                   >
-                    <i className="fas fa-chevron-up text-sm"></i>
+                    <ChevronUpFAIcon className="text-sm" />
                   </button>
                   <button
                     type="button"
@@ -191,7 +196,7 @@ const VariantEditor = ({
                     className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Pastga ko'chirish"
                   >
-                    <i className="fas fa-chevron-down text-sm"></i>
+                    <ChevronDownFAIcon className="text-sm" />
                   </button>
                   <button
                     type="button"
@@ -199,7 +204,7 @@ const VariantEditor = ({
                     className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
                     title="Variantni o'chirish"
                   >
-                    <i className="fas fa-times text-sm"></i>
+                    <TimesFAIcon className="text-sm" />
                   </button>
                 </div>
               </div>
@@ -328,7 +333,7 @@ const VariantEditor = ({
             onClick={addOption}
             className="w-full py-3 px-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-primary-orange hover:text-primary-orange transition-colors flex items-center justify-center space-x-2"
           >
-            <i className="fas fa-plus"></i>
+            <PlusFAIcon />
             <span>Yangi variant qo'shish</span>
           </button>
 
@@ -336,7 +341,7 @@ const VariantEditor = ({
           {localVariant.options.length === 0 && (
             <div className="text-center py-6">
               <div className="text-gray-500">
-                <i className="fas fa-info-circle text-2xl mb-2"></i>
+                <InfoCircleFAIcon className="text-2xl mb-2" />
                 <p className="text-sm">
                   Bu variant uchun hali variantlar qo'shilmagan
                 </p>
