@@ -423,6 +423,25 @@ const getProducts = async (req, res) => {
       }
     }
 
+    // Normalize and ensure image fallback (use first images[0] if image is empty)
+    const normalizePath = (p) => {
+      if (!p || typeof p !== 'string') return p;
+      return p.replace(/\\/g, '/');
+    };
+    products = products.map((p) => {
+      let img = p.image;
+      // If main image is missing or default and we have a gallery image, use it
+      if (!img || img === '/assets/default-product.svg') {
+        if (Array.isArray(p.images) && p.images.length > 0 && typeof p.images[0] === 'string' && p.images[0]) {
+          img = p.images[0];
+        }
+      }
+      return {
+        ...p,
+        image: normalizePath(img) || '/assets/default-product.svg'
+      };
+    });
+
     if (debug) {
       console.log('[getProducts] Aggregation result:', {
         returned: products.length,
@@ -556,12 +575,32 @@ const getProductById = async (req, res) => {
       if (p.startsWith('data:image/')) return '/assets/default-product.svg';
       return p.replace(/\\/g, '/');
     };
+
+    // Sanitize variant images as well (options.image, options.images[])
+    const sanitizedVariants = Array.isArray(doc.variants)
+      ? doc.variants.map((variant) => ({
+          ...variant,
+          options: Array.isArray(variant?.options)
+            ? variant.options.map((opt) => ({
+                ...opt,
+                image: sanitizeImage(opt?.image) || '/assets/default-product.svg',
+                images: Array.isArray(opt?.images)
+                  ? opt.images
+                      .map((im) => sanitizeImage(im) || '/assets/default-product.svg')
+                      .filter(Boolean)
+                  : []
+              }))
+            : []
+        }))
+      : [];
+
     const sanitized = {
       ...doc,
       image: sanitizeImage(doc.image) || '/assets/default-product.svg',
       images: Array.isArray(doc.images)
         ? doc.images.map((i) => (typeof i === 'string' && i.startsWith('data:image/')) ? '/assets/default-product.svg' : (typeof i === 'string' ? i.replace(/\\/g, '/') : i))
-        : []
+        : [],
+      variants: sanitizedVariants
     };
 
     // Cache the result

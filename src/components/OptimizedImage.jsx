@@ -7,7 +7,7 @@ const processImageSrc = (baseSrc, fallbackSrc) => {
   // Handle base64 images
   if (baseSrc.startsWith('data:')) {
     // Check if base64 data is complete
-    if (baseSrc.length < 100) {
+    if (baseSrc.length < 50) {
       if (process.env.REACT_APP_DEBUG_MODE === 'true') {
         console.warn('[OptimizedImage] Base64 image data is too short, likely incomplete:', baseSrc.substring(0, 50) + '...');
       }
@@ -25,16 +25,32 @@ const processImageSrc = (baseSrc, fallbackSrc) => {
     
     return baseSrc;
   }
+
+  // Normalize any uploads path from absolute URLs or backslashes
+  const normalizeUploadsPath = (p) => {
+    if (!p || typeof p !== 'string') return p;
+    // Replace Windows backslashes with forward slashes
+    let s = p.replace(/\\/g, '/');
+    // If string contains 'uploads/', extract from that point
+    const idx = s.indexOf('/uploads/') >= 0 ? s.indexOf('/uploads/') : s.indexOf('uploads/');
+    if (idx >= 0) {
+      s = s.substring(idx);
+      if (!s.startsWith('/')) s = '/' + s;
+    }
+    return s;
+  };
+
+  const normalized = normalizeUploadsPath(baseSrc);
   
   // Handle file paths - convert to full backend base URL
-  if (baseSrc.startsWith('/uploads/')) {
+  if (normalized && normalized.startsWith('/uploads/')) {
     const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
     const baseNoApi = API_BASE.replace(/\/api$/, '');
-    return `${baseNoApi}${baseSrc}`;
+    return `${baseNoApi}${normalized}`;
   }
   
   // Handle regular URLs
-  return baseSrc;
+  return normalized;
 };
 
 // Optimized image component with lazy loading, error handling, and performance features

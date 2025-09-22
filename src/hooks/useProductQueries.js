@@ -24,6 +24,11 @@ const fetchProducts = async ({ category = '', search = '', page = 1, limit = 200
     params.append('search', search.trim());
   }
   
+  // For small pages (homepage, initial grids), includeImages to avoid base64 filtering to default
+  if (limit <= 24) {
+    params.append('includeImages', 'true');
+  }
+  
   const fastPath = `${API_BASE}/products/fast?${params.toString()}`;
   const normalPath = `${API_BASE}/products?${params.toString()}`;
 

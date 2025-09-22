@@ -50,15 +50,55 @@ const getCraftsmen = async (req, res) => {
     if (debug) console.log('[getCraftsmen] Query:', query);
     if (debug) console.log('[getCraftsmen] Sort options:', sortOptions);
     
-    // OPTIMIZED craftsmen query - include image fields
-    const craftsmen = await Craftsman.find(query)
-      .select('_id name specialty phone status joinDate rating avatar portfolio') // Include image fields
+    // OPTIMIZED craftsmen query - include only safe fields to avoid huge payloads/cycles
+    const raw = await Craftsman.find(query)
+      .select('_id name specialty phone status joinDate rating avatar portfolio')
       .sort(sortOptions)
       .limit(limit)
       .skip((page - 1) * limit)
-      .lean() // Use lean for faster queries
-      .maxTimeMS(3000) // Even stricter timeout
+      .lean()
+      .maxTimeMS(3000)
       .exec();
+
+    const normalizePath = (p) => {
+      if (!p || typeof p !== 'string') return p;
+      const s = p.replace(/\\/g, '/');
+      if (s.includes('/uploads/')) {
+        const idx = s.indexOf('/uploads/');
+        return s.substring(idx);
+      }
+      return s;
+    };
+
+    // Sanitize and limit portfolio to first image only to prevent large/circular data
+    const craftsmen = raw.map(c => {
+      let avatar = c.avatar;
+      if (typeof avatar === 'string' && avatar.startsWith('data:image/')) {
+        avatar = '/assets/ustalar/placeholder.svg';
+      } else {
+        avatar = normalizePath(avatar) || '/assets/ustalar/placeholder.svg';
+      }
+
+      let firstPortfolio = null;
+      if (Array.isArray(c.portfolio) && c.portfolio.length > 0) {
+        const p0 = c.portfolio[0];
+        if (typeof p0 === 'string') {
+          firstPortfolio = p0.startsWith('data:image/') ? null : normalizePath(p0);
+        }
+      }
+
+      return {
+        _id: c._id,
+        name: c.name,
+        specialty: c.specialty,
+        phone: c.phone,
+        status: c.status,
+        joinDate: c.joinDate,
+        rating: c.rating,
+        avatar,
+        portfolioPreview: firstPortfolio
+      };
+    });
     
     // Skip count for better performance (optional)
     const count = craftsmen.length === limit ? limit * page + 1 : (page - 1) * limit + craftsmen.length;

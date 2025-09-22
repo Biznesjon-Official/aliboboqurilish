@@ -99,8 +99,8 @@ const MainPage = ({ onSuccessfulLogin, initialSection }) => {
   // Memoize URLs to prevent unnecessary re-renders
   const urls = useMemo(() => {
     const productsUrl = USE_FAST
-      ? `${API_BASE}/products/fast?limit=8&page=1`
-      : `${API_BASE}/products?limit=8&page=1&sortBy=updatedAt&sortOrder=desc`;
+      ? `${API_BASE}/products/fast?limit=8&page=1&includeImages=true`
+      : `${API_BASE}/products?limit=8&page=1&sortBy=updatedAt&sortOrder=desc&includeImages=true`;
     return [
       `${API_BASE}/craftsmen?limit=8&status=active`,
       productsUrl
