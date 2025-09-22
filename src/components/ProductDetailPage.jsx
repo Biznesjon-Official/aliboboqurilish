@@ -6,6 +6,7 @@ import MobileBottomNav from './MobileBottomNav';
 import ProductVariantSelector from './ProductVariantSelector';
 import { ProductsGridSkeleton } from './LoadingSkeleton';
 import { CartFAIcon, TimesFAIcon, PlusFAIcon, MinusFAIcon } from './FontAwesome';
+import OptimizedImage from './OptimizedImage';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -182,11 +183,27 @@ const ProductDetailPage = () => {
     if (variantImages && variantImages.length > 0) return variantImages;
     const baseImages = product?.images && product.images.length > 0
       ? product.images
-      : (product?.image ? [product.image] : ['/assets/default-product.png']);
+      : (product?.image ? [product.image] : ['/assets/default-product.svg']);
     return baseImages;
   }, [variantImages, product?.images, product?.image]);
 
-  const currentImage = productImages[selectedImage];
+  // Normalize images to string URLs in case API returns objects
+  const toSrc = React.useCallback((item) => {
+    if (!item) return null;
+    if (typeof item === 'string') return item;
+    if (typeof item === 'object') {
+      const cand = item.url || item.path || item.src || item.image || item.href;
+      return typeof cand === 'string' ? cand : null;
+    }
+    return null;
+  }, []);
+
+  const normalizedImages = React.useMemo(
+    () => (Array.isArray(productImages) ? productImages.map(toSrc).filter(Boolean) : []),
+    [productImages, toSrc]
+  );
+
+  const currentImage = normalizedImages[selectedImage] || '/assets/default-product.svg';
   const effectivePrice = (product?.hasVariants ? variantPrice : product?.price) ?? 0;
   const effectiveOldPriceCandidate = product?.hasVariants
     ? (typeof variantOldPrice === 'number' ? variantOldPrice : product?.oldPrice)
@@ -270,11 +287,13 @@ const ProductDetailPage = () => {
             <div className="space-y-3">
               {/* Main Image */}
               <div className="aspect-square bg-white rounded-lg overflow-hidden relative border border-gray-100">
-                <img
+                <OptimizedImage
                   src={currentImage}
                   alt={product.name}
-                  className="w-full h-full object-contain"
-                  loading="eager"
+                  className="w-full h-full"
+                  objectFit="contain"
+                  priority={true}
+                  placeholder="skeleton"
                 />
                 
                 {/* Discount Badge */}
@@ -310,9 +329,9 @@ const ProductDetailPage = () => {
               </div>
 
               {/* Thumbnail Images */}
-              {productImages.length > 1 && (
+              {normalizedImages.length > 1 && (
                 <div className="flex gap-1 sm:gap-2 overflow-x-auto">
-                  {productImages.map((image, index) => (
+                  {normalizedImages.map((image, index) => (
                     <button
                       key={index}
                       onClick={() => setSelectedImage(index)}
@@ -320,10 +339,12 @@ const ProductDetailPage = () => {
                         selectedImage === index ? 'border-primary-orange' : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <img
+                      <OptimizedImage
                         src={image}
                         alt={`${product.name} ${index + 1}`}
-                        className="w-full h-full object-contain bg-white"
+                        className="w-full h-full"
+                        objectFit="contain"
+                        placeholder="skeleton"
                       />
                     </button>
                   ))}

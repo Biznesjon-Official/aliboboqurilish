@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import OptimizedImage from './OptimizedImage';
 import { getCategoryDisplayName } from '../utils/categoryMapping';
 import ProductVariantSelector from './ProductVariantSelector';
 import { 
@@ -37,7 +38,7 @@ const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
     // Otherwise use base product images
     const baseImages = product?.images && product.images.length > 0
       ? product.images
-      : (product?.image ? [product.image] : ['/assets/default-product.png']);
+      : (product?.image ? [product.image] : ['/assets/default-product.svg']);
     
     return baseImages;
   }, [variantImages, product?.images, product?.image]);
@@ -249,10 +250,12 @@ const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
                           : 'border-gray-200 hover:border-gray-300'
                         }`}
                     >
-                      <img
+                      <OptimizedImage
                         src={image}
                         alt={`${product.name} ${index + 1}`}
-                        className="w-full h-full object-contain bg-white"
+                        className="w-full h-full"
+                        objectFit="contain"
+                        placeholder="skeleton"
                       />
                     </button>
                   ))}
@@ -261,10 +264,13 @@ const ProductDetail = ({ product, isOpen, onClose, onAddToCart }) => {
 
               {/* Main Image */}
               <div className="relative bg-white rounded-lg overflow-hidden aspect-square border border-gray-100">
-                <img
+                <OptimizedImage
                   src={productImages[selectedImageIndex]}
                   alt={product.name}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full"
+                  objectFit="contain"
+                  priority={true}
+                  placeholder="skeleton"
                 />
 
                 {/* Navigation Arrows */}

@@ -569,11 +569,20 @@ const getProductById = async (req, res) => {
       });
     }
 
-    // Sanitize images to avoid returning base64 data
+    // Sanitize image strings
+    // - Keep valid base64 data URLs (detail view can handle them)
+    // - Fallback to default only if base64 looks invalid/too short
+    // - Always normalize backslashes
     const sanitizeImage = (p) => {
       if (!p || typeof p !== 'string') return p;
-      if (p.startsWith('data:image/')) return '/assets/default-product.svg';
-      return p.replace(/\\/g, '/');
+      const s = p.replace(/\\/g, '/');
+      if (s.startsWith('data:image/')) {
+        if (s.length < 50) {
+          return '/assets/default-product.svg';
+        }
+        return s; // keep base64 for detail page
+      }
+      return s;
     };
 
     // Sanitize variant images as well (options.image, options.images[])
@@ -594,14 +603,43 @@ const getProductById = async (req, res) => {
         }))
       : [];
 
-    const sanitized = {
+    let sanitized = {
       ...doc,
       image: sanitizeImage(doc.image) || '/assets/default-product.svg',
       images: Array.isArray(doc.images)
-        ? doc.images.map((i) => (typeof i === 'string' && i.startsWith('data:image/')) ? '/assets/default-product.svg' : (typeof i === 'string' ? i.replace(/\\/g, '/') : i))
+        ? doc.images.map((i) => (typeof i === 'string' ? sanitizeImage(i) : i))
         : [],
       variants: sanitizedVariants
     };
+
+    // Fallbacks for detail view: derive images from variants if needed
+    const DEFAULT_IMG = '/assets/default-product.svg';
+    const isDefault = (s) => !s || s === DEFAULT_IMG;
+
+    if (!Array.isArray(sanitized.images) || sanitized.images.length === 0) {
+      const collected = [];
+      for (const v of (sanitized.variants || [])) {
+        for (const opt of (v.options || [])) {
+          if (opt?.images && Array.isArray(opt.images)) {
+            for (const im of opt.images) {
+              const s = sanitizeImage(im);
+              if (s && !collected.includes(s) && s !== DEFAULT_IMG) collected.push(s);
+            }
+          }
+          if (opt?.image) {
+            const s = sanitizeImage(opt.image);
+            if (s && !collected.includes(s) && s !== DEFAULT_IMG) collected.push(s);
+          }
+        }
+      }
+      if (collected.length > 0) {
+        sanitized.images = collected.slice(0, 10);
+      }
+    }
+
+    if (isDefault(sanitized.image) && Array.isArray(sanitized.images) && sanitized.images.length > 0) {
+      sanitized.image = sanitized.images[0];
+    }
 
     // Cache the result
     setCache(cacheKey, { product: sanitized });

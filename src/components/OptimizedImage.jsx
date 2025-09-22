@@ -14,9 +14,9 @@ const processImageSrc = (baseSrc, fallbackSrc) => {
       return fallbackSrc;
     }
     
-    // Validate base64 format
-    const base64Pattern = /^data:image\/(jpeg|jpg|png|gif|webp);base64,([A-Za-z0-9+/=]+)$/;
-    if (!base64Pattern.test(baseSrc)) {
+    // Validate base64 format (relaxed: allow svg+xml and extra parameters)
+    const looksLikeImageBase64 = baseSrc.startsWith('data:image/') && baseSrc.includes(';base64,');
+    if (!looksLikeImageBase64) {
       if (process.env.REACT_APP_DEBUG_MODE === 'true') {
         console.warn('[OptimizedImage] Invalid base64 image format:', baseSrc.substring(0, 50) + '...');
       }
@@ -75,9 +75,11 @@ const OptimizedImage = ({
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [currentSrc, setCurrentSrc] = useState(() => processImageSrc(src, '/assets/default-product.svg') || '/assets/default-product.svg');
   const [isInView, setIsInView] = useState(priority || loading === 'eager');
   const imgRef = useRef(null);
   const observerRef = useRef(null);
+  const triedFallbackRef = useRef(false);
 
   // Intersection Observer for lazy loading
   useEffect(() => {
@@ -110,22 +112,18 @@ const OptimizedImage = ({
     };
   }, [priority, isInView]);
 
-  // Load image when in view
+  // Load image when in view or when src changes
   useEffect(() => {
-    if (isInView) {
-      const processedSrc = processImageSrc(src, fallbackSrc);
-      const finalSrc = processedSrc || fallbackSrc;
-      setIsLoaded(false);
-      setHasError(false);
-      const img = new Image();
-      img.onload = () => {
-        setIsLoaded(true);
-      };
-      img.onerror = () => {
-        setHasError(true);
-      };
-      img.src = finalSrc;
-    }
+    if (!isInView) return;
+    triedFallbackRef.current = false;
+    const processedSrc = processImageSrc(src, fallbackSrc) || fallbackSrc;
+    setCurrentSrc(processedSrc);
+    setIsLoaded(false);
+    setHasError(false);
+    const img = new Image();
+    img.onload = () => setIsLoaded(true);
+    img.onerror = () => setHasError(true);
+    img.src = processedSrc;
   }, [isInView, src, fallbackSrc]);
 
   // Handle image load
@@ -146,6 +144,7 @@ const OptimizedImage = ({
       console.warn(`[OptimizedImage] Failed to load image: ${src}`);
       console.warn(`[OptimizedImage] Error details:`, {
         originalSrc: src,
+        resolvedSrc: currentSrc,
         fallbackSrc: fallbackSrc,
         error: e.type,
         target: e.target?.src,
@@ -178,9 +177,18 @@ const OptimizedImage = ({
       }
     }
 
+    // Try swapping to fallback once if not already
+    if (currentSrc !== fallbackSrc && !triedFallbackRef.current) {
+      triedFallbackRef.current = true;
+      setHasError(false);
+      setIsLoaded(false);
+      setCurrentSrc(fallbackSrc);
+      return;
+    }
+
     setHasError(true);
     if (onError) onError(e);
-  }, [onError, fallbackSrc, src]);
+  }, [onError, fallbackSrc, src, currentSrc]);
 
   // Generate responsive image URLs (if using a CDN or image service)
   const generateResponsiveUrls = useCallback((baseSrc) => {
@@ -260,7 +268,7 @@ const OptimizedImage = ({
     transition: 'opacity 0.3s ease-in-out'
   };
 
-  const finalSrc = processImageSrc(src, fallbackSrc) || fallbackSrc;
+  const finalSrc = currentSrc || fallbackSrc;
 
   return (
     <div 
