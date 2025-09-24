@@ -101,15 +101,18 @@ const MainPage = ({ onSuccessfulLogin, initialSection }) => {
     const productsUrl = USE_FAST
       ? `${API_BASE}/products/fast?limit=8&page=1&includeImages=true`
       : `${API_BASE}/products?limit=8&page=1&sortBy=updatedAt&sortOrder=desc&includeImages=true`;
+    const craftsmenUrlBase = `${API_BASE}/craftsmen?limit=8&status=active`;
+    const isProdHost = /aliboboqurilish\.uz/i.test(API_BASE || '');
+    const craftsmenUrl = isProdHost ? `${craftsmenUrlBase}&minimal=1` : craftsmenUrlBase;
     return [
-      `${API_BASE}/craftsmen?limit=8&status=active`,
+      craftsmenUrl,
       productsUrl
     ];
   }, [API_BASE, USE_FAST]);
 
   const { data: parallelData, loading: parallelLoading, errors } = useParallelFetch(urls, { 
     fetchOptions: { 
-      cache: 'force-cache',
+      cache: 'no-cache',
       priority: 'high'
     },
     enabled: true,

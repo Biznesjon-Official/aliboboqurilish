@@ -14,6 +14,7 @@ const getCraftsmen = async (req, res) => {
     const status = req.query.status || '';
     const sortBy = req.query.sortBy || 'joinDate';
     const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
+    const minimal = req.query.minimal === '1' || req.query.minimal === 'true';
     
     // Log the parsed parameters for debugging
     if (debug) {
@@ -62,43 +63,125 @@ const getCraftsmen = async (req, res) => {
 
     const normalizePath = (p) => {
       if (!p || typeof p !== 'string') return p;
-      const s = p.replace(/\\/g, '/');
-      if (s.includes('/uploads/')) {
-        const idx = s.indexOf('/uploads/');
-        return s.substring(idx);
+      let s = p.replace(/\\/g, '/');
+      const idxWithSlash = s.indexOf('/uploads/');
+      const idxNoSlash = s.indexOf('uploads/');
+      if (idxWithSlash >= 0) {
+        s = s.substring(idxWithSlash);
+        return s;
+      }
+      if (idxNoSlash >= 0) {
+        s = '/' + s.substring(idxNoSlash);
+        return s;
       }
       return s;
     };
+    const toStringSafe = (v) => (typeof v === 'string' ? v : '');
 
     // Sanitize and limit portfolio to first image only to prevent large/circular data
-    const craftsmen = raw.map(c => {
-      let avatar = c.avatar;
-      if (typeof avatar === 'string' && avatar.startsWith('data:image/')) {
-        avatar = '/assets/ustalar/placeholder.svg';
-      } else {
-        avatar = normalizePath(avatar) || '/assets/ustalar/placeholder.svg';
-      }
+    let craftsmen;
+    try {
+      craftsmen = raw.map((c) => {
+        try {
+          // Minimal path: return essential fields + SAFE preview images (sanitized strings only)
+          if (minimal) {
+            const DEFAULT_AVATAR = '/assets/ustalar/placeholder.svg';
+            let avatar = toStringSafe(c.avatar);
+            if (avatar) {
+              if (avatar.startsWith('data:image/')) {
+                // Keep valid base64 images
+                avatar = avatar;
+              } else {
+                avatar = normalizePath(avatar) || DEFAULT_AVATAR;
+              }
+            } else {
+              avatar = DEFAULT_AVATAR;
+            }
 
-      let firstPortfolio = null;
-      if (Array.isArray(c.portfolio) && c.portfolio.length > 0) {
-        const p0 = c.portfolio[0];
-        if (typeof p0 === 'string') {
-          firstPortfolio = p0.startsWith('data:image/') ? null : normalizePath(p0);
+            let firstPortfolio = null;
+            if (Array.isArray(c.portfolio) && c.portfolio.length > 0) {
+              const s = toStringSafe(c.portfolio[0]);
+              if (s) {
+                firstPortfolio = s.startsWith('data:image/') ? s : normalizePath(s);
+              }
+            }
+
+            return {
+              _id: c._id,
+              name: toStringSafe(c.name),
+              specialty: toStringSafe(c.specialty),
+              phone: toStringSafe(c.phone),
+              status: toStringSafe(c.status) || 'active',
+              joinDate: c.joinDate || null,
+              rating: typeof c.rating === 'number' ? c.rating : 0,
+              avatar,
+              portfolioPreview: firstPortfolio
+            };
+          }
+
+          // Full path with image sanitization
+          const DEFAULT_AVATAR = '/assets/ustalar/placeholder.svg';
+
+          let avatar = toStringSafe(c.avatar);
+          if (avatar) {
+            if (avatar.startsWith('data:image/')) {
+              // Keep base64
+              avatar = avatar;
+            } else {
+              avatar = normalizePath(avatar) || DEFAULT_AVATAR;
+            }
+          } else {
+            avatar = DEFAULT_AVATAR;
+          }
+
+          let firstPortfolio = null;
+          if (Array.isArray(c.portfolio) && c.portfolio.length > 0) {
+            const p0 = c.portfolio[0];
+            const s = toStringSafe(p0);
+            if (s) {
+              firstPortfolio = s.startsWith('data:image/') ? s : normalizePath(s);
+            }
+          }
+
+          return {
+            _id: c._id,
+            name: toStringSafe(c.name),
+            specialty: toStringSafe(c.specialty),
+            phone: toStringSafe(c.phone),
+            status: toStringSafe(c.status) || 'active',
+            joinDate: c.joinDate || null,
+            rating: typeof c.rating === 'number' ? c.rating : 0,
+            avatar,
+            portfolioPreview: firstPortfolio
+          };
+        } catch (_) {
+          // As a last resort, return minimal fields to avoid failing the whole list
+          const s = (v) => (typeof v === 'string' ? v : '');
+          return {
+            _id: c && c._id,
+            name: s(c && c.name),
+            specialty: s(c && c.specialty),
+            phone: s(c && c.phone),
+            status: s(c && c.status) || 'active',
+            joinDate: (c && c.joinDate) || null,
+            rating: c && typeof c.rating === 'number' ? c.rating : 0
+          };
         }
+      });
+    } catch (e) {
+      if (process.env.DEBUG === 'true') {
+        console.warn('[getCraftsmen] Sanitization failed, falling back to minimal. Reason:', e?.message || e);
       }
-
-      return {
+      craftsmen = raw.map((c) => ({
         _id: c._id,
-        name: c.name,
-        specialty: c.specialty,
-        phone: c.phone,
-        status: c.status,
-        joinDate: c.joinDate,
-        rating: c.rating,
-        avatar,
-        portfolioPreview: firstPortfolio
-      };
-    });
+        name: typeof c.name === 'string' ? c.name : '',
+        specialty: typeof c.specialty === 'string' ? c.specialty : '',
+        phone: typeof c.phone === 'string' ? c.phone : '',
+        status: typeof c.status === 'string' ? c.status : 'active',
+        joinDate: c.joinDate || null,
+        rating: typeof c.rating === 'number' ? c.rating : 0
+      }));
+    }
     
     // Skip count for better performance (optional)
     const count = craftsmen.length === limit ? limit * page + 1 : (page - 1) * limit + craftsmen.length;

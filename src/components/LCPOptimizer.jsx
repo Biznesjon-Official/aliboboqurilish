@@ -5,8 +5,7 @@ const LCPOptimizer = () => {
   useEffect(() => {
     // Preload critical images that are likely to be LCP elements
     const criticalImages = [
-      '/alibobo.png',
-      '/logo.png', 
+      '/alibobo-logo.png',
       '/assets/default-product.svg'
     ];
 
@@ -28,7 +27,7 @@ const LCPOptimizer = () => {
       USE_FAST
         ? `${API_BASE}/products/fast?limit=8&page=1`
         : `${API_BASE}/products?limit=8&page=1&sortBy=updatedAt&sortOrder=desc`,
-      `${API_BASE}/craftsmen?limit=8&status=active`
+      `${API_BASE}/craftsmen?limit=8&status=active&minimal=1`
     ];
 
     // Prefetch critical API data

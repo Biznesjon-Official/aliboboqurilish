@@ -76,9 +76,9 @@ const AdaptiveLogo = ({
     };
   }, []);
 
-  // Choose logo based on background
-  const logoSrc = isDarkBackground ? '/logo.png' : '/white-mode-logo.png';
-  const textLogoSrc = isDarkBackground ? '/alibobo.png' : '/alibobo-white.png';
+  // Use single unified logo for both themes
+  const logoSrc = '/alibobo-logo.png';
+  const textLogoSrc = '/alibobo-logo.png';
 
   return (
     <div
@@ -97,8 +97,8 @@ const AdaptiveLogo = ({
         fetchpriority="high"
         className={`${currentSize.logoSize} object-cover rounded-lg transition-all duration-300`}
         onError={(e) => {
-          // Fallback to default logo if adaptive logo fails
-          e.target.src = '/logo.png';
+          // Fallback to unified logo
+          e.target.src = '/alibobo-logo.png';
         }}
       />
       
@@ -111,8 +111,8 @@ const AdaptiveLogo = ({
         fetchpriority="high"
         className={`${currentSize.textSize} object-cover transition-all duration-300`}
         onError={(e) => {
-          // Fallback to default text logo if adaptive logo fails
-          e.target.src = '/alibobo.png';
+          // Fallback to unified logo
+          e.target.src = '/alibobo-logo.png';
         }}
       />
     </div>

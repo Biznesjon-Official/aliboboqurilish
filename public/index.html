@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <link rel="icon" href="%PUBLIC_URL%/alibobo-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
     <link rel="canonical" href="https://aliboboqurilish.uz/" />
@@ -10,18 +10,22 @@
       name="description"
       content="Alibobo - Professional Ustalar va Qurilish Materiallar"
     />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo.png" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/alibobo-logo.png" />
     <!-- Favicon links: ensure search engines can find a valid icon -->
-    <link rel="icon" href="%PUBLIC_URL%/logo.png" sizes="any" />
+    <link rel="icon" href="%PUBLIC_URL%/alibobo-logo.png" sizes="any" />
  
-    <link rel="icon" type="image/png" sizes="48x48" href="%PUBLIC_URL%/logo-48.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="%PUBLIC_URL%/logo.png" />
-    <link rel="shortcut icon" href="%PUBLIC_URL%/logo-32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="%PUBLIC_URL%/alibobo-logo.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="%PUBLIC_URL%/alibobo-logo.png" />
+    <link rel="shortcut icon" href="%PUBLIC_URL%/alibobo-logo.png" />
     <!--
       manifest.json provides metadata used when your web app is installed on a
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!-- Social sharing images -->
+    <meta property="og:image" content="%PUBLIC_URL%/alibobo-logo.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta name="twitter:image" content="%PUBLIC_URL%/alibobo-logo.png" />
     <!--
       Notice the use of %PUBLIC_URL% in the tags above.
       It will be replaced with the URL of the `public` folder during the build.
@@ -37,14 +41,21 @@
     <link rel="preconnect" href="http://localhost:5000">
     <link rel="dns-prefetch" href="http://localhost:5000">
     <!-- Preload critical images for LCP optimization -->
-    <link rel="preload" as="image" href="%PUBLIC_URL%/alibobo.png" imagesizes="(max-width: 1024px) 96px, 144px" fetchpriority="high" />
-    <link rel="preload" as="image" href="%PUBLIC_URL%/logo-48.png" imagesizes="48px" media="(min-width: 1024px)" fetchpriority="high" />
-    <link rel="preload" as="image" href="%PUBLIC_URL%/logo-32.png" imagesizes="32px" media="(max-width: 1023.98px)" fetchpriority="high" />
+    <link rel="preload" as="image" href="%PUBLIC_URL%/alibobo-logo.png" fetchpriority="high" />
     
     <!-- Preconnect to image domains -->
     <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
     <link rel="dns-prefetch" href="https://images.unsplash.com">
     <title>Alibobo - Professional Ustalar va Qurilish Materiallar</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "url": "https://aliboboqurilish.uz/",
+        "name": "Alibobo",
+        "logo": "%PUBLIC_URL%/alibobo-logo.png"
+      }
+    </script>
     
     <!-- Critical CSS inline for LCP -->
     <style>

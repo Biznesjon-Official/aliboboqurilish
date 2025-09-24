@@ -77,6 +77,7 @@ const OptimizedImage = ({
   const [hasError, setHasError] = useState(false);
   const [currentSrc, setCurrentSrc] = useState(() => processImageSrc(src, '/assets/default-product.svg') || '/assets/default-product.svg');
   const [isInView, setIsInView] = useState(priority || loading === 'eager');
+  const containerRef = useRef(null);
   const imgRef = useRef(null);
   const observerRef = useRef(null);
   const triedFallbackRef = useRef(false);
@@ -100,8 +101,8 @@ const OptimizedImage = ({
       }
     );
 
-    if (imgRef.current) {
-      observer.observe(imgRef.current);
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
       observerRef.current = observer;
     }
 
@@ -272,7 +273,7 @@ const OptimizedImage = ({
 
   return (
     <div 
-      ref={imgRef}
+      ref={containerRef}
       className={`relative ${className}`}
       style={containerStyles}
       {...props}

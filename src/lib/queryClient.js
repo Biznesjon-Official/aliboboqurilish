@@ -213,7 +213,10 @@ export const prefetchQueries = {
       queryKey: queryKeys.craftsmen.lists(),
       queryFn: async ({ signal }) => {
         try {
-          const response = await fetch(`/api/craftsmen?limit=20&page=1`, { signal });
+          const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+          const isProdHost = /aliboboqurilish\.uz/i.test(base || '');
+          const url = `${base}/craftsmen?limit=20&page=1${isProdHost ? '&minimal=1' : ''}`;
+          const response = await fetch(url, { signal });
           if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
           return await response.json();
         } catch (error) {

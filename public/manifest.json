@@ -4,13 +4,13 @@
   "description": "O'zbekistondagi eng yaxshi professional ustalar va sifatli qurilish materiallar platformasi",
   "icons": [
     {
-      "src": "logo-32.png",
+      "src": "alibobo-logo.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
-      "src": "logo.png",
+      "src": "alibobo-logo.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any maskable"

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import OptimizedImage from './OptimizedImage';
 import { TimesFAIcon, PhoneFAIcon } from './FontAwesome';
 import { CraftsmenGridSkeleton } from './LoadingSkeleton';
 
@@ -32,22 +33,21 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
     return price.toLocaleString() + " so'm/kun";
   };
 
-  // Get portfolio images for craftsman - include main image and portfolio
+  // Build image list for a craftsman based on sanitized backend fields
   const getCraftsmanImages = (craftsman) => {
-    const images = [];
-    
-    // Add main image if exists
-    if (craftsman.image) {
-      images.push(craftsman.image);
+    const out = [];
+    // Prefer sanitized fields from API
+    if (craftsman.avatar) out.push(craftsman.avatar);
+    if (craftsman.portfolioPreview) out.push(craftsman.portfolioPreview);
+    // Backward compatibility: include any provided portfolio array
+    if (Array.isArray(craftsman.portfolio)) {
+      for (const p of craftsman.portfolio) {
+        if (typeof p === 'string') out.push(p);
+      }
     }
-    
-    // Add portfolio images if exist
-    if (craftsman.portfolio && craftsman.portfolio.length > 0) {
-      images.push(...craftsman.portfolio);
-    }
-    
-    // Return images array or use local placeholder
-    return images.length > 0 ? images : ['/assets/ustalar/placeholder.svg'];
+    // Legacy: if an 'image' field exists, include it as last resort
+    if (craftsman.image) out.push(craftsman.image);
+    return out.length > 0 ? out : ['/assets/ustalar/placeholder.svg'];
   };
 
   // Show craftsman details modal
@@ -208,15 +208,18 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
         onMouseLeave={handleMouseLeave}
       >
         {images.map((image, index) => (
-          <img
-            key={index}
-            src={image}
-            alt="Ish namunasi"
-            className={`absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-300 ${
-              index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-            }`}
-            style={{ opacity: index === currentImageIndex ? 1 : 0 }}
-          />
+          <div key={index} className={`absolute top-0 left-0 w-full h-full transition-opacity duration-300 ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'}`} style={{ opacity: index === currentImageIndex ? 1 : 0 }}>
+            <OptimizedImage
+              src={image}
+              alt="Ish namunasi"
+              className="w-full h-full"
+              objectFit="cover"
+              placeholder="skeleton"
+              fallbackSrc="/assets/ustalar/placeholder.svg"
+              priority={true}
+              loading="eager"
+            />
+          </div>
         ))}
       </div>
     );
@@ -406,20 +409,14 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
                         const images = getCraftsmanImages(selectedCraftsman);
                         return images.slice(modalSlideIndex, modalSlideIndex + (window.innerWidth < 640 ? 2 : 3)).map((img, index) => (
                           <div key={index} className="aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer" onClick={() => openLightbox(images, modalSlideIndex + index)}>
-                            <img
+                            <OptimizedImage
                               src={img}
                               alt={`Ish namunasi ${modalSlideIndex + index + 1}`}
-                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextElementSibling.style.display = 'flex';
-                              }}
+                              className="w-full h-full"
+                              objectFit="cover"
+                              placeholder="skeleton"
+                              fallbackSrc="/assets/ustalar/placeholder.svg"
                             />
-                            <div className="hidden w-full h-full items-center justify-center bg-gray-200">
-                              <svg className="w-4 h-4 sm:w-6 sm:h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd"/>
-                              </svg>
-                            </div>
                           </div>
                         ));
                       })()}

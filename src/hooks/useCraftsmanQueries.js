@@ -18,6 +18,11 @@ const fetchCraftsmen = async ({ page = 1, limit = 10, search = '', specialty = '
     sortOrder
   });
 
+  // TEMP: request minimal payload when hitting production host to avoid backend image serialization issues
+  // Detect production host by API_BASE domain rather than NODE_ENV
+  const isProdHost = /aliboboqurilish\.uz/i.test(API_BASE || '');
+  if (isProdHost && !params.has('minimal')) params.append('minimal', '1');
+
   const url = `${API_BASE}/craftsmen?${params.toString()}`;
   console.log(`📡 Fetching craftsmen from: ${url}`);
   

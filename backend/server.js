@@ -132,9 +132,29 @@ if (enableClustering && cluster.isPrimary) {
 
   console.log('🌐 CORS enabled on backend for origins:', allowedOrigins);
 
-  // Security middleware (simplified in development for faster startup)
+  // Security middleware (CSP adjusted to allow websockets)
   if (process.env.NODE_ENV === 'production') {
-    app.use(helmet());
+    app.use(helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          defaultSrc: ["'self'", 'http:', 'https:', 'data:', 'blob:', "'unsafe-inline'", "'unsafe-eval'"],
+          connectSrc: [
+            "'self'",
+            'http:', 'https:', 'ws:', 'wss:',
+            'https://aliboboqurilish.uz', 'wss://aliboboqurilish.uz',
+            'https://www.aliboboqurilish.uz', 'wss://www.aliboboqurilish.uz'
+          ],
+          imgSrc: ["'self'", 'data:', 'blob:', 'http:', 'https:'],
+          scriptSrc: ["'self'", 'http:', 'https:', "'unsafe-inline'", "'unsafe-eval'"],
+          styleSrc: ["'self'", 'http:', 'https:', "'unsafe-inline'"],
+          fontSrc: ["'self'", 'http:', 'https:', 'data:'],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'self'"]
+        }
+      },
+      crossOriginEmbedderPolicy: false
+    }));
   } else {
     // Minimal helmet config for development
     app.use(helmet({
