@@ -195,7 +195,7 @@ function App() {
         // Ctrl+Shift+D to toggle diagnostics
         if (e.ctrlKey && e.shiftKey && e.key === 'D') {
           e.preventDefault();
-          setShowDiagnostics(prev => !prev);
+          // setShowDiagnostics(prev => !prev); // Removed - diagnostics panel not implemented
           if (DEBUG) console.log('🔧 Diagnostic panel toggled');
         }
       };

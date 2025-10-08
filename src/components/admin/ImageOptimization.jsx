@@ -23,6 +23,7 @@ const ImageOptimization = () => {
 
   // Base64 rasmlarni faylga konvertatsiya qilish
   const convertBase64ToFiles = async () => {
+    // eslint-disable-next-line no-restricted-globals
     if (!confirm('Base64 rasmlarni faylga konvertatsiya qilishni xohlaysizmi? Bu jarayon bir necha daqiqa davom etishi mumkin.')) {
       return;
     }
@@ -51,6 +52,7 @@ const ImageOptimization = () => {
 
   // Tashqi linklarni almashtirish
   const replaceExternalLinks = async () => {
+    // eslint-disable-next-line no-restricted-globals
     if (!confirm('Tashqi domen rasmlarini standart rasm bilan almashtirishni xohlaysizmi?')) {
       return;
     }

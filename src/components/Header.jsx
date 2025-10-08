@@ -572,14 +572,14 @@ const Header = ({
         onCheckout={onCheckout}
       />
 
-      {/* Catalog Modal */}
-      {isCategoryModalOpen && (
+      {/* Catalog Modal - Commented out as Catalog component is not defined */}
+      {/* {isCategoryModalOpen && (
         <Catalog
           onCategorySelect={onCategorySelect}
           onClose={() => setIsCategoryModalOpen(false)}
           selectedCategory={selectedCategory}
         />
-      )}
+      )} */}
     </>
   );
 };

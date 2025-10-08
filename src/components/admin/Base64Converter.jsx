@@ -29,6 +29,7 @@ const Base64Converter = () => {
 
   // Barcha base64 rasmlarni konvertatsiya qilish
   const handleConvertAll = async () => {
+    // eslint-disable-next-line no-restricted-globals
     if (!confirm('Barcha base64 rasmlarni URL formatiga o\'tkazishni xohlaysizmi? Bu jarayon bir necha daqiqa davom etishi mumkin.')) {
       return;
     }
