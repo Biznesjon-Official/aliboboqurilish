@@ -3,7 +3,7 @@ const Product = require('../models/Product');
 
 // Simple in-memory cache (in production, you might want to use Redis)
 const fastCache = new Map();
-const FAST_CACHE_TTL = 30 * 1000; // 30 seconds for fresh data
+const FAST_CACHE_TTL = 300 * 1000; // 5 minutes for much faster repeat loads
 const MAX_CACHE_SIZE = 200; // Increased cache size
 
 // Helper function to clean expired cache entries
@@ -52,20 +52,39 @@ const getProductsFast = async (req, res) => {
     
     if (debug) console.log('[getProductsFast] Request query:', req.query);
     
-    // Optimized pagination
-    const limit = Math.min(parseInt(req.query.limit) || 12, 24); // Smaller initial load for faster response
+    // Pagination for page-based navigation
+    const limit = Math.min(parseInt(req.query.limit) || 100, 100); // 100 products per page
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const skip = (page - 1) * limit;
     
     // ULTRA-OPTIMIZED QUERY - Use simple, indexed fields only
     let query = {
-      isDeleted: false,        // Equality filter to use composite index
-      status: 'active'         // Use indexed field directly
+      $and: [
+        { $or: [{ status: 'active' }, { status: { $exists: false } }] },
+        { $or: [{ isDeleted: false }, { isDeleted: { $exists: false } }] }
+      ]
     };
     
     // Category filter (indexed)
     if (req.query.category && req.query.category.trim() !== '') {
       query.category = req.query.category.trim();
+    }
+    
+    // Fast search filter - use text index if available, fallback to regex
+    if (req.query.search && req.query.search.trim() !== '') {
+      const searchTerm = req.query.search.trim();
+      try {
+        // Try text search first (fastest if text index exists)
+        query.$text = { $search: searchTerm };
+      } catch (error) {
+        // Fallback to regex search if no text index
+        const searchRegex = new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        query.$or = [
+          { name: searchRegex },
+          { category: searchRegex },
+          { description: searchRegex }
+        ];
+      }
     }
     
     // Optimized sort - use indexed fields
@@ -132,29 +151,24 @@ const getProductsFast = async (req, res) => {
       return norm;
     };
 
-    // OPTIMIZED query - include only essential image fields and prefer index when applicable
-    const baseQuery = Product.find(query)
-      .select('_id name price oldPrice category stock unit badge rating isNew isPopular image images.0 updatedAt createdAt')
-      .sort(sort)
-      .skip(skip)
-      .limit(limit)
-      .lean()
-      .maxTimeMS(3000); // Even stricter timeout
-
-    // Execute with safe hint usage and robust fallback
+    // Execute optimized aggregation pipeline
     let products;
     try {
-      let exec = baseQuery;
-      // Only apply hint when explicitly allowed to avoid 500s if index is missing on the cluster
-      if (sort && Object.prototype.hasOwnProperty.call(sort, 'updatedAt') && String(process.env.ALLOW_FAST_HINTS).toLowerCase() === 'true') {
-        exec = exec.hint({ status: 1, isDeleted: 1, updatedAt: -1 });
-      }
-      products = await exec;
+      const aggregateQuery = Product.aggregate(pipeline);
+      aggregateQuery.option({ maxTimeMS: 5000 }); // 5 second timeout
+      products = await aggregateQuery;
     } catch (err) {
       const msg = (err && err.message) ? err.message.toLowerCase() : '';
-      // If hint/index related failure occurred, rerun without hint as a fallback
-      if (msg.includes('hint') || msg.includes('failed') || msg.includes('index')) {
-        products = await baseQuery;
+      // If aggregation fails, try simple find as fallback
+      console.log('[getProductsFast] Aggregation failed, using simple find fallback');
+      if (msg.includes('timeout') || msg.includes('failed') || msg.includes('aggregation')) {
+        products = await Product.find(query)
+          .select('_id name price oldPrice category stock unit badge image updatedAt')
+          .sort(sort)
+          .skip(skip)
+          .limit(limit)
+          .lean()
+          .maxTimeMS(3000); // 3 second timeout for fallback
       } else {
         throw err;
       }
@@ -187,6 +201,9 @@ const getProductsFast = async (req, res) => {
         isNew: product.isNew || false,
         isPopular: product.isPopular || false,
         image: imageToUse,
+        images: Array.isArray(product.images) && product.images.length > 0
+          ? product.images.slice(0, 3).map(toMedium)
+          : [],
         updatedAt: product.updatedAt,
         createdAt: product.createdAt
       };
@@ -228,7 +245,7 @@ const getProductsFast = async (req, res) => {
 
     // Attempt a safe fallback using a very simple query (no hints, slightly higher timeout)
     try {
-      const limit = Math.min(parseInt(req.query.limit) || 12, 24);
+      const limit = Math.min(parseInt(req.query.limit) || 100, 100);
       const page = Math.max(1, parseInt(req.query.page) || 1);
       const skip = (page - 1) * limit;
 
@@ -237,12 +254,23 @@ const getProductsFast = async (req, res) => {
         status: 'active',
         ...(req.query.category && req.query.category.trim() !== '' ? { category: req.query.category.trim() } : {})
       };
+      
+      // Add search to fallback query
+      if (req.query.search && req.query.search.trim() !== '') {
+        const searchTerm = req.query.search.trim();
+        const searchRegex = new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        query.$or = [
+          { name: searchRegex },
+          { category: searchRegex },
+          { description: searchRegex }
+        ];
+      }
       const sort = req.query.sortBy === 'price'
         ? { price: req.query.sortOrder === 'asc' ? 1 : -1, updatedAt: -1 }
         : { updatedAt: -1 };
 
       const products = await Product.find(query)
-        .select('_id name price oldPrice category stock unit badge rating isNew isPopular image images.0 updatedAt createdAt')
+        .select('_id name price oldPrice category stock unit badge rating isNew isPopular image images updatedAt createdAt')
         .sort(sort)
         .skip(skip)
         .limit(limit)
@@ -270,6 +298,9 @@ const getProductsFast = async (req, res) => {
         image: (product.image && product.image !== '/assets/default-product.svg')
           ? toMedium(product.image)
           : (product.images && product.images[0]) ? toMedium(product.images[0]) : '/assets/default-product.svg',
+        images: Array.isArray(product.images) && product.images.length > 0
+          ? product.images.slice(0, 3).map(toMedium)
+          : [],
         updatedAt: product.updatedAt,
         createdAt: product.createdAt
       }));

@@ -3,7 +3,7 @@ import { BarsFAIcon, SearchFAIcon, PlusFAIcon, SpinnerFAIcon, TimesFAIcon, UserF
 import { useNavigate, useLocation } from 'react-router-dom';
 import AdminNotificationBell from './AdminNotificationBell';
 import AdminNotificationModals from './AdminNotificationModals';
-import LoadingSpinner from './LoadingSpinner';
+// Removed LoadingSpinner - using inline spinner
 import LoadingCard from './LoadingCard';
 import useNotifications from '../hooks/useNotifications';
 import useRealNotifications from '../hooks/useRealNotifications';

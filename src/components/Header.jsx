@@ -1,10 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '../hooks/useDebounce';
-import { useFuzzySearch } from '../hooks/useFuzzySearch';
 import CartSidebar from './CartSidebar';
-import CategorySection from './CategorySection';
-import Catalog from './Catalog';
 import { 
   SearchFAIcon, 
   CartFAIcon, 
@@ -14,7 +11,6 @@ import {
   ExclamationTriangleFAIcon,
   GraduationCapFAIcon 
 } from './FontAwesome';
-import { getFuzzyMatches } from '../hooks/useFuzzySearch';
 
 const Header = ({
   onSuccessfulLogin,
@@ -43,9 +39,10 @@ const Header = ({
   const [suggestions, setSuggestions] = useState([]);
   const [debouncedQuery] = useDebounce(searchQuery, 250);
 
-  // Fetch and filter close-match suggestions based on debounced input
+  // Suggestions only (no real-time search)
   useEffect(() => {
     const q = (debouncedQuery || '').trim();
+    
     if (q.length < 2) {
       setSuggestions([]);
       return;
@@ -59,18 +56,17 @@ const Header = ({
         if (!res.ok) throw new Error('Failed to load suggestions');
         const data = await res.json();
         const products = Array.isArray(data?.products) ? data.products : [];
-        // Use fuzzy matcher to get only close matches
-        const matches = getFuzzyMatches(products, q, 10);
+        // Simple name matching
         const seen = new Set();
         const names = [];
-        for (const m of matches) {
-          const name = m?.product?.name || '';
-          if (name && !seen.has(name)) {
+        for (const product of products) {
+          const name = product?.name;
+          if (name && name.toLowerCase().includes(q) && !seen.has(name)) {
             seen.add(name);
             names.push(name);
           }
         }
-        setSuggestions(names);
+        setSuggestions(names.slice(0, 8));
       } catch (err) {
         if (err.name !== 'AbortError') {
           console.warn('Suggestion fetch error:', err.message);
@@ -169,9 +165,9 @@ const Header = ({
   return (
     <>
       {/* Desktop Header */}
-      <header className="bg-primary-dark shadow-lg z-50 hidden lg:block">
+      <header className="bg-primary-dark shadow-lg z-50 hidden lg:block" style={{ minHeight: '80px' }}>
         <div className="container mx-auto px-6">
-          <div className="flex items-center py-2 gap-8">
+          <div className="flex items-center py-2 gap-8" style={{ minHeight: '76px' }}>
             {/* Left side - Logo */}
             <div className="flex items-center min-w-fit">
               {/* Logo */}
@@ -179,7 +175,7 @@ const Header = ({
                 className="flex items-center space-x-3 cursor-pointer select-none"
                 onDoubleClick={handleLogoInteraction}
                 onTouchEnd={handleLogoInteraction}
-                title="Admin panel uchun 2 marta bosing"
+                title=""
                 style={{ userSelect: 'none' }}
               >
                 <img
@@ -188,9 +184,9 @@ const Header = ({
                   loading="eager"
                   decoding="sync"
                   fetchpriority="high"
-                  width="48"
-                  height="48"
-                  className="w-12 h-12 object-cover rounded-lg"
+                  width="128"
+                  height="128"
+                  className="w-16 h-16 object-cover rounded-lg"
                 />
                 <img
                   src="/alibobo.png"
@@ -198,9 +194,9 @@ const Header = ({
                   loading="eager"
                   decoding="sync"
                   fetchpriority="high"
-                  width="144"
-                  height="56"
-                  className="h-14 w-36 object-cover"
+                  width="256"
+                  height="64"
+                  className="h-16 w-32 object-cover"
                 />
               </div>
             </div>
@@ -277,9 +273,9 @@ const Header = ({
       </header>
 
       {/* Mobile Header - Logo and Search - Hide when cart is open */}
-      <header className={`bg-primary-dark shadow-lg lg:hidden transition-transform duration-300 ${isCartOpen ? '-translate-y-full' : 'translate-y-0'}`}>
+      <header className={`bg-primary-dark shadow-lg lg:hidden transition-transform duration-300 ${isCartOpen ? '-translate-y-full' : 'translate-y-0'}`} style={{ minHeight: '64px' }}>
         <div className="container mx-auto px-4 py-2">
-          <div className="flex items-center  justify-between gap-3">
+          <div className="flex items-center justify-between gap-3" style={{ minHeight: '48px' }}>
             {/* Mobile Logo */}
             <div
               className="flex items-center space-x-2 cursor-pointer select-none min-w-fit"
@@ -294,9 +290,9 @@ const Header = ({
                 loading="eager"
                 decoding="sync"
                 fetchpriority="high"
-                width="32"
-                height="32"
-                className="w-8 h-8 object-cover rounded-lg"
+                width="48"
+                height="48"
+                className="w-12 h-12 object-cover rounded-lg"
               />
               <img
                 src="/alibobo.png"
@@ -304,9 +300,9 @@ const Header = ({
                 loading="eager"
                 decoding="sync"
                 fetchpriority="high"
-                width="96"
-                height="32"
-                className="h-8 w-24 object-cover"
+                width="192"
+                height="48"
+                className="h-12 w-32 object-cover"
               />
             </div>
 

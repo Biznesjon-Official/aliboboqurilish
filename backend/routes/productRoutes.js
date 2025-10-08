@@ -56,7 +56,10 @@ router.get('/categories/list', getCategories);
 router.get('/cache/clear', clearCache);
 
 // POST /api/products/convert-base64-images - Convert base64 images to files (admin only)
-router.post('/convert-base64-images', convertBase64Images);
+// Disabled by default; enable via ENABLE_BASE64_CONVERT=true
+if (process.env.ENABLE_BASE64_CONVERT === 'true') {
+  router.post('/convert-base64-images', convertBase64Images);
+}
 
 // GET /api/products/:id - Get single product (optimized)
 router.get('/:id', getProductById);

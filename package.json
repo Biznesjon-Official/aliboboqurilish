@@ -2,7 +2,7 @@
   "name": "alibobo-react",
   "version": "0.1.0",
   "private": true,
-  "proxy": "https://aliboboqurilish.uz",
+  "proxy": "http://localhost:5000",
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.0.1",
     "@fortawesome/free-brands-svg-icons": "^7.0.1",
@@ -59,8 +59,12 @@
     "test:performance": "node scripts/test-startup-performance.js",
     "optimize:db": "node backend/scripts/create-performance-indexes.js",
     "test:api-performance": "node scripts/test-performance-optimization.js",
-    "db:reset": "cd backend && npm run db:reset",
     "db:optimize": "cd backend && npm run db:optimize",
+    "db:reset": "cd backend && npm run db:reset",
+    "db:indexes": "cd backend && npm run db:indexes",
+    "cache:clear": "cd backend && npm run cache:clear",
+    "performance:test": "npm run test:performance && npm run test:api-performance",
+    "ultra:start": "npm run start:turbo",
     "poststart": "echo \"🚀 Development environment started! Run 'npm run health' to check service status.\"",
     "prestop": "echo \"🛑 Stopping development environment...\""
   },

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { PlusFAIcon, ChevronUpFAIcon, ChevronDownFAIcon, TimesFAIcon, ExclamationTriangleFAIcon } from '../FontAwesome';
+import React, { useState, useRef } from 'react';
+import { PlusFAIcon, ChevronUpFAIcon, ChevronDownFAIcon, TimesFAIcon, ExclamationTriangleFAIcon, UploadFAIcon } from '../FontAwesome';
+import OptimizedImage from '../OptimizedImage';
 
 const ImageUploader = ({ 
   images = [], 
@@ -12,68 +13,76 @@ const ImageUploader = ({
   onError = null
 }) => {
   const [error, setError] = useState(null);
-  const [urlInput, setUrlInput] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
-  // URL validation helper
-  const isValidUrl = (val) => {
-    try {
-      const s = String(val || '').trim();
-      if (!s) return false;
-      // Allow absolute http(s)
-      if (/^https?:\/\//i.test(s)) return true;
-      // Allow site-relative paths like /uploads/... or /assets/...
-      if (s.startsWith('/uploads/') || s.startsWith('/assets/')) return true;
-      // Allow legacy paths like uploads/... (we'll normalize to /uploads/...)
-      if (s.startsWith('uploads/')) return true;
-      return false;
-    } catch (_) {
-      return false;
+  // Debug: rasmlar massivini console ga chiqarish
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🖼️ ImageUploader: images array:', images);
+      console.log('🖼️ ImageUploader: images length:', images?.length || 0);
     }
-  };
+  }, [images]);
 
-  const normalizeUrl = (val) => {
-    let s = String(val || '').trim();
-    // Fix backslashes
-    s = s.replace(/\\/g, '/');
-    // Normalize legacy uploads path
-    if (s.startsWith('uploads/')) s = '/' + s;
-    return s;
-  };
 
-  const handleAddUrls = () => {
+
+  // File upload handler
+  const handleFileUpload = async (files) => {
+    if (!files || files.length === 0) return;
+    
+    setIsUploading(true);
     setError(null);
-    // Split by newline, comma, or whitespace
-    const parts = urlInput
-      .split(/\s|,|\n|\r/g)
-      .map((p) => p.trim())
-      .filter(Boolean);
 
-    if (parts.length === 0) return;
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          throw new Error(`${file.name} rasm fayli emas`);
+        }
 
-    const invalid = parts.filter((p) => !isValidUrl(p));
-    if (invalid.length > 0) {
-      const msg = `Quyidagi URL manzillar noto'g'ri:\n${invalid.join('\n')}`;
-      setError(msg);
-      if (onError) onError(msg);
-      // Continue with only valid ones
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          throw new Error(`${file.name} juda katta (5MB dan oshmasin)`);
+        }
+
+        // Create FormData
+        const formData = new FormData();
+        formData.append('image', file);
+
+        // Upload to server
+        const response = await fetch('/api/upload/image', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `${file.name} yuklanmadi`);
+        }
+
+        const result = await response.json();
+        return result.imageUrl; // Server qaytargan URL
+      });
+
+      const uploadedUrls = await Promise.all(uploadPromises);
+      
+      // Add to existing images
+      const updated = [...images, ...uploadedUrls];
+      onImagesChange(updated);
+
+    } catch (err) {
+      setError(err.message);
+      if (onError) onError(err.message);
+    } finally {
+      setIsUploading(false);
+      // Clear file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
-
-    const valid = parts.filter((p) => isValidUrl(p)).map(normalizeUrl);
-    if (valid.length === 0) return;
-
-    // Remove duplicates (including already existing)
-    const existingSet = new Set(images);
-    const toAdd = valid.filter((u) => !existingSet.has(u));
-
-    if (toAdd.length === 0) {
-      setUrlInput('');
-      return;
-    }
-
-    const updated = [...images, ...toAdd];
-    onImagesChange(updated);
-    setUrlInput('');
   };
+
+
 
   // Remove image
   const removeImage = (index) => {
@@ -99,7 +108,7 @@ const ImageUploader = ({
   };
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={`space-y-3 ${className}`}>
       {/* Title */}
       <div className="flex items-center justify-between">
         <label className="block text-sm font-medium text-gray-700">
@@ -110,92 +119,145 @@ const ImageUploader = ({
         </span>
       </div>
 
-      {/* URL Input */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddUrls(); } }}
-            placeholder="Rasm URL manzili yoki bir nechta URL (bo'sh joy/newline bilan ajrating): https://..., /uploads/..., /assets/..."
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent"
-          />
-          <button
-            type="button"
-            onClick={handleAddUrls}
-            className="bg-primary-orange text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-colors flex items-center gap-2"
-            title="URL qo'shish"
-          >
-            <PlusFAIcon />
-            Qo'shish
-          </button>
+      {/* File Upload Section - Compact */}
+      <div 
+        className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-primary-orange transition-colors"
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.currentTarget.classList.add('border-primary-orange', 'bg-orange-50');
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.currentTarget.classList.remove('border-primary-orange', 'bg-orange-50');
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.currentTarget.classList.remove('border-primary-orange', 'bg-orange-50');
+          const files = e.dataTransfer.files;
+          if (files.length > 0) {
+            handleFileUpload(files);
+          }
+        }}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={(e) => handleFileUpload(e.target.files)}
+          className="hidden"
+        />
+        
+        <div className="flex items-center justify-center gap-3">
+          <div className="text-lg text-gray-400">
+            <UploadFAIcon />
+          </div>
+          
+          <div className="flex-1">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="bg-primary-orange text-white px-3 py-1.5 rounded-md hover:bg-opacity-90 transition-colors flex items-center gap-2 text-sm disabled:opacity-50"
+            >
+              <UploadFAIcon className="text-xs" />
+              {isUploading ? 'Yuklanmoqda...' : 'Rasm tanlang'}
+            </button>
+          </div>
+          
+          <p className="text-xs text-gray-400 flex-shrink-0">
+            JPG, PNG, WebP (5MB)
+          </p>
         </div>
-        <span className="text-xs text-gray-500">Misollar: https://domain.com/image.jpg yoki /uploads/mahsulotlar/rasm.jpg</span>
       </div>
 
-      {/* Images Grid */}
+      {/* Images Grid - Compact */}
       {images.length > 0 && (
-        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-          {images.map((image, index) => (
-            <div key={index} className="relative group">
-              <div className="aspect-square rounded-md overflow-hidden border border-gray-200 hover:border-primary-orange transition-colors">
-                <img
-                  src={image}
-                  alt={`Upload ${index + 1}`}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+        <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+          {images.map((image, index) => {
+            // Rasmni to'g'ri URL ga aylantirish
+            const imageUrl = (() => {
+              if (!image) return '';
               
-              {/* Image Controls Overlay */}
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 rounded-lg flex items-center justify-center">
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex space-x-1">
-                  {/* Move Up */}
-                  {allowReorder && (
-                    <button
-                      type="button"
-                      onClick={() => moveImageUp(index)}
-                      disabled={index === 0}
-                      className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Yuqoriga"
-                    >
-                      <ChevronUpFAIcon />
-                    </button>
-                  )}
-                  
-                  {/* Move Down */}
-                  {allowReorder && (
-                    <button
-                      type="button"
-                      onClick={() => moveImageDown(index)}
-                      disabled={index === images.length - 1}
-                      className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Pastga"
-                    >
-                      <ChevronDownFAIcon />
-                    </button>
-                  )}
-                  
-                  {/* Delete */}
-                  {allowDelete && (
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
-                      title="O'chirish"
-                    >
-                      <TimesFAIcon />
-                    </button>
-                  )}
+              // Agar base64 bo'lsa, to'g'ridan-to'g'ri qaytarish
+              if (image.startsWith('data:')) return image;
+              
+              // Agar to'liq URL bo'lsa, to'g'ridan-to'g'ri qaytarish
+              if (image.startsWith('http')) return image;
+              
+              // Agar uploads/ bilan boshlansa, to'g'ri URL yaratish
+              if (image.startsWith('/uploads/') || image.startsWith('uploads/')) {
+                const cleanPath = image.startsWith('/') ? image : '/' + image;
+                return `http://localhost:5000${cleanPath}`;
+              }
+              
+              // Boshqa hollarda to'g'ridan-to'g'ri qaytarish
+              return image;
+            })();
+
+            return (
+              <div key={index} className="relative group">
+                <div className="aspect-square rounded-md overflow-hidden border border-gray-200 hover:border-primary-orange transition-colors">
+                  <OptimizedImage
+                    src={imageUrl}
+                    alt={`Upload ${index + 1}`}
+                    className="w-full h-full"
+                    objectFit="cover"
+                    placeholder="skeleton"
+                    fallbackSrc="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMiA4VjE2TTggMTJIMTYiIHN0cm9rZT0iIzlDQTNBRiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+"
+                  />
+                </div>
+              
+                {/* Image Controls Overlay */}
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 rounded-md flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex space-x-1">
+                    {/* Move Up */}
+                    {allowReorder && (
+                      <button
+                        type="button"
+                        onClick={() => moveImageUp(index)}
+                        disabled={index === 0}
+                        className="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Yuqoriga"
+                      >
+                        <ChevronUpFAIcon className="text-xs" />
+                      </button>
+                    )}
+                    
+                    {/* Move Down */}
+                    {allowReorder && (
+                      <button
+                        type="button"
+                        onClick={() => moveImageDown(index)}
+                        disabled={index === images.length - 1}
+                        className="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Pastga"
+                      >
+                        <ChevronDownFAIcon className="text-xs" />
+                      </button>
+                    )}
+                    
+                    {/* Delete */}
+                    {allowDelete && (
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                        title="O'chirish"
+                      >
+                        <TimesFAIcon className="text-xs" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Image Number Badge */}
+                <div className="absolute -top-1 -left-1 bg-primary-orange text-white rounded-full w-3.5 h-3.5 flex items-center justify-center text-xs font-bold">
+                  {index + 1}
                 </div>
               </div>
-              
-              {/* Image Number Badge */}
-              <div className="absolute -top-1 -left-1 bg-primary-orange text-white rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold">
-                {index + 1}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

@@ -27,27 +27,173 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
   const [showCopySuccess, setShowCopySuccess] = useState(false);
   const [modalSlideIndex, setModalSlideIndex] = useState(0);
 
+  // Compute API base (same logic as hooks/useCraftsmanQueries)
+  const API_BASE = useMemo(() => {
+    if (process.env.REACT_APP_API_BASE) return process.env.REACT_APP_API_BASE;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    if (process.env.NODE_ENV === 'production' && origin) {
+      return `${origin.replace(/\/$/, '')}/api`;
+    }
+    return 'http://localhost:5000/api';
+  }, []);
+
+  // Local state for full detail to power modal images
+  const [selectedCraftDetail, setSelectedCraftDetail] = useState(null);
+  useEffect(() => {
+    let abort = false;
+    const controller = new AbortController();
+    const loadDetail = async (id) => {
+      try {
+        const resp = await fetch(`${API_BASE}/craftsmen/${id}`, {
+          signal: controller.signal,
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!abort) setSelectedCraftDetail(data);
+      } catch (_) {}
+    };
+    if (selectedCraftsman && selectedCraftsman._id) {
+      setSelectedCraftDetail(null); // reset then load
+      loadDetail(selectedCraftsman._id);
+    } else {
+      setSelectedCraftDetail(null);
+    }
+    return () => { abort = true; controller.abort(); };
+  }, [selectedCraftsman, API_BASE]);
+
   // Helper function to format price safely
   const formatPrice = (price) => {
     if (!price || isNaN(price)) return "0 so'm/kun";
     return price.toLocaleString() + " so'm/kun";
   };
 
-  // Build image list for a craftsman based on sanitized backend fields
-  const getCraftsmanImages = (craftsman) => {
-    const out = [];
-    // Prefer sanitized fields from API
-    if (craftsman.avatar) out.push(craftsman.avatar);
-    if (craftsman.portfolioPreview) out.push(craftsman.portfolioPreview);
-    // Backward compatibility: include any provided portfolio array
-    if (Array.isArray(craftsman.portfolio)) {
-      for (const p of craftsman.portfolio) {
-        if (typeof p === 'string') out.push(p);
+  // Card component that ensures we have all images (fetches detail only when needed)
+  const CraftsmanCard = ({ craftsman, index }) => {
+    const initialImages = useMemo(() => getCraftsmanImages(craftsman), [craftsman]);
+    const [detail, setDetail] = useState(null);
+    useEffect(() => {
+      let abort = false;
+      const controller = new AbortController();
+      const fetchDetail = async () => {
+        try {
+          const resp = await fetch(`${API_BASE}/craftsmen/${craftsman._id}`, {
+            signal: controller.signal,
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+          });
+          if (!resp.ok) return;
+          const data = await resp.json();
+          if (!abort) setDetail(data);
+        } catch (_) {}
+      };
+      if (craftsman && craftsman._id && initialImages.length <= 1) {
+        fetchDetail();
+      } else {
+        setDetail(null);
       }
+      return () => { abort = true; controller.abort(); };
+    }, [craftsman, initialImages.length, API_BASE]);
+
+    const images = useMemo(() => {
+      const detailImages = detail ? getCraftsmanImages(detail) : [];
+      return detailImages.length > initialImages.length ? detailImages : initialImages;
+    }, [detail, initialImages]);
+
+    return (
+      <div className="bg-white rounded-xl shadow-lg hover-scale overflow-hidden">
+        {images.length > 0 ? (
+          <ImageCarousel images={images} craftsmanIndex={index} showPlaceholder={false} />
+        ) : (
+          <div className="h-48 bg-gray-100 rounded-t-xl" />
+        )}
+
+        <div className="p-2 sm:p-3 lg:p-4">
+          <div className="mb-2 sm:mb-3">
+            <h3 className="font-semibold text-sm sm:text-base lg:text-lg mb-1 line-clamp-1">{craftsman.name || 'Noma\'lum'}</h3>
+            <p className="text-gray-600 text-xs sm:text-sm line-clamp-1">{craftsman.specialty || 'Mutaxassislik belgilanmagan'}</p>
+            <p className="text-sm sm:text-base text-green-600 font-medium mt-1">{formatPrice(craftsman.price)}</p>
+          </div>
+
+          <div className="mb-2 sm:mb-3">
+            <p className="text-xs sm:text-sm text-gray-700 mb-1 sm:mb-2 line-clamp-2">{craftsman.description || 'Tavsif mavjud emas'}</p>
+            <div className="flex items-center text-xs text-gray-600">
+              <svg className="w-3 h-3 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+              </svg>
+              <span className="truncate text-xs">{craftsman.phone || '+998 00 000 00 00'}</span>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <span className="inline-flex items-center px-1.5 sm:px-2 lg:px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              Faol
+            </span>
+            <button 
+              onClick={() => showCraftsmanDetails(craftsman)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
+            >
+              <span className="lg:hidden">Aloqa</span>
+              <span className="hidden lg:inline">Bog'lanish</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Build image list for a craftsman based on sanitized backend fields
+  // NOTE: On the main page we do NOT want to show placeholder.svg at all
+  const getCraftsmanImages = (craftsman) => {
+    if (!craftsman) return [];
+    const out = [];
+
+    const pushUrl = (val) => {
+      if (!val) return;
+      let s = null;
+      if (typeof val === 'string') s = val;
+      else if (typeof val === 'object') {
+        s = val.url || val.src || val.image || val.path || null;
+      }
+      if (typeof s === 'string' && s.trim().length > 0) out.push(s.trim());
+    };
+
+    // Prefer sanitized fields from API
+    pushUrl(craftsman.avatar);
+    pushUrl(craftsman.portfolioPreview);
+
+    // Portfolio: could be array of strings or objects
+    if (Array.isArray(craftsman.portfolio)) {
+      for (const p of craftsman.portfolio) pushUrl(p);
     }
-    // Legacy: if an 'image' field exists, include it as last resort
-    if (craftsman.image) out.push(craftsman.image);
-    return out.length > 0 ? out : ['/assets/ustalar/placeholder.svg'];
+
+    // Alternative keys often used
+    if (Array.isArray(craftsman.photos)) {
+      for (const p of craftsman.photos) pushUrl(p);
+    }
+    if (Array.isArray(craftsman.images)) {
+      for (const p of craftsman.images) pushUrl(p);
+    }
+
+    // Legacy single image fields
+    pushUrl(craftsman.image);
+    pushUrl(craftsman.photo);
+
+    // Deduplicate while preserving order
+    const seen = new Set();
+    const unique = out.filter((u) => {
+      if (seen.has(u)) return false;
+      seen.add(u);
+      return true;
+    });
+
+    // Filter out placeholder.svg entirely for main page rendering
+    const isPlaceholder = (u) =>
+      typeof u === 'string' && /(^|\/)placeholder\.svg$/i.test(u);
+
+    const filtered = unique.filter((u) => !isPlaceholder(u));
+    return filtered; // may be empty; we will conditionally render UI
   };
 
   // Show craftsman details modal
@@ -132,7 +278,8 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
   const slideModalImages = (direction) => {
     if (!selectedCraftsman) return;
     
-    const images = getCraftsmanImages(selectedCraftsman);
+    const source = selectedCraftDetail || selectedCraftsman;
+    const images = getCraftsmanImages(source);
     const itemsPerPage = window.innerWidth < 640 ? 2 : 3;
     const maxSlide = Math.max(0, images.length - itemsPerPage);
     
@@ -164,7 +311,7 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
   };
 
   // Image carousel component - exactly like ustalar-qismi with hover effect
-  const ImageCarousel = ({ images, craftsmanIndex }) => {
+  const ImageCarousel = ({ images, craftsmanIndex, showPlaceholder = true }) => {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [lastHoverTime, setLastHoverTime] = useState(0);
     const hoverDelay = 800; // 800ms delay between changes (slower)
@@ -215,7 +362,7 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
               className="w-full h-full"
               objectFit="cover"
               placeholder="skeleton"
-              fallbackSrc="/assets/ustalar/placeholder.svg"
+              fallbackSrc={showPlaceholder ? "/assets/ustalar/placeholder.svg" : undefined}
               priority={true}
               loading="eager"
             />
@@ -312,46 +459,9 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
           </div>
         )}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 xl:gap-8">
-          {displayedCraftsmen.map((craftsman, index) => {
-            const images = getCraftsmanImages(craftsman);
-            
-            return (
-              <div key={craftsman._id} className="bg-white rounded-xl shadow-lg hover-scale overflow-hidden">
-                <ImageCarousel images={images} craftsmanIndex={index} />
-                
-                <div className="p-2 sm:p-3 lg:p-4">
-                  <div className="mb-2 sm:mb-3">
-                    <h3 className="font-semibold text-sm sm:text-base lg:text-lg mb-1 line-clamp-1">{craftsman.name || 'Noma\'lum'}</h3>
-                    <p className="text-gray-600 text-xs sm:text-sm line-clamp-1">{craftsman.specialty || 'Mutaxassislik belgilanmagan'}</p>
-                    <p className="text-sm sm:text-base text-green-600 font-medium mt-1">{formatPrice(craftsman.price)}</p>
-                  </div>
-                  
-                  <div className="mb-2 sm:mb-3">
-                    <p className="text-xs sm:text-sm text-gray-700 mb-1 sm:mb-2 line-clamp-2">{craftsman.description || 'Tavsif mavjud emas'}</p>
-                    <div className="flex items-center text-xs text-gray-600">
-                      <svg className="w-3 h-3 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-                      </svg>
-                      <span className="truncate text-xs">{craftsman.phone || '+998 00 000 00 00'}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="inline-flex items-center px-1.5 sm:px-2 lg:px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Faol
-                    </span>
-                    <button 
-                      onClick={() => showCraftsmanDetails(craftsman)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
-                    >
-                      <span className="lg:hidden">Aloqa</span>
-                      <span className="hidden lg:inline">Bog'lanish</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {displayedCraftsmen.map((craftsman, index) => (
+            <CraftsmanCard key={craftsman._id} craftsman={craftsman} index={index} />
+          ))}
         </div>
 
         {/* Empty State - Only show if not loading and no data */}
@@ -398,123 +508,118 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
               </button>
               <h2 className="text-lg sm:text-xl font-semibold text-gray-800 pr-8 sm:pr-10">Usta haqida ma'lumot</h2>
             </div>
-            
-            {/* Work samples - Mobile Responsive */}
+
+            {/* Work samples - hide completely if only placeholder */}
             <div className="px-3 sm:px-4 pt-4 sm:pt-6 pb-4">
-              <div className="mb-6">
-                <div className="relative">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
-                    <div className="col-span-2 sm:col-span-3 grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 transition-all duration-300">
+              {(() => {
+                const source = selectedCraftDetail || selectedCraftsman;
+                const images = getCraftsmanImages(source);
+                if (images.length === 0) return null;
+                return (
+                  <div className="mb-6">
+                    <div className="relative">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
+                        <div className="col-span-2 sm:col-span-3 grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 transition-all duration-300">
+                          {images.slice(modalSlideIndex, modalSlideIndex + (window.innerWidth < 640 ? 2 : 3)).map((img, index) => (
+                            <div key={index} className="aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer" onClick={() => openLightbox(images, modalSlideIndex + index)}>
+                              <OptimizedImage
+                                src={img}
+                                alt={`Ish namunasi ${modalSlideIndex + index + 1}`}
+                                className="w-full h-full"
+                                objectFit="cover"
+                                placeholder="skeleton"
+                                fallbackSrc={undefined}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                       {(() => {
-                        const images = getCraftsmanImages(selectedCraftsman);
-                        return images.slice(modalSlideIndex, modalSlideIndex + (window.innerWidth < 640 ? 2 : 3)).map((img, index) => (
-                          <div key={index} className="aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer" onClick={() => openLightbox(images, modalSlideIndex + index)}>
-                            <OptimizedImage
-                              src={img}
-                              alt={`Ish namunasi ${modalSlideIndex + index + 1}`}
-                              className="w-full h-full"
-                              objectFit="cover"
-                              placeholder="skeleton"
-                              fallbackSrc="/assets/ustalar/placeholder.svg"
-                            />
-                          </div>
-                        ));
+                        const itemsPerPage = window.innerWidth < 640 ? 2 : 3;
+                        if (images.length > itemsPerPage) {
+                          const maxSlide = Math.max(0, images.length - itemsPerPage);
+                          return (
+                            <div className="flex justify-between items-center">
+                              <button
+                                onClick={() => slideModalImages('prev')}
+                                disabled={modalSlideIndex === 0}
+                                className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors disabled:opacity-50"
+                              >
+                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                </svg>
+                              </button>
+                              <div className="flex items-center justify-center space-x-1">
+                                {Array.from({ length: maxSlide + 1 }, (_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-colors ${
+                                      i === modalSlideIndex ? 'bg-blue-500' : 'bg-gray-300'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <button
+                                onClick={() => slideModalImages('next')}
+                                disabled={modalSlideIndex >= maxSlide}
+                                className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors disabled:opacity-50"
+                              >
+                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </button>
+                            </div>
+                          );
+                        }
+                        return null;
                       })()}
                     </div>
                   </div>
-                  
-                  {(() => {
-                    const images = getCraftsmanImages(selectedCraftsman);
-                    const itemsPerPage = window.innerWidth < 640 ? 2 : 3;
-                    if (images.length > itemsPerPage) {
-                      const maxSlide = Math.max(0, images.length - itemsPerPage);
-                      
-                      return (
-                        <div className="flex justify-between items-center">
-                          <button
-                            onClick={() => slideModalImages('prev')}
-                            disabled={modalSlideIndex === 0}
-                            className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors disabled:opacity-50"
-                          >
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                          </button>
-                          
-                          <div className="flex items-center justify-center space-x-1">
-                            {Array.from({ length: maxSlide + 1 }, (_, i) => (
-                              <div
-                                key={i}
-                                className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-colors ${
-                                  i === modalSlideIndex ? 'bg-blue-500' : 'bg-gray-300'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          
-                          <button
-                            onClick={() => slideModalImages('next')}
-                            disabled={modalSlideIndex >= maxSlide}
-                            className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors disabled:opacity-50"
-                          >
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
+                );
+              })()}
+            </div>
+
+            {/* Craftsman Details */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">{(selectedCraftDetail || selectedCraftsman).name}</h3>
+                <p className="text-sm sm:text-base text-gray-600 mb-1">{(selectedCraftDetail || selectedCraftsman).specialty}</p>
+                <p className="text-base sm:text-lg text-green-600 font-semibold">{formatPrice((selectedCraftDetail || selectedCraftsman).price)}</p>
+              </div>
+              <div>
+                <h4 className="text-sm sm:text-base font-medium text-gray-700 mb-2">Tavsif:</h4>
+                <p className="text-sm sm:text-base text-gray-600 leading-relaxed">{(selectedCraftDetail || selectedCraftsman).description || 'Tavsif mavjud emas'}</p>
+              </div>
+              <div>
+                <h4 className="text-sm sm:text-base font-medium text-gray-700 mb-2">Aloqa:</h4>
+                <div className="flex items-center text-sm sm:text-base text-gray-600">
+                  <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+                  </svg>
+                  <span>{(selectedCraftDetail || selectedCraftsman).phone}</span>
                 </div>
               </div>
-              
-              {/* Craftsman Details - Mobile Responsive */}
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">{selectedCraftsman.name}</h3>
-                  <p className="text-sm sm:text-base text-gray-600 mb-1">{selectedCraftsman.specialty}</p>
-                  <p className="text-base sm:text-lg text-green-600 font-semibold">{formatPrice(selectedCraftsman.price)}</p>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm sm:text-base font-medium text-gray-700 mb-2">Tavsif:</h4>
-                  <p className="text-sm sm:text-base text-gray-600 leading-relaxed">{selectedCraftsman.description || 'Tavsif mavjud emas'}</p>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm sm:text-base font-medium text-gray-700 mb-2">Aloqa:</h4>
-                  <div className="flex items-center text-sm sm:text-base text-gray-600">
-                    <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-                    </svg>
-                    <span>{selectedCraftsman.phone}</span>
-                  </div>
-                </div>
-                
-                {/* Action Buttons - Single Row on All Devices */}
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={() => handlePhoneCall(selectedCraftsman.phone)}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 sm:py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center"
-                  >
-                    <PhoneFAIcon className="mr-2" />
-                    <span className="hidden sm:inline">Qo'ng'iroq qilish</span>
-                    <span className="sm:hidden">Qo'ng'iroq</span>
-                  </button>
-                  <button
-                    onClick={closeModal}
-                    className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-3 sm:py-2 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    Yopish
-                  </button>
-                </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => handlePhoneCall((selectedCraftDetail || selectedCraftsman).phone)}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 sm:py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center"
+                >
+                  <PhoneFAIcon className="mr-2" />
+                  <span className="hidden sm:inline">Qo'ng'iroq qilish</span>
+                  <span className="sm:hidden">Qo'ng'iroq</span>
+                </button>
+                <button
+                  onClick={closeModal}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-3 sm:py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Yopish
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
-      
+
       {/* Desktop Call Modal - exactly like ustalar-qismi */}
       {showCallModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

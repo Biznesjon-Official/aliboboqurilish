@@ -5,24 +5,16 @@ import ProductsGrid from './ProductsGrid';
 import Craftsmen from './Craftsmen';
 import Services from './Services';
 import Footer from './Footer';
-import { useParallelFetch } from '../hooks/useOptimizedFetch';
-import { 
-  useIntelligentPreloading, 
-  useUserBehaviorPreloading, 
-  useNetworkAwarePreloading,
-  useViewportPreloading 
-} from '../hooks/useIntelligentPreloading';
+import { useFastProducts } from '../hooks/useFastProducts';
+
+// Preload products immediately for faster display
 
 const MainPage = ({ onSuccessfulLogin, initialSection }) => {
   const [craftsmenData, setCraftsmenData] = useState([]);
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Initialize intelligent preloading hooks
-  const { preloadOnHover, preloadNow } = useIntelligentPreloading('user');
-  useUserBehaviorPreloading();
-  useNetworkAwarePreloading();
-  useViewportPreloading();
+  // Removed preloading hooks for faster initial load
 
 
   // Cart states - centralized here (initialize from localStorage synchronously)
@@ -86,21 +78,30 @@ const MainPage = ({ onSuccessfulLogin, initialSection }) => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [initialCraftsmanSpecialty, setInitialCraftsmanSpecialty] = useState('');
+
+  // CRITICAL: Preload products immediately for instant display
+  useFastProducts('', ''); // Preload default products
   
   // Active section state for bottom navigation
   const [activeSection, setActiveSection] = useState('products');
 
   // Parallel data loading for initial page load - Ultra-optimized for speed
-  const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+  const API_BASE = (() => {
+    if (process.env.REACT_APP_API_BASE) return process.env.REACT_APP_API_BASE;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    if (process.env.NODE_ENV === 'production' && origin) {
+      return `${origin.replace(/\/$/, '')}/api`;
+    }
+    return 'http://localhost:5000/api';
+  })();
   const USE_FAST = (process.env.REACT_APP_USE_FAST || '').toLowerCase() === 'true';
   
-  console.log(`🔧 API Base URL in MainPage: ${API_BASE}`);
   
   // Memoize URLs to prevent unnecessary re-renders
   const urls = useMemo(() => {
     const productsUrl = USE_FAST
-      ? `${API_BASE}/products/fast?limit=8&page=1&includeImages=true`
-      : `${API_BASE}/products?limit=8&page=1&sortBy=updatedAt&sortOrder=desc&includeImages=true`;
+      ? `${API_BASE}/products/fast?limit=8&page=1`
+      : `${API_BASE}/products?limit=8&page=1&sortBy=updatedAt&sortOrder=desc`;
     const craftsmenUrlBase = `${API_BASE}/craftsmen?limit=8&status=active`;
     const isProdHost = /aliboboqurilish\.uz/i.test(API_BASE || '');
     const craftsmenUrl = isProdHost ? `${craftsmenUrlBase}&minimal=1` : craftsmenUrlBase;
@@ -110,30 +111,8 @@ const MainPage = ({ onSuccessfulLogin, initialSection }) => {
     ];
   }, [API_BASE, USE_FAST]);
 
-  const { data: parallelData, loading: parallelLoading, errors } = useParallelFetch(urls, { 
-    fetchOptions: { 
-      cache: 'no-cache',
-      priority: 'high'
-    },
-    enabled: true,
-    staleTime: 30000 // 30 seconds cache
-  });
-
-  // Log any errors
-  useEffect(() => {
-    if (errors && Object.keys(errors).length > 0) {
-      console.error('❌ Parallel fetch errors:', errors);
-    }
-  }, [errors]);
-
-  // Update craftsmen data when parallel fetch completes
-  useEffect(() => {
-    if (parallelData[urls[0]]) {
-      const craftsmenResponse = parallelData[urls[0]];
-      console.log('🔧 Craftsmen data received:', craftsmenResponse);
-      setCraftsmenData(craftsmenResponse.craftsmen || []);
-    }
-  }, [parallelData, urls]);
+  // Simplified craftsmen loading - removed parallel fetch for faster initial load
+  const [craftsmenLoading, setCraftsmenLoading] = useState(true);
 
   // Helper: restore scroll to saved Y or specific product card
   const restoreScrollFromSession = useCallback(() => {
@@ -178,10 +157,29 @@ const MainPage = ({ onSuccessfulLogin, initialSection }) => {
     }, 100);
   }, []);
 
-  // Optimized callback for ProductsGrid: ensure restore after data render
-  const handleInitialProductsLoaded = useCallback(() => {
-    restoreScrollFromSession();
-  }, [restoreScrollFromSession]);
+  
+  useEffect(() => {
+    // Load craftsmen data after initial render
+    const loadCraftsmen = async () => {
+      try {
+        const response = await fetch(urls[0]);
+        if (response.ok) {
+          const data = await response.json();
+          setCraftsmenData(data.craftsmen || []);
+        }
+      } catch (error) {
+        console.error('❌ Failed to load craftsmen:', error);
+      } finally {
+        setCraftsmenLoading(false);
+      }
+    };
+    
+    // Delay craftsmen loading to prioritize products
+    const timer = setTimeout(loadCraftsmen, 1000);
+    return () => clearTimeout(timer);
+  }, [urls]);
+
+
 
   // Scroll to initial section if this page is loaded via /products or /craftsmen
   useEffect(() => {
@@ -340,8 +338,15 @@ const MainPage = ({ onSuccessfulLogin, initialSection }) => {
 
   // Memoized catalog functions
   const handleCategorySelect = useCallback((category) => {
+    // Set the chosen category
     setSelectedCategory(category);
-    console.log('📂 Selected category in MainPage:', category);
+    // Clear search so category filter is not constrained by previous query
+    setSearchQuery('');
+    // Scroll to products section for immediate feedback
+    const productsEl = document.getElementById('products');
+    if (productsEl) {
+      productsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }, []);
 
   const handleSearch = useCallback((query) => {
@@ -358,45 +363,49 @@ const MainPage = ({ onSuccessfulLogin, initialSection }) => {
 
   return (
     <>
-      <Header
-        onSuccessfulLogin={onSuccessfulLogin}
-        cart={cart}
-        isCartOpen={isCartOpen}
-        onToggleCart={toggleCart}
-        onRemoveFromCart={removeFromCart}
-        onUpdateQuantity={updateCartQuantity}
-        onCheckout={clearCart}
-        getTotalItems={getTotalItems}
-        onCategorySelect={handleCategorySelect}
-        selectedCategory={selectedCategory}
-        onSearch={handleSearch}
-        activeSection={activeSection}
-        setActiveSection={setActiveSection}
-      />
-      <div id="products">
-        <ProductsGrid
+      {/* Main content */}
+      <div>
+        <Header
+          onSuccessfulLogin={onSuccessfulLogin}
           cart={cart}
-          onAddToCart={addToCart}
+          isCartOpen={isCartOpen}
           onToggleCart={toggleCart}
           onRemoveFromCart={removeFromCart}
           onUpdateQuantity={updateCartQuantity}
           onCheckout={clearCart}
-          selectedCategory={selectedCategory}
-          searchQuery={searchQuery}
-          onInitialProductsLoaded={handleInitialProductsLoaded}
+          getTotalItems={getTotalItems}
           onCategorySelect={handleCategorySelect}
+          selectedCategory={selectedCategory}
           onSearch={handleSearch}
+          activeSection={activeSection}
+          setActiveSection={setActiveSection}
         />
+        <div id="products">
+          <ProductsGrid
+            cart={cart}
+            onAddToCart={addToCart}
+            isCartOpen={isCartOpen}
+            onToggleCart={toggleCart}
+            onRemoveFromCart={removeFromCart}
+            onUpdateQuantity={updateCartQuantity}
+            onCheckout={clearCart}
+            selectedCategory={selectedCategory}
+            onCategorySelect={handleCategorySelect}
+            searchQuery={searchQuery}
+            onSearch={handleSearch}
+
+          />
+        </div>
+        <div id="craftsmen">
+          <Craftsmen
+            craftsmenData={craftsmenData}
+            loading={craftsmenLoading}
+            initialSpecialty={initialCraftsmanSpecialty}
+          />
+        </div>
+        <Services />
+        <Footer />
       </div>
-      <div id="craftsmen">
-        <Craftsmen
-          craftsmenData={craftsmenData}
-          loading={parallelLoading || !parallelData[urls[0]]}
-          initialSpecialty={initialCraftsmanSpecialty}
-        />
-      </div>
-      <Services />
-      <Footer />
     </>
   );
 };

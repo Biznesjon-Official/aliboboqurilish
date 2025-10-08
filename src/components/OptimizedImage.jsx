@@ -4,12 +4,20 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 const processImageSrc = (baseSrc, fallbackSrc) => {
   if (!baseSrc) return fallbackSrc || null;
   
-  // Handle base64 images
+  // Handle base64 images - SKIP LARGE BASE64 FOR PERFORMANCE
   if (baseSrc.startsWith('data:')) {
     // Check if base64 data is complete
     if (baseSrc.length < 50) {
       if (process.env.REACT_APP_DEBUG_MODE === 'true') {
         console.warn('[OptimizedImage] Base64 image data is too short, likely incomplete:', baseSrc.substring(0, 50) + '...');
+      }
+      return fallbackSrc;
+    }
+    
+    // PERFORMANCE: Skip very large base64 images (>100KB estimated)
+    if (baseSrc.length > 150000) {
+      if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+        console.warn('[OptimizedImage] Base64 image too large for performance, using fallback:', Math.round(baseSrc.length / 1024) + 'KB');
       }
       return fallbackSrc;
     }
@@ -24,6 +32,15 @@ const processImageSrc = (baseSrc, fallbackSrc) => {
     }
     
     return baseSrc;
+  }
+
+  // PERFORMANCE: Block external domains that might be slow
+  const blockedDomains = ['uzum.uz', 'ozon.ru', 'wildberries.ru', 'aliexpress.com'];
+  if (baseSrc.startsWith('http') && blockedDomains.some(domain => baseSrc.includes(domain))) {
+    if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+      console.warn('[OptimizedImage] Blocked external domain for performance:', baseSrc);
+    }
+    return fallbackSrc;
   }
 
   // Normalize any uploads path from absolute URLs or backslashes
@@ -44,7 +61,9 @@ const processImageSrc = (baseSrc, fallbackSrc) => {
   
   // Handle file paths - convert to full backend base URL
   if (normalized && normalized.startsWith('/uploads/')) {
-    const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+    const API_BASE = process.env.NODE_ENV === 'production' 
+      ? 'https://aliboboqurilish.uz/api' 
+      : 'http://localhost:5000/api';
     const baseNoApi = API_BASE.replace(/\/api$/, '');
     return `${baseNoApi}${normalized}`;
   }
@@ -67,7 +86,7 @@ const OptimizedImage = ({
   blurDataURL,
   onLoad,
   onError,
-  fallbackSrc = '/assets/default-product.svg',
+  fallbackSrc = null,
   aspectRatio,
   objectFit = 'cover',
   quality = 80,
@@ -75,7 +94,7 @@ const OptimizedImage = ({
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const [currentSrc, setCurrentSrc] = useState(() => processImageSrc(src, '/assets/default-product.svg') || '/assets/default-product.svg');
+  const [currentSrc, setCurrentSrc] = useState(() => processImageSrc(src, fallbackSrc) || fallbackSrc);
   const [isInView, setIsInView] = useState(priority || loading === 'eager');
   const containerRef = useRef(null);
   const imgRef = useRef(null);
@@ -118,13 +137,37 @@ const OptimizedImage = ({
     if (!isInView) return;
     triedFallbackRef.current = false;
     const processedSrc = processImageSrc(src, fallbackSrc) || fallbackSrc;
+    
+    // Skip loading if no valid source
+    if (!processedSrc) {
+      setHasError(true);
+      return;
+    }
+    
     setCurrentSrc(processedSrc);
     setIsLoaded(false);
     setHasError(false);
+    
+    // Add timeout for slow loading images
     const img = new Image();
-    img.onload = () => setIsLoaded(true);
-    img.onerror = () => setHasError(true);
+    const timeoutId = setTimeout(() => {
+      if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+        console.warn('[OptimizedImage] Image loading timeout:', processedSrc);
+      }
+      setHasError(true);
+    }, 10000); // 10 second timeout
+    
+    img.onload = () => {
+      clearTimeout(timeoutId);
+      setIsLoaded(true);
+    };
+    img.onerror = () => {
+      clearTimeout(timeoutId);
+      setHasError(true);
+    };
     img.src = processedSrc;
+    
+    return () => clearTimeout(timeoutId);
   }, [isInView, src, fallbackSrc]);
 
   // Handle image load
@@ -191,25 +234,45 @@ const OptimizedImage = ({
     if (onError) onError(e);
   }, [onError, fallbackSrc, src, currentSrc]);
 
-  // Generate responsive image URLs (if using a CDN or image service)
-  const generateResponsiveUrls = useCallback((baseSrc) => {
+  // Generate WebP URLs for better compression
+  const generateWebPUrl = useCallback((baseSrc) => {
     if (!baseSrc || baseSrc.startsWith('data:')) return baseSrc;
     
-    // This would integrate with your image CDN/service
-    // For now, return the original src
+    // Check if browser supports WebP
+    const supportsWebP = (() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1;
+      canvas.height = 1;
+      return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+    })();
+    
+    if (!supportsWebP) return baseSrc;
+    
+    // Convert to WebP if it's a regular image URL
+    if (baseSrc.includes('/uploads/') && !baseSrc.includes('.webp')) {
+      // Add WebP conversion parameter (if your backend supports it)
+      return baseSrc.includes('?') ? `${baseSrc}&format=webp` : `${baseSrc}?format=webp`;
+    }
+    
     return baseSrc;
   }, []);
 
-  // Generate srcSet for responsive images
+  // Generate srcSet for responsive images with WebP support
   const generateSrcSet = useCallback((baseSrc) => {
     if (!baseSrc || baseSrc.startsWith('data:')) return undefined;
     
-    // Example srcSet generation (customize based on your CDN)
-    const breakpoints = [320, 640, 768, 1024, 1280, 1536];
+    const breakpoints = [320, 480, 640, 768, 1024, 1280, 1536];
+    const webpSrc = generateWebPUrl(baseSrc);
+    
     return breakpoints
-      .map(bp => `${baseSrc}?w=${bp}&q=${quality} ${bp}w`)
+      .map(bp => {
+        const url = webpSrc.includes('?') 
+          ? `${webpSrc}&w=${bp}&q=${quality}` 
+          : `${webpSrc}?w=${bp}&q=${quality}`;
+        return `${url} ${bp}w`;
+      })
       .join(', ');
-  }, [quality]);
+  }, [quality, generateWebPUrl]);
 
   // Create blur placeholder
   const createBlurPlaceholder = useCallback(() => {
@@ -245,14 +308,7 @@ const OptimizedImage = ({
     })
   };
 
-  // Image styles
-  const imageStyles = {
-    width: '100%',
-    height: '100%',
-    objectFit: objectFit,
-    transition: 'opacity 0.3s ease-in-out',
-    opacity: isLoaded ? 1 : 0
-  };
+  // Remove unused imageStyles variable
 
   // Placeholder styles
   const placeholderStyles = {
@@ -269,7 +325,8 @@ const OptimizedImage = ({
     transition: 'opacity 0.3s ease-in-out'
   };
 
-  const finalSrc = currentSrc || fallbackSrc;
+  const finalSrc = generateWebPUrl(currentSrc || fallbackSrc);
+  const finalSrcSet = generateSrcSet(currentSrc || fallbackSrc);
 
   return (
     <div 
@@ -319,14 +376,15 @@ const OptimizedImage = ({
       <img
         ref={imgRef}
         src={finalSrc}
+        srcSet={finalSrcSet}
         alt={alt}
         className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${className}`}
         width={width}
         height={height}
-        sizes={sizes}
+        sizes={sizes || '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw'}
         onLoad={handleLoad}
         onError={handleError}
-        loading={priority ? 'eager' : loading}
+        loading={loading === 'eager' ? 'eager' : priority ? 'eager' : loading}
         decoding={priority ? 'sync' : 'async'}
         fetchpriority={priority ? 'high' : 'auto'}
         style={{

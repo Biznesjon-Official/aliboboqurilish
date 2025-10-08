@@ -1,5 +1,5 @@
-// API base URL from env
-const API_BASE_URL = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+// API base URL - force production API
+const API_BASE_URL = 'https://aliboboqurilish.uz/api';
 
 // Generic API call function
 const apiCall = async (endpoint, options = {}) => {
@@ -13,7 +13,23 @@ const apiCall = async (endpoint, options = {}) => {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // Try to extract a helpful error message from the response
+      let message = `HTTP error! status: ${response.status}`;
+      try {
+        const text = await response.text();
+        if (text) {
+          try {
+            const data = JSON.parse(text);
+            message = data.message || data.error || message;
+          } catch {
+            // Not JSON, use plain text
+            message = text;
+          }
+        }
+      } catch {}
+      const err = new Error(message);
+      err.status = response.status;
+      throw err;
     }
 
     return await response.json();

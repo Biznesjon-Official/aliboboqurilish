@@ -20,12 +20,20 @@ module.exports = {
         'sans': ['Inter', 'system-ui', 'sans-serif'],
       },
       animation: {
-        'shimmer': 'telegram-shimmer 1.5s ease-in-out infinite',
+        'shimmer': 'shimmer 2s ease-in-out infinite',
+        'construction-bounce': 'bounce 1s infinite',
+        'construction-pulse': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       keyframes: {
-        'telegram-shimmer': {
-          '0%': { transform: 'translateX(-100%)' },
-          '100%': { transform: 'translateX(100%)' },
+        'shimmer': {
+          '0%': { 
+            backgroundPosition: '-200% 0',
+            transform: 'translateX(-100%)'
+          },
+          '100%': { 
+            backgroundPosition: '200% 0',
+            transform: 'translateX(100%)'
+          },
         },
       },
     },

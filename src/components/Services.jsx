@@ -57,7 +57,7 @@ const Services = () => {
           </div>
 
         <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 lg:p-8 border border-gray-200">
-          <h3 className="text-xl lg:text-2xl font-bold text-primary-orange mb-4 text-center">Taklif olish uchun</h3>
+          <h3 className="text-xl lg:text-2xl font-bold text-primary-orange mb-4 text-center">Maslahat uchun</h3>
           
           <div className="text-center">
             <div className="mb-4">

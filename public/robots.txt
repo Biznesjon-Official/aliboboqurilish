@@ -1,4 +1,4 @@
-# Alibobo - Professional Ustalar va Qurilish Materiallari
+# Alibobo - Professional Ustalar va Qurilish Materiallar
 # https://www.aliboboqurilish.uz
 
 User-agent: *

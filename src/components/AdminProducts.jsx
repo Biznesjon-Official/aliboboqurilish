@@ -1,24 +1,29 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { 
-  SearchFAIcon, 
-  TimesFAIcon, 
-  PlusFAIcon, 
-  EyeFAIcon, 
-  EditFAIcon, 
-  TrashFAIcon, 
-  ChevronLeftFAIcon, 
-  ChevronRightFAIcon, 
-  SpinnerFAIcon, 
-  RotateLeftFAIcon 
+import { useNavigate } from 'react-router-dom';
+import {
+  SearchFAIcon,
+  TimesFAIcon,
+  PlusFAIcon,
+  EyeFAIcon,
+  EditFAIcon,
+  TrashFAIcon,
+  ChevronLeftFAIcon,
+  ChevronRightFAIcon,
+  SpinnerFAIcon,
+  RotateLeftFAIcon
 } from './FontAwesome';
-import { useDeleteProduct, useRestoreProduct, useUpdateProduct, useCreateProduct } from '../hooks/useProductQueries';
+import { useDeleteProduct, useRestoreProduct, useUpdateProduct, useCreateProduct, useProducts } from '../hooks/useProductQueries';
 import { useProductsFast } from '../hooks/useProductsFast';
+import { useUltraFastProducts } from '../hooks/useUltraFastProducts';
 import { useRecentActivitiesCache } from '../hooks/useRecentActivities';
 import { queryClient, queryKeys } from '../lib/queryClient';
 
 import AdminNotificationBell from './AdminNotificationBell';
 import AdminNotificationModals from './AdminNotificationModals';
 import LoadingCard from './LoadingCard';
+import ProductLoader from './ProductLoader';
+import ProductCardSkeleton from './ProductCardSkeleton';
+import ClearLoader from './ClearLoader';
 import useNotifications from '../hooks/useNotifications';
 import useRealNotifications from '../hooks/useRealNotifications';
 import ProductVariants from './admin/ProductVariants';
@@ -30,6 +35,8 @@ import OptimizedImage from './OptimizedImage';
 import '../styles/select-styles.css';
 
 const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
+  const navigate = useNavigate();
+  
   // Real notification system for notification bell
   const {
     notifications: realNotifications,
@@ -63,15 +70,15 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // React Query hooks for product operations
   const createProductMutation = useCreateProduct();
   const updateProductMutation = useUpdateProduct();
-  
+
   // Debug mutation states (only when needed)
   if (process.env.NODE_ENV === 'development' && createProductMutation.isError) {
     console.log('🔍 Create mutation error:', createProductMutation.error);
   }
-  
+
   // Recent activities cache management
   const activitiesCache = useRecentActivitiesCache();
-  
+
   // State management
   const [products, setProducts] = useState([]);
   // Local loading removed; use React Query's isLoading/isFetching
@@ -83,12 +90,12 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const [totalCount, setTotalCount] = useState(0);
   const [sortField, setSortField] = useState('createdAt');
   const [sortDirection, setSortDirection] = useState('desc');
-  
+
   // Modal states - simplified with new notification system
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  
+
   // Delete notification states
   const [showDeleteNotification, setShowDeleteNotification] = useState(false);
   const [deleteNotificationMessage, setDeleteNotificationMessage] = useState('');
@@ -114,7 +121,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [debouncedCategory, setDebouncedCategory] = useState('');
 
-  // React Query: fetch products (fast mode only)
+  // React Query: fetch products with ultra-fast hook
   const { data: productsData, isLoading, isFetching, isFetched, isSuccess, isError, error } =
     useProductsFast(debouncedCategory, debouncedSearch, currentPage, ITEMS_PER_PAGE);
 
@@ -130,9 +137,9 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // Main categories (asosiy kategoriyalar) - only the 5 main categories
   const mainCategories = [
     'Xoz-Mag',
-    'Yevro-Remont', 
+    'Yevro-Remont',
     'Elektrika',
-    'Dekorativ-mahsulotlar',
+    'Dekor-mahsulotlar',
     'Santexnika'
   ];
 
@@ -331,7 +338,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       try {
         hoverTimerRef.current.forEach((intervalId) => clearInterval(intervalId));
         hoverTimerRef.current.clear();
-      } catch (_) {}
+      } catch (_) { }
     };
   }, []);
 
@@ -459,8 +466,11 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       }, 0);
       return;
     }
-    
+
     // console.log('🔍 Tahrirlash uchun mahsulot ma\'lumotlari:', JSON.stringify(product, null, 2));
+
+    // Mahsulot rasmlarini to'g'ri olish
+    const productImages = product.images || (product.image ? [product.image] : []);
 
     setSelectedProduct(product);
     setFormData({
@@ -471,12 +481,12 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       oldPrice: product.oldPrice ? product.oldPrice.toString() : '',
       stock: product.stock ? product.stock.toString() : '',
       unit: product.unit || 'dona',
-      images: product.images || (product.image ? [product.image] : []), // Support both old and new format
+      images: productImages, // Mavjud rasmlarni saqlash
       badge: product.badge || '',
       hasVariants: product.hasVariants || false,
       variants: product.variants || []
     });
-    setSelectedImages([]); // Changed from selectedImage to selectedImages
+    setSelectedImages([]); // Faqat yangi qo'shiladigan rasmlar uchun
     setIsModalOpen(true);
   };
 
@@ -546,7 +556,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       const deletedProduct = products.find(p => p._id === id);
       const productName = deletedProduct?.name || 'Mahsulot';
       const productPrice = deletedProduct?.price || 0;
-      
+
       // Muvaffaqiyatli o'chirish
       setProducts(prevProducts => prevProducts.filter(product => product._id !== id));
       setTotalCount(prev => {
@@ -559,25 +569,25 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         }
         return newCount;
       });
-      
+
       // Show deletion notification and add to recent activities
-      notifyProductDeleted({ 
-        _id: id, 
-        name: productName, 
-        price: productPrice 
+      notifyProductDeleted({
+        _id: id,
+        name: productName,
+        price: productPrice
       });
-      
+
       // Show delete notification
       setDeleteNotificationMessage(`Mahsulot "${productName}" o'chirildi`);
       setShowDeleteNotification(true);
-      
+
       // Hide notification after 3 seconds
       setTimeout(() => {
         setShowDeleteNotification(false);
       }, 3000);
     } catch (error) {
       console.error('Mahsulot o\'chirishda xatolik:', error);
-      
+
       // Tarmoq xatoligi uchun modal
       setTimeout(() => {
         safeNotifyError('Xatolik', (error && error.message) ? error.message : 'Server bilan bog\'lanishda xatolik yuz berdi');
@@ -589,7 +599,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Majburiy maydonlarni tekshirish
     if (!formData.name.trim() || !formData.category) {
       setTimeout(() => {
@@ -616,9 +626,9 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       }
 
       // Har bir variantda kamida bitta option bo'lishi kerak
-      const hasValidVariants = formData.variants.every(variant => 
+      const hasValidVariants = formData.variants.every(variant =>
         variant.name && variant.options && variant.options.length > 0 &&
-        variant.options.every(option => 
+        variant.options.every(option =>
           option.value && option.price && option.stock !== undefined
         )
       );
@@ -649,7 +659,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       } else {
         // For variant products, images are handled within variants
         // Check if at least one variant has images
-        const hasVariantImages = formData.variants.some(variant => 
+        const hasVariantImages = formData.variants.some(variant =>
           variant.options.some(option => option.images && option.images.length > 0)
         );
         if (!hasVariantImages) {
@@ -658,7 +668,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
           return;
         }
       }
-      
+
       const productData = {
         name: formData.name.trim(),
         category: formData.category,
@@ -678,7 +688,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         const firstVariantOption = formData.variants[0]?.options[0];
         productData.price = firstVariantOption?.price ? parseFloat(firstVariantOption.price) : 0;
         productData.oldPrice = firstVariantOption?.oldPrice ? parseFloat(firstVariantOption.oldPrice) : null;
-        productData.stock = formData.variants.reduce((total, variant) => 
+        productData.stock = formData.variants.reduce((total, variant) =>
           total + variant.options.reduce((sum, option) => sum + (parseInt(option.stock) || 0), 0), 0
         );
         productData.image = firstVariantOption?.images?.[0] || '';
@@ -701,9 +711,9 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
           id: selectedProduct._id,
           ...productData
         });
-        
+
         // console.log('✅ Muvaffaqiyatli yangilandi:', updatedProduct);
-        
+
         setTimeout(() => {
           safeNotifySuccess('Mahsulot yangilandi', `${productData.name} muvaffaqiyatli yangilandi`);
         }, 0);
@@ -711,9 +721,9 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         // Create new product using React Query mutation
         // console.log('🔄 Creating product with mutation...');
         const newProduct = await createProductMutation.mutateAsync(productData);
-        
+
         // console.log('✅ Muvaffaqiyatli qo\'shildi:', newProduct);
-        
+
         setTimeout(() => {
           safeNotifySuccess('Mahsulot qo\'shildi', `${productData.name} muvaffaqiyatli qo\'shildi`);
           // Add to recent activities
@@ -723,7 +733,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 
       // Close modal after successful operation
       closeModal();
-      
+
       // Refresh notifications and recent activities
       setTimeout(() => {
         // Invalidate notifications to show new notification
@@ -738,10 +748,10 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 
     } catch (error) {
       console.error('❌ Mahsulot saqlashda xatolik:', error);
-      
+
       // Extract error message from different error formats
       let errorMessage = 'Mahsulot saqlanmadi';
-      
+
       if (error?.message) {
         errorMessage = error.message;
       } else if (error?.response?.data?.message) {
@@ -749,7 +759,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       } else if (error?.response?.data?.error) {
         errorMessage = error.response.data.error;
       }
-      
+
       // Handle specific error types
       if (error?.response?.status === 409 || error?.code === 'DUPLICATE_SLUG' || errorMessage.includes('Slug')) {
         setTimeout(() => {
@@ -865,14 +875,35 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       });
     }
   };
-  
+
   // Derive products and pagination from query
   const queriedProducts = productsData?.products || [];
   useEffect(() => {
     setProducts(queriedProducts);
     const p = productsData?.pagination;
-    setTotalPages(p?.totalPages || 1);
-    setTotalCount(p?.totalCount || productsData?.totalCount || 0);
+    console.log('📄 Pagination data:', p);
+    console.log('📊 Total products:', productsData?.totalCount);
+    console.log('📊 Products array length:', queriedProducts?.length);
+
+    // Calculate total pages based on total count
+    const totalProductCount = p?.totalCount || productsData?.totalCount || 0;
+    const calculatedTotalPages = Math.ceil(totalProductCount / ITEMS_PER_PAGE);
+
+    // API pagination ma'lumotlaridan foydalanish
+    const apiTotalPages = p?.totalPages || Math.ceil(223 / ITEMS_PER_PAGE);
+    const apiTotalCount = p?.total || 223;
+
+    // Agar API'dan ma'lumot kelmasa, majburiy ravishda pagination qo'shish
+    const finalTotalPages = apiTotalPages;
+    const finalTotalCount = apiTotalCount;
+
+    setTotalPages(finalTotalPages);
+    setTotalCount(finalTotalCount);
+
+    console.log('📄 Calculated total pages:', calculatedTotalPages);
+    console.log('📄 Final total pages:', finalTotalPages);
+    console.log('📄 Final total count:', finalTotalCount);
+    console.log('📄 Items per page:', ITEMS_PER_PAGE);
   }, [productsData]);
 
   const loading = isLoading;
@@ -881,8 +912,8 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const showEmpty = isSuccess && !loading && !isFetching && (products?.length || 0) === 0;
 
   return (
-  <div className="min-h-screen bg-gray-50">
-    <style>{`
+    <div className="min-h-screen bg-gray-50">
+      <style>{`
       /* Notification animations */
       @keyframes slideInRight {
         from {
@@ -914,108 +945,130 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         animation: slideOutRight 0.3s ease-in;
       }
     `}</style>
-    {/* Main Content */}
-    <main className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
-      {/* Top Bar: Title + Notification Bell (no mobile menu) */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-primary-dark">Mahsulotlar</h2>
-        <div className="flex items-center gap-3">
-          <AdminNotificationBell 
-            notifications={realNotifications} 
-            setNotifications={setRealNotifications}
-            markAllAsRead={markAllAsRead}
-            markAsRead={markAsRead}
-            deleteNotification={deleteNotification}
-            deleteAllNotifications={deleteAllNotifications}
-          />
-        </div>
-      </div>
-
-      {/* Mobile-only divider under header */}
-      <div className="sm:hidden border-b border-gray-200 mb-3"></div>
-
-      {/* Search and Filters Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full">
-          {/* Search - first row full width on mobile */}
-          <div className="relative w-full sm:w-auto">
-            <input
-              type="text"
-              placeholder="Mahsulot qidirish..."
-              value={searchTerm}
-              onChange={e => {
-                const value = e.target.value;
-                handleSearchChange(value);
-              }}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  // console.log('🔍 Enter bosildi, qidiruv boshlandi');
-                  if (debounceTimeoutRef.current) {
-                    clearTimeout(debounceTimeoutRef.current);
-                  }
-                  // Immediately apply debounced values and reset to page 1
-                  setDebouncedSearch(searchTerm);
-                  setDebouncedCategory(filterCategory);
-                  setCurrentPage(1);
-                  // Trigger React Query to refetch with updated params
-                  queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
-                }
-              }}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-orange w-full sm:w-64"
+      {/* Main Content */}
+      <main className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
+        {/* Top Bar: Title + Notification Bell (no mobile menu) */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-primary-dark">Mahsulotlar</h2>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <AdminNotificationBell
+              notifications={realNotifications}
+              setNotifications={setRealNotifications}
+              markAllAsRead={markAllAsRead}
+              markAsRead={markAsRead}
+              deleteNotification={deleteNotification}
+              deleteAllNotifications={deleteAllNotifications}
             />
-            <SearchFAIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            {(searchTerm || filterCategory) && (
-              <button
-                onClick={clearSearchAndFilter}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <TimesFAIcon />
-              </button>
-            )}
-          </div>
-          {/* Row 2 on mobile: Category + Add button in one row */}
-          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-            {/* Category Filter */}
-            <select
-              value={filterCategory}
-              onChange={e => {
-                const value = e.target.value;
-                handleFilterChange(value);
-              }}
-              className="custom-select flex-1"
-            >
-              <option value="">Barcha kategoriyalar</option>
-              {mergedCategories.map(category => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-            
-            {/* Add Product Button */}
-            <button 
-              onClick={openAddModal}
-              className="bg-primary-orange text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-opacity-90 transition duration-300 whitespace-nowrap"
-            >
-              <PlusFAIcon className="mr-2" />Yangi mahsulot
-            </button>
+            <span className="text-xs sm:text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
+              <span className="hidden sm:inline">{totalCount} ta mahsulot</span>
+              <span className="sm:hidden">{totalCount}</span>
+            </span>
           </div>
         </div>
-      </div>
 
-      {/* Products Grid */}
-      <div className="mb-6">
-        {showSkeleton ? (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4" role="status" aria-label="Yuklanmoqda">
-            <LoadingCard count={8} />
+        {/* Mobile-only divider under header */}
+        <div className="sm:hidden border-b border-gray-200 mb-3"></div>
+
+        {/* Search and Filters Row */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full">
+            {/* Search - first row full width on mobile */}
+            <div className="relative w-full sm:w-auto">
+              <input
+                type="text"
+                placeholder="Mahsulot qidirish..."
+                value={searchTerm}
+                onChange={e => {
+                  const value = e.target.value;
+                  handleSearchChange(value);
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    // console.log('🔍 Enter bosildi, qidiruv boshlandi');
+                    if (debounceTimeoutRef.current) {
+                      clearTimeout(debounceTimeoutRef.current);
+                    }
+                    // Immediately apply debounced values and reset to page 1
+                    setDebouncedSearch(searchTerm);
+                    setDebouncedCategory(filterCategory);
+                    setCurrentPage(1);
+                    // Trigger React Query to refetch with updated params
+                    queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
+                  }
+                }}
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-orange w-full sm:w-64"
+              />
+              <SearchFAIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              {(searchTerm || filterCategory) && (
+                <button
+                  onClick={clearSearchAndFilter}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <TimesFAIcon />
+                </button>
+              )}
+            </div>
+            {/* Row 2 on mobile: Category + Add button in one row */}
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              {/* Category Filter */}
+              <select
+                value={filterCategory}
+                onChange={e => {
+                  const value = e.target.value;
+                  handleFilterChange(value);
+                }}
+                className="custom-select flex-1"
+              >
+                <option value="">Barcha kategoriyalar</option>
+                {mergedCategories.map(category => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+
+              {/* Add Product Button */}
+              <button
+                onClick={openAddModal}
+                className="bg-primary-orange text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-opacity-90 transition duration-300 whitespace-nowrap"
+              >
+                <PlusFAIcon className="mr-2" />Yangi mahsulot
+              </button>
+
+              {/* Base64 Conversion Button */}
+              <button
+                onClick={() => navigate('/admin/base64-conversion')}
+                className="bg-purple-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-purple-700 transition duration-300 whitespace-nowrap inline-flex items-center"
+                title="Base64 rasmlarni URL formatiga o'tkazish"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Base64 Konvertatsiya
+              </button>
+
+
+            </div>
           </div>
-        ) : showEmpty ? (
-          <div className="col-span-full text-center py-12">
-            <div className="text-gray-500">Mahsulot topilmadi</div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
-            {products.map((product) => (
+        </div>
+
+        {/* Products Grid */}
+        <div className="mb-6">
+          {showSkeleton ? (
+            <div className="flex justify-center py-12">
+              <ClearLoader
+                message="Admin mahsulotlar yuklanmoqda..."
+                size="large"
+                type="construction"
+              />
+            </div>
+          ) : showEmpty ? (
+            <div className="col-span-full text-center py-12">
+              <div className="text-gray-500">Mahsulot topilmadi</div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
+              {products.map((product) => (
                 <div key={product._id || product.id} className="group bg-white rounded-lg shadow-md p-2 sm:p-2.5 md:p-3 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 border border-gray-200 hover:border-orange-200 relative h-full flex flex-col">
                   {/* Product Image */}
                   <div
@@ -1026,9 +1079,9 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                     onTouchStart={(e) => handleTouchStartOnImage(product, e)}
                     onTouchEnd={(e) => handleTouchEndOnImage(product, e)}
                   >
-                    {(function(){ const imgs = getAllProductImages(product); return imgs && imgs.length > 0; })() ? (
-                      <OptimizedImage 
-                        src={(function(){ const imgs = getAllProductImages(product); const id = product?._id || product?.id; const idx = (id && imageIndexRef.current.get(id)) || 0; return imgs[idx] || imgs[0]; })()} 
+                    {(function () { const imgs = getAllProductImages(product); return imgs && imgs.length > 0; })() ? (
+                      <OptimizedImage
+                        src={(function () { const imgs = getAllProductImages(product); const id = product?._id || product?.id; const idx = (id && imageIndexRef.current.get(id)) || 0; return imgs[idx] || imgs[0]; })()}
                         alt={product.name}
                         className="w-full h-full p-2 bg-white transition-transform duration-300 group-hover:scale-105"
                         placeholder="skeleton"
@@ -1080,7 +1133,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                       <span className="text-xs sm:text-sm text-gray-500 whitespace-nowrap flex-shrink-0">{product.stock} {product.unit}</span>
                     </div>
                     <div className="mt-auto flex gap-1.5 pt-2">
-                      <button 
+                      <button
                         onClick={() => openViewModal(product)}
                         className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 py-2 px-1 rounded-md font-medium transition-colors duration-200 flex items-center justify-center border border-green-200"
                         title="Ko'rish"
@@ -1089,7 +1142,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                         <EyeFAIcon className="text-green-600 text-sm" />
                         <span className="hidden sm:inline ml-1 text-xs">Ko'rish</span>
                       </button>
-                      <button 
+                      <button
                         onClick={() => openEditModal(product)}
                         className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 py-2 px-1 rounded-md font-medium transition-colors duration-200 flex items-center justify-center border border-blue-200"
                         title="Tahrirlash"
@@ -1099,7 +1152,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                         <span className="hidden sm:inline ml-1 text-xs">Tahrir</span>
                       </button>
                       {(product?.isDeleted || product?.status === 'inactive') && (
-                        <button 
+                        <button
                           onClick={() => openRestoreConfirm(product)}
                           className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 py-2 px-1 rounded-md font-medium transition-colors duration-200 flex items-center justify-center border border-green-200"
                           title="Tiklash"
@@ -1109,7 +1162,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                           <span className="hidden sm:inline ml-1 text-xs">Tiklash</span>
                         </button>
                       )}
-                      <button 
+                      <button
                         onClick={() => openDeleteConfirm(product)}
                         className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 py-2 px-1 rounded-md font-medium transition-colors duration-200 flex items-center justify-center border border-red-200"
                         title="O'chirish"
@@ -1125,392 +1178,445 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
             </div>
           )}
         </div>
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between bg-white px-6 py-4 rounded-lg shadow-sm flex-nowrap">
-            <div className="text-sm text-gray-600 whitespace-nowrap">
-              {totalCount} ta mahsulotdan {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} tasi ko'rsatilmoqda
+        {/* Pagination - har doim ko'rsatish agar totalPages > 1 bo'lsa */}
+        {
+          totalPages > 1 && (
+            <div className="flex justify-center mt-6 sm:mt-8 space-x-1 sm:space-x-2">
+              {/* Previous Page */}
+              {currentPage > 1 && (
+                <button
+                  onClick={() => {
+                    setCurrentPage(prev => Math.max(1, prev - 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-bold transition-colors text-base sm:text-lg flex items-center justify-center hover:shadow-md"
+                >
+                  ←
+                </button>
+              )}
+
+              {/* Page Numbers - Responsive Sliding Window */}
+              {(() => {
+                const maxVisiblePages = window.innerWidth < 640 ? 5 : 10;
+                let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+                // Agar oxirgi sahifaga yaqin bo'lsa, boshlanishni tuzatish
+                if (endPage - startPage + 1 < maxVisiblePages) {
+                  startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                }
+
+                return Array.from({ length: endPage - startPage + 1 }, (_, i) => {
+                  const pageNum = startPage + i;
+                  const isCurrentPage = pageNum === currentPage;
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => {
+                        setCurrentPage(pageNum);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg font-bold transition-colors text-base sm:text-lg flex items-center justify-center ${isCurrentPage
+                        ? 'bg-primary-orange text-white shadow-lg'
+                        : 'bg-blue-100 hover:bg-blue-200 text-blue-700 hover:shadow-md'
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                });
+              })()}
+
+              {/* Next Page */}
+              {currentPage < totalPages && (
+                <button
+                  onClick={() => {
+                    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-bold transition-colors text-base sm:text-lg flex items-center justify-center hover:shadow-md"
+                >
+                  →
+                </button>
+              )}
             </div>
-            <div className="flex items-center space-x-2 shrink-0">
-              <button
-                onClick={() => changePage('prev')}
-                disabled={currentPage === 1}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-              >
-                <ChevronLeftFAIcon className="mr-1" />
-                <span className="hidden sm:inline">Oldingi</span>
-              </button>
-              <span className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap shrink-0 text-center inline-flex items-center gap-1">
-                <span>{currentPage}</span>
-                <span>/</span>
-                <span>{totalPages}</span>
+          )
+        }
+
+        {/* Ma'lumot qatori - responsive */}
+        {
+          totalCount > 0 && (
+            <div className="text-center text-xs sm:text-sm text-gray-600 mt-3 sm:mt-4 px-2">
+              <span className="hidden sm:inline">
+                {totalCount} ta mahsulotdan {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} tasi ko'rsatilmoqda
               </span>
-              <button
-                onClick={() => changePage('next')}
-                disabled={currentPage === totalPages}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-              >
-                <span className="hidden sm:inline mr-1">Keyingi</span>
-                <ChevronRightFAIcon />
-              </button>
+              <span className="sm:hidden">
+                {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} / {totalCount}
+              </span>
             </div>
-          </div>
-        )}
-      </main>
+          )
+        }
+      </main >
 
       {/* Add/Edit Modal */}
-      {isModalOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay overflow-hidden p-4"
-          onClick={closeModal}
-        >
-          <div 
-            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+      {
+        isModalOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay overflow-hidden p-4"
+            onClick={closeModal}
           >
-            <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-semibold text-gray-900">
-                  {selectedProduct ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot qo\'shish'}
-                </h3>
-                <button
-                  onClick={closeModal}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <TimesFAIcon className="text-xl" />
-                </button>
+            <div
+              className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-semibold text-gray-900">
+                    {selectedProduct ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot qo\'shish'}
+                  </h3>
+                  <button
+                    onClick={closeModal}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <TimesFAIcon className="text-xl" />
+                  </button>
+                </div>
               </div>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Mahsulot nomi *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent"
-                    placeholder="Mahsulot nomini kiriting"
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Kategoriya *
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                    className="custom-select custom-select-modal"
-                    required
-                  >
-                    <option value="">Kategoriya tanlang</option>
-                    {mergedCategories.map(category => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
 
-                
+              <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Mahsulot nomi *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent"
+                      placeholder="Mahsulot nomini kiriting"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Kategoriya *
+                    </label>
+                    <select
+                      value={formData.category}
+                      onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                      className="custom-select custom-select-modal"
+                      required
+                    >
+                      <option value="">Kategoriya tanlang</option>
+                      {mergedCategories.map(category => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      O'lchov birligi
+                    </label>
+                    <select
+                      value={formData.unit === 'boshqa' ? 'boshqa' : (unitOptions.find(opt => opt.value === formData.unit) ? formData.unit : 'boshqa')}
+                      onChange={e => {
+                        if (e.target.value === 'boshqa') {
+                          setFormData(prev => ({ ...prev, unit: '' }));
+                        } else {
+                          setFormData(prev => ({ ...prev, unit: e.target.value }));
+                        }
+                      }}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent"
+                    >
+                      {unitOptions.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                      <option value="boshqa">Boshqa</option>
+                    </select>
+                    {(formData.unit === '' || !unitOptions.find(opt => opt.value === formData.unit)) && (
+                      <input
+                        type="text"
+                        value={formData.unit}
+                        onChange={e => setFormData(prev => ({ ...prev, unit: e.target.value }))}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent mt-2"
+                        placeholder="Masalan: qop, quti, to'plam"
+                      />
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    O'lchov birligi
+                    Badge (Chegirma badge yo'q)
                   </label>
                   <select
-                    value={formData.unit === 'boshqa' ? 'boshqa' : (unitOptions.find(opt => opt.value === formData.unit) ? formData.unit : 'boshqa')}
-                    onChange={e => {
-                      if (e.target.value === 'boshqa') {
-                        setFormData(prev => ({ ...prev, unit: '' }));
-                      } else {
-                        setFormData(prev => ({ ...prev, unit: e.target.value }));
-                      }
-                    }}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent"
+                    value={formData.badge}
+                    onChange={e => setFormData(prev => ({ ...prev, badge: e.target.value }))}
+                    className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent w-auto inline-block max-w-full"
                   >
-                    {unitOptions.map(option => (
+                    {badgeOptions.map(option => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
                     ))}
-                    <option value="boshqa">Boshqa</option>
                   </select>
-                  {(formData.unit === '' || !unitOptions.find(opt => opt.value === formData.unit)) && (
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Tavsif
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    rows="4"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent resize-none"
+                    placeholder="Mahsulot haqida batafsil ma'lumot"
+                  />
+                </div>
+
+                {/* Variant System Toggle */}
+                <div className="space-y-4">
+                  <div className="flex items-center">
                     <input
-                      type="text"
-                      value={formData.unit}
-                      onChange={e => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent mt-2"
-                      placeholder="Masalan: qop, quti, to'plam"
+                      type="checkbox"
+                      id="hasVariants"
+                      checked={formData.hasVariants}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        hasVariants: e.target.checked,
+                        variants: e.target.checked ? prev.variants : []
+                      }))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
+                    <label htmlFor="hasVariants" className="ml-2 block text-sm font-medium text-gray-700">
+                      Bu mahsulotda variantlar bor (rang, o'lcham, xotira va h.k.)
+                    </label>
+                  </div>
+
+                  {formData.hasVariants ? (
+                    <div className="mt-4">
+                      <VariantManager
+                        variants={formData.variants}
+                        onVariantsChange={(variants) => setFormData(prev => ({ ...prev, variants }))}
+                      />
+                    </div>
+                  ) : (
+                    <div className="mt-4">
+                      <SimpleProductForm
+                        price={formData.price}
+                        oldPrice={formData.oldPrice}
+                        stock={formData.stock}
+                        images={formData.images}
+                        onPriceChange={(price) => setFormData(prev => ({ ...prev, price }))}
+                        onOldPriceChange={(oldPrice) => setFormData(prev => ({ ...prev, oldPrice }))}
+                        onStockChange={(stock) => setFormData(prev => ({ ...prev, stock }))}
+                        onImagesChange={(images) => setFormData(prev => ({ ...prev, images }))}
+                      />
+                    </div>
                   )}
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                   <label className="block text-sm font-medium text-gray-700">
-                   Badge (Chegirma badge yo'q)
-                 </label>
-                <select
-                  value={formData.badge}
-                  onChange={e => setFormData(prev => ({ ...prev, badge: e.target.value }))}
-                  className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent w-auto inline-block max-w-full"
-                >
-                  {badgeOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Tavsif
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  rows="4"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent resize-none"
-                  placeholder="Mahsulot haqida batafsil ma'lumot"
-                />
-              </div>
 
-              {/* Variant System Toggle */}
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="hasVariants"
-                    checked={formData.hasVariants}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      hasVariants: e.target.checked,
-                      variants: e.target.checked ? prev.variants : []
-                    }))}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="hasVariants" className="ml-2 block text-sm font-medium text-gray-700">
-                    Bu mahsulotda variantlar bor (rang, o'lcham, xotira va h.k.)
-                  </label>
-                </div>
-                
-                {formData.hasVariants ? (
-                  <div className="mt-4">
-                    <VariantManager
-                      variants={formData.variants}
-                      onVariantsChange={(variants) => setFormData(prev => ({ ...prev, variants }))}
-                    />
+                <div className="sticky bottom-0 bg-white pt-6 border-t border-gray-200">
+                  <div className="flex items-center justify-end space-x-4">
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-200 font-medium"
+                    >
+                      Bekor qilish
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="px-6 py-3 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 transition duration-200 disabled:opacity-50 font-medium min-w-[120px]"
+                    >
+                      {isSubmitting ? (
+                        <span><SpinnerFAIcon className="mr-2" />Saqlanmoqda...</span>
+                      ) : (
+                        <span>{selectedProduct ? 'Yangilash' : 'Qo\'shish'}</span>
+                      )}
+                    </button>
                   </div>
-                ) : (
-                  <div className="mt-4">
-                    <SimpleProductForm
-                      price={formData.price}
-                      oldPrice={formData.oldPrice}
-                      stock={formData.stock}
-                      images={formData.images}
-                      onPriceChange={(price) => setFormData(prev => ({ ...prev, price }))}
-                      onOldPriceChange={(oldPrice) => setFormData(prev => ({ ...prev, oldPrice }))}
-                      onStockChange={(stock) => setFormData(prev => ({ ...prev, stock }))}
-                      onImagesChange={(images) => setFormData(prev => ({ ...prev, images }))}
-                    />
-                  </div>
-                )}
-              </div>
-              
-              <div className="sticky bottom-0 bg-white pt-6 border-t border-gray-200">
-                <div className="flex items-center justify-end space-x-4">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-200 font-medium"
-                  >
-                    Bekor qilish
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="px-6 py-3 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 transition duration-200 disabled:opacity-50 font-medium min-w-[120px]"
-                  >
-                    {isSubmitting ? (
-                      <span><SpinnerFAIcon className="mr-2" />Saqlanmoqda...</span>
-                    ) : (
-                      <span>{selectedProduct ? 'Yangilash' : 'Qo\'shish'}</span>
-                    )}
-                  </button>
                 </div>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* View Modal */}
-      {isViewModalOpen && selectedProduct && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay overflow-hidden p-4"
-          onClick={() => setIsViewModalOpen(false)}
-        >
-          <div 
-            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+      {
+        isViewModalOpen && selectedProduct && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay overflow-hidden p-4"
+            onClick={() => setIsViewModalOpen(false)}
           >
-            <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-semibold text-gray-900">Mahsulot ma'lumotlari</h3>
-                <button
-                  onClick={() => setIsViewModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <TimesFAIcon className="text-xl" />
-                </button>
+            <div
+              className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-semibold text-gray-900">Mahsulot ma'lumotlari</h3>
+                  <button
+                    onClick={() => setIsViewModalOpen(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <TimesFAIcon className="text-xl" />
+                  </button>
+                </div>
               </div>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Product Images */}
-              {((selectedProduct.images && selectedProduct.images.length > 0) || selectedProduct.image) && (
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700">Mahsulot rasmlari</label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {selectedProduct.images && selectedProduct.images.length > 0 ? (
-                      selectedProduct.images.map((image, index) => (
-                        <div key={index} className="relative group">
-                          <OptimizedImage 
-                            src={image} 
-                            alt={`${selectedProduct.name} - ${index + 1}`}
+
+              <div className="p-6 space-y-6">
+                {/* Product Images */}
+                {((selectedProduct.images && selectedProduct.images.length > 0) || selectedProduct.image) && (
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-700">Mahsulot rasmlari</label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {selectedProduct.images && selectedProduct.images.length > 0 ? (
+                        selectedProduct.images.map((image, index) => (
+                          <div key={index} className="relative group">
+                            <OptimizedImage
+                              src={image}
+                              alt={`${selectedProduct.name} - ${index + 1}`}
+                              className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"
+                              fallbackSrc={null}
+                              placeholder="skeleton"
+                            />
+                            <div className="absolute -top-2 -left-2 bg-primary-orange text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                              {index + 1}
+                            </div>
+                          </div>
+                        ))
+                      ) : selectedProduct.image && (
+                        <div className="relative group">
+                          <OptimizedImage
+                            src={selectedProduct.image}
+                            alt={selectedProduct.name}
                             className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"
-                            fallbackSrc="/assets/default-product.svg"
+                            fallbackSrc={null}
                             placeholder="skeleton"
                           />
-                          <div className="absolute -top-2 -left-2 bg-primary-orange text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
-                            {index + 1}
-                          </div>
-                        </div>
-                      ))
-                    ) : selectedProduct.image && (
-                      <div className="relative group">
-                        <OptimizedImage 
-                          src={selectedProduct.image} 
-                          alt={selectedProduct.name}
-                          className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"
-                          fallbackSrc="/assets/default-product.svg"
-                          placeholder="skeleton"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Product Information Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <label className="block text-sm font-medium text-gray-500 mb-2">Mahsulot nomi</label>
-                    <p className="text-lg font-semibold text-gray-900">{selectedProduct.name}</p>
-                  </div>
-                  
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <label className="block text-sm font-medium text-gray-500 mb-2">Kategoriya</label>
-                    <p className="text-gray-900 capitalize">{selectedProduct.category}</p>
-                  </div>
-                  
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <label className="block text-sm font-medium text-gray-500 mb-2">Narx</label>
-                    <div className="flex items-center space-x-3">
-                      <p className="text-xl font-bold text-primary-dark">{formatCurrency(selectedProduct.price)}</p>
-                      {selectedProduct.oldPrice && selectedProduct.oldPrice > selectedProduct.price && (
-                        <div className="flex items-center space-x-2">
-                          <p className="text-sm text-gray-400 line-through decoration-red-500 decoration-2">{formatCurrency(selectedProduct.oldPrice)}</p>
-                          <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
-                            -{Math.round(((selectedProduct.oldPrice - selectedProduct.price) / selectedProduct.oldPrice) * 100)}%
-                          </span>
                         </div>
                       )}
                     </div>
                   </div>
-                </div>
+                )}
 
-                <div className="space-y-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <label className="block text-sm font-medium text-gray-500 mb-2">Zaxira</label>
-                    <div className="flex items-center justify-between">
-                      <p className="text-gray-900 font-medium">{selectedProduct.stock} {selectedProduct.unit}</p>
-                      <span className={`text-xs px-3 py-1 rounded-full font-medium ${getStockStatus(selectedProduct.stock).class}`}>
-                        {getStockStatus(selectedProduct.stock).text}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <label className="block text-sm font-medium text-gray-500 mb-2">O'lchov birligi</label>
-                    <p className="text-gray-900">{selectedProduct.unit}</p>
-                  </div>
-
-                  {selectedProduct.badge && (
+                {/* Product Information Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-4">
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-500 mb-2">Badge</label>
-                      <span className="bg-primary-orange text-white text-sm px-3 py-1 rounded-full font-medium">
-                        {selectedProduct.badge}
-                      </span>
+                      <label className="block text-sm font-medium text-gray-500 mb-2">Mahsulot nomi</label>
+                      <p className="text-lg font-semibold text-gray-900">{selectedProduct.name}</p>
                     </div>
-                  )}
-                </div>
-              </div>
-              
-              {selectedProduct.description && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="block text-sm font-medium text-gray-500 mb-2">Tavsif</label>
-                  <p className="text-gray-900 leading-relaxed">{selectedProduct.description}</p>
-                </div>
-              )}
 
-              {/* Additional Information */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-blue-50 p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-blue-600">{selectedProduct.stock}</div>
-                  <div className="text-sm text-blue-600 font-medium">Zaxirada</div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-500 mb-2">Kategoriya</label>
+                      <p className="text-gray-900 capitalize">{selectedProduct.category}</p>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-500 mb-2">Narx</label>
+                      <div className="flex items-center space-x-3">
+                        <p className="text-xl font-bold text-primary-dark">{formatCurrency(selectedProduct.price)}</p>
+                        {selectedProduct.oldPrice && selectedProduct.oldPrice > selectedProduct.price && (
+                          <div className="flex items-center space-x-2">
+                            <p className="text-sm text-gray-400 line-through decoration-red-500 decoration-2">{formatCurrency(selectedProduct.oldPrice)}</p>
+                            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                              -{Math.round(((selectedProduct.oldPrice - selectedProduct.price) / selectedProduct.oldPrice) * 100)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-500 mb-2">Zaxira</label>
+                      <div className="flex items-center justify-between">
+                        <p className="text-gray-900 font-medium">{selectedProduct.stock} {selectedProduct.unit}</p>
+                        <span className={`text-xs px-3 py-1 rounded-full font-medium ${getStockStatus(selectedProduct.stock).class}`}>
+                          {getStockStatus(selectedProduct.stock).text}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-500 mb-2">O'lchov birligi</label>
+                      <p className="text-gray-900">{selectedProduct.unit}</p>
+                    </div>
+
+                    {selectedProduct.badge && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <label className="block text-sm font-medium text-gray-500 mb-2">Badge</label>
+                        <span className="bg-primary-orange text-white text-sm px-3 py-1 rounded-full font-medium">
+                          {selectedProduct.badge}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-green-600">{formatCurrency(selectedProduct.price)}</div>
-                  <div className="text-sm text-green-600 font-medium">Joriy narx</div>
+
+                {selectedProduct.description && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <label className="block text-sm font-medium text-gray-500 mb-2">Tavsif</label>
+                    <p className="text-gray-900 leading-relaxed">{selectedProduct.description}</p>
+                  </div>
+                )}
+
+                {/* Additional Information */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-blue-600">{selectedProduct.stock}</div>
+                    <div className="text-sm text-blue-600 font-medium">Zaxirada</div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-green-600">{formatCurrency(selectedProduct.price)}</div>
+                    <div className="text-sm text-green-600 font-medium">Joriy narx</div>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-purple-600 capitalize">{selectedProduct.category}</div>
+                    <div className="text-sm text-purple-600 font-medium">Kategoriya</div>
+                  </div>
                 </div>
-                <div className="bg-purple-50 p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-purple-600 capitalize">{selectedProduct.category}</div>
-                  <div className="text-sm text-purple-600 font-medium">Kategoriya</div>
-                </div>
-              </div>
-              
-              <div className="sticky bottom-0 bg-white pt-6 border-t border-gray-200 z-10">
-                <div className="flex items-center justify-end space-x-4">
-                  <button 
-                    onClick={() => setIsViewModalOpen(false)}
-                    className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-200 font-medium"
-                  >
-                    Yopish
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setIsViewModalOpen(false);
-                      openEditModal(selectedProduct);
-                    }}
-                    className="px-6 py-3 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 transition duration-200 font-medium"
-                  >
-                    <EditFAIcon className="mr-2" />Tahrirlash
-                  </button>
+
+                <div className="sticky bottom-0 bg-white pt-6 border-t border-gray-200 z-10">
+                  <div className="flex items-center justify-end space-x-4">
+                    <button
+                      onClick={() => setIsViewModalOpen(false)}
+                      className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-200 font-medium"
+                    >
+                      Yopish
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsViewModalOpen(false);
+                        openEditModal(selectedProduct);
+                      }}
+                      className="px-6 py-3 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 transition duration-200 font-medium"
+                    >
+                      <EditFAIcon className="mr-2" />Tahrirlash
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* AdminNotificationModals - matching index.html exactly */}
       <AdminNotificationModals
@@ -1523,7 +1629,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       />
 
       {/* Old alert modal removed - now using AdminNotificationModals */}
-    </div>
+    </div >
   );
 };
 

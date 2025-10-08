@@ -8,6 +8,7 @@ import { useProduct } from '../hooks/useProductQueries';
 
 const ModernProductCard = memo(({
   product,
+  index = 0,
   onAddToCart,
   onOpenDetail,
   currentImageIndex: externalCurrentImageIndex = 0,
@@ -80,15 +81,17 @@ const ModernProductCard = memo(({
       }
     }
     
-    // Ensure at least one image
-    return allImages.length > 0 ? allImages : ['/assets/default-product.svg'];
+    // Ensure at least one image - return empty array if no images
+    return allImages.length > 0 ? allImages : [];
   };
 
   const productImages = getAllProductImages();
 
   // Lazy fetch full product details to get complete images list (variants + gallery)
   const [shouldFetchDetails, setShouldFetchDetails] = useState(false);
-  const { data: detailData } = useProduct(product?._id, shouldFetchDetails);
+  // Disable individual product fetching for now to prevent 400 errors
+  // const { data: detailData } = useProduct(product?._id, shouldFetchDetails);
+  const detailData = null;
 
   const getImagesFromDetail = useCallback((detail) => {
     if (!detail) return [];
@@ -128,7 +131,8 @@ const ModernProductCard = memo(({
   // Handle hover-based image navigation (from original ProductCard.jsx)
   const handleMouseMove = useCallback((e) => {
     if (images.length <= 1) {
-      // Avoid auto-fetching detail for images to reduce backend load
+      // If we only have 0/1 images from list, fetch details to get full gallery
+      if (!shouldFetchDetails) setShouldFetchDetails(true);
       return;
     }
 
@@ -236,8 +240,10 @@ const ModernProductCard = memo(({
   }, [images.length, currentImageIndex, setImageIndex]);
 
   const handleTouchStart = useCallback((e) => {
-    // Do not trigger detail prefetch automatically on touch
-    if (images.length <= 1) return;
+    // On first touch, if only 0/1 images available from list, prefetch details
+    if (images.length <= 1 && !shouldFetchDetails) {
+      setShouldFetchDetails(true);
+    }
     const touch = e.touches[0];
     touchDataRef.current = {
       startX: touch.clientX,
@@ -245,7 +251,7 @@ const ModernProductCard = memo(({
       time: Date.now(),
       active: true
     };
-  }, [images.length]);
+  }, [images.length, shouldFetchDetails]);
 
   const handleTouchMove = useCallback((e) => {
     // Do not call preventDefault here to avoid passive listener warning.
@@ -357,7 +363,13 @@ const ModernProductCard = memo(({
               : 'h-44 sm:h-52 lg:h-60' // Badge yo'q bo'lsa kattaroq
           }`}
           ref={containerRef}
-          onMouseEnter={(e) => { cachedWidthRef.current = e.currentTarget.clientWidth; /* prefetch disabled */ }}
+          onMouseEnter={(e) => {
+            cachedWidthRef.current = e.currentTarget.clientWidth;
+            // Prefetch detail on hover if we currently only have 0/1 images from list
+            if (!shouldFetchDetails && (!Array.isArray(images) || images.length <= 1)) {
+              setShouldFetchDetails(true);
+            }
+          }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onClick={handleImageClick}
@@ -367,16 +379,25 @@ const ModernProductCard = memo(({
         >
           {/* Main Image (lazy-loaded and URL-optimized) */}
           <div className="w-full h-full overflow-hidden rounded-lg flex items-center justify-center">
-            <OptimizedImage
-              src={currentImage || '/assets/default-product.svg'}
-              alt={product.name}
-              className={`w-full h-full ${isHovered ? 'scale-105' : 'scale-100'}`}
-              placeholder="skeleton"
-              objectFit="contain"
-              loading="lazy"
-              onLoad={() => setImageLoading(false)}
-              onError={() => setImageLoading(false)}
-            />
+            {currentImage ? (
+              <OptimizedImage
+                src={currentImage}
+                alt={product.name}
+                className={`w-full h-full ${isHovered ? 'scale-105' : 'scale-100'}`}
+                placeholder="skeleton"
+                objectFit="contain"
+                loading={index < 4 ? "eager" : "lazy"}
+                priority={index < 2}
+                onLoad={() => setImageLoading(false)}
+                onError={() => setImageLoading(false)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <svg className="w-12 h-12 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
           </div>
 
           {/* Loading Skeleton */}

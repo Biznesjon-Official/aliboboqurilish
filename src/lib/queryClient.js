@@ -24,6 +24,10 @@ export const queryClient = new QueryClient({
         if (error?.name === 'AbortError') {
           return false;
         }
+        // Don't retry on network change errors
+        if (error?.message?.includes('network change') || error?.message?.includes('ERR_NETWORK_CHANGED')) {
+          return false;
+        }
         return failureCount < 2; // Reduce max retries to 2 (was 3)
       },
       // Exponential backoff with jitter for better distributed retries

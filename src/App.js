@@ -6,12 +6,20 @@ import LCPOptimizer from './components/LCPOptimizer';
 import './App.css';
 import { useStockMonitor } from './hooks/useRealTimeStock'; // Real-time stock monitoring
 import { useGlobalStockListener } from './hooks/useGlobalStock'; // Global stock state
-import DiagnosticPanel from './components/DiagnosticPanel'; // Diagnostic panel for monitoring
+// Removed DiagnosticPanel for cleaner code
 import AdminLoadingLayout from './components/skeletons/AdminLoadingLayout';
 import socketService from './services/SocketService';
 import useStatistics from './hooks/useStatistics';
+import * as serviceWorker from './utils/serviceWorker';
 
-const MainPage = lazy(() => import('./components/MainPage'));
+// Preload MainPage for faster initial load
+const MainPage = lazy(() => 
+  import('./components/MainPage').then(module => {
+    // Preload ProductDetailPage in background
+    import('./components/ProductDetailPage');
+    return module;
+  })
+);
 const ProductDetailPage = lazy(() => import('./components/ProductDetailPage'));
 // Lazy load the entire admin section to keep it out of main bundle
 const AdminRoutes = lazy(() => import('./components/AdminRoutes'));
@@ -23,7 +31,7 @@ function AppContent() {
   const [productsCount, setProductsCount] = useState(0); // Real totals filled from statistics
   const [ordersCount, setOrdersCount] = useState(0); // Real totals filled from statistics
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Authentication state
-  const [showDiagnostics, setShowDiagnostics] = useState(false); // Diagnostic panel state
+  // Local diagnostics state removed from AppContent (use App-level panel instead)
 
   // Initialize real-time stock monitoring for the entire app (now inside QueryClientProvider)
   const { isConnected, connectionStatus } = useStockMonitor(true); // Enable debug mode
@@ -36,6 +44,24 @@ function AppContent() {
   // CRITICAL: Expose queryClient to window for debugging and force refresh
   useEffect(() => {
     window.queryClient = queryClient;
+    
+    // PRELOAD: Start fetching products immediately for instant display
+    queryClient.prefetchQuery({
+      queryKey: ['fast-products', '', ''],
+      queryFn: async () => {
+        const API_BASE = process.env.REACT_APP_API_BASE || 
+          (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+        
+        const response = await fetch(`${API_BASE}/products/fast?limit=8&page=1&sortBy=updatedAt&sortOrder=desc&includeImages=true`, {
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        });
+        
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return response.json();
+      },
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+    
     return () => {
       delete window.queryClient;
     };
@@ -50,42 +76,13 @@ function AppContent() {
     }
   }, [formattedStats]);
 
-  // CRITICAL: Initialize Socket.IO for real-time stock updates
-  useEffect(() => {
-    console.log('🔧 API Base URL:', process.env.REACT_APP_API_BASE);
-    console.log('🔧 Socket URL:', process.env.REACT_APP_SOCKET_URL);
-    console.log('🔗 Initializing Socket.IO for real-time stock synchronization');
-    socketService.initialize();
-    
-    // Diagnostic panel toggle with keyboard shortcut (Dev only)
-    if (process.env.NODE_ENV === 'development') {
-      const handleKeyDown = (e) => {
-        // Ctrl+Shift+D to toggle diagnostics
-        if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-          e.preventDefault();
-          setShowDiagnostics(prev => !prev);
-          console.log('🔧 Diagnostic panel toggled:', !showDiagnostics);
-        }
-      };
-      
-      document.addEventListener('keydown', handleKeyDown);
-      console.log('🔧 Diagnostic panel available (Ctrl+Shift+D)');
-      
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-        socketService.disconnect();
-      };
-    }
-    
-    // Cleanup on unmount
-    return () => {
-      socketService.disconnect();
-    };
-  }, []);
+  // Removed duplicate socket initialization from AppContent to avoid double init
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    console.log('Logout clicked');
+    if ((process.env.REACT_APP_DEBUG_MODE || '').toLowerCase() === 'true') {
+      console.log('Logout clicked');
+    }
   };
 
   const handleCraftsmenCountChange = useCallback((count) => {
@@ -126,7 +123,7 @@ function AppContent() {
     >
       <Routes>
         <Route path="/" element={
-          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="text-lg">Yuklanmoqda...</div></div>}>
+          <Suspense >
             <MainPage onSuccessfulLogin={handleSuccessfulLogin} />
           </Suspense>
         } />
@@ -170,29 +167,27 @@ function AppContent() {
 
 // Main App component with QueryClientProvider
 function App() {
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
-
-  // Load development-only side effects dynamically so they are not bundled in production
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      Promise.all([
-        import('./utils/browserStockSync'),
-        import('./utils/forceRefresh'),
-        import('./utils/stockUpdateDebugger'),
-        import('./utils/stockNotification'),
-        import('./testOptimisticUpdates'),
-      ]).catch(() => {
-        // Swallow errors in dev helpers to avoid breaking the app
-      });
-    }
-  }, []);
 
   // CRITICAL: Initialize Socket.IO for real-time stock updates
   useEffect(() => {
-    console.log('🔧 API Base URL:', process.env.REACT_APP_API_BASE);
-    console.log('🔧 Socket URL:', process.env.REACT_APP_SOCKET_URL);
-    console.log('🔗 Initializing Socket.IO for real-time stock synchronization');
+    const DEBUG = (process.env.REACT_APP_DEBUG_MODE || '').toLowerCase() === 'true';
+    if (DEBUG) {
+      console.log('🔧 Socket URL:', process.env.REACT_APP_SOCKET_URL);
+      console.log('🔗 Initializing Socket.IO for real-time stock synchronization');
+    }
     socketService.initialize();
+    
+    // Register Service Worker for image caching and offline support
+    if (process.env.NODE_ENV === 'production') {
+      serviceWorker.register({
+        onSuccess: () => {
+          if (DEBUG) console.log('🔧 Service Worker registered successfully');
+        },
+        onUpdate: () => {
+          if (DEBUG) console.log('🔧 New content available, refresh to update');
+        }
+      });
+    }
     
     // Diagnostic panel toggle with keyboard shortcut (Dev only)
     if (process.env.NODE_ENV === 'development') {
@@ -201,12 +196,12 @@ function App() {
         if (e.ctrlKey && e.shiftKey && e.key === 'D') {
           e.preventDefault();
           setShowDiagnostics(prev => !prev);
-          console.log('🔧 Diagnostic panel toggled:', !showDiagnostics);
+          if (DEBUG) console.log('🔧 Diagnostic panel toggled');
         }
       };
       
       document.addEventListener('keydown', handleKeyDown);
-      console.log('🔧 Diagnostic panel available (Ctrl+Shift+D)');
+      if (DEBUG) console.log('🔧 Diagnostic panel available (Ctrl+Shift+D)');
       
       return () => {
         document.removeEventListener('keydown', handleKeyDown);
@@ -225,13 +220,7 @@ function App() {
       <LCPOptimizer />
       <AppContent />
       
-      {/* CRITICAL: Real-time Diagnostic Panel (Development only) */}
-      {process.env.NODE_ENV === 'development' && (
-        <DiagnosticPanel 
-          isVisible={showDiagnostics} 
-          onToggle={() => setShowDiagnostics(!showDiagnostics)} 
-        />
-      )}
+      {/* Removed DiagnosticPanel */}
     </QueryClientProvider>
   );
 }

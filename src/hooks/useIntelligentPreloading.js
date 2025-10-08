@@ -1,6 +1,74 @@
 import { useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { componentPreloader, preloadConfigs, componentImports } from '../utils/componentPreloader';
+
+// Component imports for preloading
+const componentImports = {
+  ProductDetailPage: () => import('../components/ProductDetail'),
+  AdminProducts: () => import('../components/AdminProducts'),
+  AdminDashboard: () => import('../admin/AdminDashboard'),
+  CartSidebar: () => import('../components/CartSidebar'),
+  Header: () => import('../components/Header'),
+  Footer: () => import('../components/Footer'),
+};
+
+// Preload configurations
+const preloadConfigs = {
+  userFlow: [
+    { importFn: componentImports.ProductDetailPage, name: 'ProductDetailPage' },
+    { importFn: componentImports.Header, name: 'Header' },
+    { importFn: componentImports.Footer, name: 'Footer' },
+  ],
+  adminFlow: [
+    { importFn: componentImports.AdminProducts, name: 'AdminProducts' },
+    { importFn: componentImports.AdminDashboard, name: 'AdminDashboard' },
+  ]
+};
+
+// Component preloader utility
+const componentPreloader = {
+  cache: new Map(),
+  
+  async preload(importFn, name) {
+    if (this.cache.has(name)) {
+      return this.cache.get(name);
+    }
+    
+    try {
+      console.log(`🔄 Preloading component: ${name}`);
+      const component = await importFn();
+      this.cache.set(name, component);
+      console.log(`✅ Preloaded component: ${name}`);
+      return component;
+    } catch (error) {
+      console.error(`❌ Failed to preload component ${name}:`, error);
+      return null;
+    }
+  },
+  
+  async preloadMultiple(configs) {
+    const promises = configs.map(({ importFn, name }) => 
+      this.preload(importFn, name)
+    );
+    
+    try {
+      await Promise.all(promises);
+      console.log(`✅ Preloaded ${configs.length} components`);
+    } catch (error) {
+      console.error('❌ Error preloading multiple components:', error);
+    }
+  },
+  
+  isPreloaded(name) {
+    return this.cache.has(name);
+  },
+  
+  getPreloadStatus() {
+    return {
+      cached: Array.from(this.cache.keys()),
+      total: this.cache.size
+    };
+  }
+};
 
 // Hook for intelligent component preloading based on user behavior
 export const useIntelligentPreloading = (userType = 'user') => {

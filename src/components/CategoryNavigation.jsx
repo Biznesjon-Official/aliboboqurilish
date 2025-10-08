@@ -14,7 +14,7 @@ const CategoryNavigation = ({
     { id: 'xoz-mag', name: 'xoz-mag', displayName: 'Xoz-mag' },
     { id: 'yevro-remont', name: 'yevro-remont', displayName: 'Yevro remont' },
     { id: 'elektrika', name: 'elektrika', displayName: 'Elektrika' },
-    { id: 'dekorativ-mahsulotlar', name: 'dekorativ-mahsulotlar', displayName: 'Dekorativ' },
+    { id: 'dekor-mahsulotlar', name: 'dekor-mahsulotlar', displayName: 'Dekor' },
     { id: 'santexnika', name: 'santexnika', displayName: 'Santexnika' },
   ];
 

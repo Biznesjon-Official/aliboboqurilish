@@ -1,121 +1,225 @@
-// Lightweight fuzzy search utilities: normalize, distance, and matchers
-// No external dependencies to keep bundle small
+import { useState, useEffect, useMemo } from 'react';
+import { useDebounce } from './useDebounce';
 
-// Normalize text: lowercase, trim, remove diacritics, collapse spaces, basic Uzbek apostrophes handling
-export function normalizeText(str = '') {
-  return (str || '')
-    .toString()
-    .toLowerCase()
-    .normalize('NFD')
-    // remove diacritic combining marks for broader browser support
-    .replace(/[\u0300-\u036f]+/g, '')
-    // unify apostrophes commonly used in Uzbek transliteration
-    .replace(/[ʼ’‘`′]/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-// Basic Levenshtein distance optimized for short query vs word comparisons
-export function levenshtein(a = '', b = '') {
-  a = normalizeText(a);
-  b = normalizeText(b);
-  const al = a.length;
-  const bl = b.length;
-  if (al === 0) return bl;
-  if (bl === 0) return al;
-
-  const v0 = new Array(bl + 1);
-  const v1 = new Array(bl + 1);
-  for (let i = 0; i <= bl; i++) v0[i] = i;
-
-  for (let i = 0; i < al; i++) {
-    v1[0] = i + 1;
-    const ac = a.charCodeAt(i);
-    for (let j = 0; j < bl; j++) {
-      const cost = ac === b.charCodeAt(j) ? 0 : 1;
-      v1[j + 1] = Math.min(
-        v1[j] + 1,        // insertion
-        v0[j + 1] + 1,    // deletion
-        v0[j] + cost      // substitution
-      );
+// Simple fuzzy search implementation
+const fuzzyMatch = (text, query) => {
+  if (!text || !query) return false;
+  
+  const textLower = text.toLowerCase();
+  const queryLower = query.toLowerCase();
+  
+  // Exact match gets highest score
+  if (textLower.includes(queryLower)) {
+    return { score: 100, match: true };
+  }
+  
+  // Character-by-character fuzzy matching
+  let textIndex = 0;
+  let queryIndex = 0;
+  let matches = 0;
+  
+  while (textIndex < textLower.length && queryIndex < queryLower.length) {
+    if (textLower[textIndex] === queryLower[queryIndex]) {
+      matches++;
+      queryIndex++;
     }
-    for (let j = 0; j <= bl; j++) v0[j] = v1[j];
+    textIndex++;
   }
-  return v1[bl];
-}
+  
+  // Calculate score based on matches
+  const score = (matches / queryLower.length) * 80; // Max 80 for fuzzy matches
+  
+  return {
+    score: score,
+    match: score > 50 // Threshold for considering it a match
+  };
+};
 
-// Tokenize a string into words for better fuzzy scoring on product names
-function tokenize(str = '') {
-  return normalizeText(str)
-    .split(/[^a-z0-9а-яёўқғҳʼ']+/u)
-    .filter(Boolean);
-}
+// Advanced fuzzy search with multiple fields
+const searchItems = (items, query, searchFields = ['name']) => {
+  if (!query || query.trim().length === 0) {
+    return items;
+  }
+  
+  const results = items
+    .map(item => {
+      let bestScore = 0;
+      let matchedField = null;
+      
+      // Search across multiple fields
+      searchFields.forEach(field => {
+        const fieldValue = item[field];
+        if (fieldValue) {
+          const result = fuzzyMatch(fieldValue, query);
+          if (result.match && result.score > bestScore) {
+            bestScore = result.score;
+            matchedField = field;
+          }
+        }
+      });
+      
+      return {
+        ...item,
+        _searchScore: bestScore,
+        _matchedField: matchedField
+      };
+    })
+    .filter(item => item._searchScore > 0)
+    .sort((a, b) => b._searchScore - a._searchScore);
+  
+  return results;
+};
 
-// Compute a fuzzy score for a product relative to the query.
-// Lower is better (distance). We use min distance across tokens and fields.
-export function scoreProduct(product, query) {
-  const fields = [
-    product?.name,
-    product?.title,
-    product?.model,
-    product?.description,
-    Array.isArray(product?.badges) ? product.badges.join(' ') : product?.badge,
-    product?.category,
-    product?.brand
-  ].filter(Boolean);
-
-  if (fields.length === 0) return { distance: Number.POSITIVE_INFINITY, term: '' };
-
-  const q = normalizeText(query);
-  let best = { distance: Number.POSITIVE_INFINITY, term: '' };
-
-  for (const field of fields) {
-    const tokens = tokenize(field);
-    for (const token of tokens) {
-      // Early exact/startsWith boost
-      if (token.startsWith(q)) {
-        const d = Math.abs(token.length - q.length) * 0.1; // light length penalty
-        if (d < best.distance) best = { distance: d, term: token };
-        continue;
-      }
-      if (token.includes(q)) {
-        const d = Math.abs(token.length - q.length) * 0.3;
-        if (d < best.distance) best = { distance: d + 0.5, term: token };
-        continue;
-      }
-      const d = levenshtein(q, token);
-      if (d < best.distance) best = { distance: d, term: token };
+// Hook for fuzzy search functionality
+export const useFuzzySearch = (items = [], searchFields = ['name'], options = {}) => {
+  const {
+    debounceMs = 300,
+    minQueryLength = 1,
+    maxResults = 100
+  } = options;
+  
+  const [query, setQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // Debounce the search query
+  const debouncedQuery = useDebounce(query, debounceMs);
+  
+  // Memoized search results
+  const searchResults = useMemo(() => {
+    if (!debouncedQuery || debouncedQuery.trim().length < minQueryLength) {
+      return items;
     }
-  }
-  return best;
-}
+    
+    setIsSearching(true);
+    
+    const results = searchItems(items, debouncedQuery, searchFields);
+    const limitedResults = results.slice(0, maxResults);
+    
+    setIsSearching(false);
+    
+    return limitedResults;
+  }, [items, debouncedQuery, searchFields, minQueryLength, maxResults]);
+  
+  // Effect to handle search state
+  useEffect(() => {
+    if (query !== debouncedQuery && query.trim().length >= minQueryLength) {
+      setIsSearching(true);
+    }
+  }, [query, debouncedQuery, minQueryLength]);
+  
+  // Clear search
+  const clearSearch = () => {
+    setQuery('');
+    setIsSearching(false);
+  };
+  
+  // Search statistics
+  const searchStats = useMemo(() => {
+    const hasQuery = debouncedQuery && debouncedQuery.trim().length >= minQueryLength;
+    const totalItems = items.length;
+    const resultCount = searchResults.length;
+    
+    return {
+      hasQuery,
+      query: debouncedQuery,
+      totalItems,
+      resultCount,
+      filteredCount: hasQuery ? resultCount : totalItems,
+      isFiltered: hasQuery && resultCount < totalItems
+    };
+  }, [debouncedQuery, items.length, searchResults.length, minQueryLength]);
+  
+  return {
+    query,
+    setQuery,
+    searchResults,
+    isSearching,
+    clearSearch,
+    searchStats
+  };
+};
 
-// Get top-N fuzzy matches from a list of products
-export function getFuzzyMatches(products = [], query, limit = 12) {
-  if (!query || !Array.isArray(products) || products.length === 0) return [];
-  const scored = products.map((p) => ({ product: p, ...scoreProduct(p, query) }));
-  // Filter clearly irrelevant results using a dynamic threshold by query length
-  const qLen = normalizeText(query).length || 1;
-  const maxAllowed = Math.max(2, Math.ceil(qLen * 0.6));
-  return scored
-    .filter((s) => isFinite(s.distance) && s.distance <= maxAllowed)
-    .sort((a, b) => a.distance - b.distance)
-    .slice(0, limit);
-}
+// Hook for real-time search with API integration
+export const useApiSearch = (searchFn, options = {}) => {
+  const {
+    debounceMs = 500,
+    minQueryLength = 2,
+    cacheResults = true
+  } = options;
+  
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [cache] = useState(new Map());
+  
+  const debouncedQuery = useDebounce(query, debounceMs);
+  
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!debouncedQuery || debouncedQuery.trim().length < minQueryLength) {
+        setResults([]);
+        setError(null);
+        return;
+      }
+      
+      const trimmedQuery = debouncedQuery.trim();
+      
+      // Check cache first
+      if (cacheResults && cache.has(trimmedQuery)) {
+        setResults(cache.get(trimmedQuery));
+        return;
+      }
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const searchResults = await searchFn(trimmedQuery);
+        setResults(searchResults);
+        
+        // Cache results
+        if (cacheResults) {
+          cache.set(trimmedQuery, searchResults);
+        }
+      } catch (err) {
+        setError(err.message || 'Search failed');
+        setResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    performSearch();
+  }, [debouncedQuery, searchFn, minQueryLength, cacheResults, cache]);
+  
+  const clearSearch = () => {
+    setQuery('');
+    setResults([]);
+    setError(null);
+  };
+  
+  const clearCache = () => {
+    cache.clear();
+  };
+  
+  return {
+    query,
+    setQuery,
+    results,
+    isLoading,
+    error,
+    clearSearch,
+    clearCache
+  };
+};
 
-// Derive "Did you mean" terms from top fuzzy matches
-export function getDidYouMeanTerms(matches = [], limit = 5) {
-  const map = new Map();
-  for (const m of matches) {
-    const key = m.term;
-    if (!key) continue;
-    const prev = map.get(key) || { term: key, weight: 0 };
-    // Heavier weight for closer distance
-    prev.weight += 1 / (1 + m.distance);
-    map.set(key, prev);
-  }
-  return Array.from(map.values())
-    .sort((a, b) => b.weight - a.weight)
-    .slice(0, limit)
-    .map((x) => x.term);
-}
+// Utility function for highlighting search matches
+export const highlightMatches = (text, query) => {
+  if (!text || !query) return text;
+  
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return text.replace(regex, '<mark>$1</mark>');
+};
+
+export default useFuzzySearch;

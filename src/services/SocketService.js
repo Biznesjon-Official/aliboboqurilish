@@ -1,5 +1,7 @@
 import io from 'socket.io-client';
 
+const DEBUG = (process.env.REACT_APP_DEBUG_MODE || '').toLowerCase() === 'true';
+
 class SocketService {
   constructor() {
     this.socket = null;
@@ -23,7 +25,7 @@ class SocketService {
       // Use environment variables for socket URL
       const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_BASE?.replace(/\/api$/, '') || 'http://localhost:5000';
       
-      console.log(`🔧 Initializing Socket.IO with URL: ${socketUrl}`);
+      if (DEBUG) console.log(`🔧 Initializing Socket.IO with URL: ${socketUrl}`);
       
       this.socket = io(socketUrl, {
         transports: ['polling', 'websocket'],
@@ -43,7 +45,7 @@ class SocketService {
 
       this.setupEventListeners();
       this.startHealthMonitoring();
-      console.log('🔗 Socket.IO initialized');
+      if (DEBUG) console.log('🔗 Socket.IO initialized');
     } catch (error) {
       console.error('❌ Failed to initialize Socket.IO:', error);
     }
@@ -55,19 +57,19 @@ class SocketService {
     this.socket.on('connect', () => {
       this.isConnected = true;
       this.reconnectAttempts = 0;
-      console.log('✅ Connected to Socket.IO server');
+      if (DEBUG) console.log('✅ Connected to Socket.IO server');
       
       // Send a ping to verify connection health
       this.socket.emit('ping', (response) => {
         if (response === 'pong') {
-          console.log('🏓 Socket connection verified with ping/pong');
+          if (DEBUG) console.log('🏓 Socket connection verified with ping/pong');
         }
       });
     });
 
     this.socket.on('disconnect', (reason) => {
       this.isConnected = false;
-      console.log('❌ Disconnected from Socket.IO server:', reason);
+      if (DEBUG) console.log('❌ Disconnected from Socket.IO server:', reason);
       
       // Reset reconnect attempts on clean disconnect
       if (reason === 'io server disconnect' || reason === 'io client disconnect') {
@@ -82,43 +84,43 @@ class SocketService {
       // Implement exponential backoff for connection errors
       if (this.reconnectAttempts <= this.maxReconnectAttempts) {
         const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-        console.log(`🔄 Retrying connection in ${delay/1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+        if (DEBUG) console.log(`🔄 Retrying connection in ${delay/1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
       } else {
-        console.warn('⚠️ Max reconnection attempts reached. Socket will retry automatically.');
+        if (DEBUG) console.warn('⚠️ Max reconnection attempts reached. Socket will retry automatically.');
       }
       
       // In development, if we keep failing, disable socket connection to prevent spam
       if (this.isDevelopment && this.reconnectAttempts > 5) {
-        console.log('🔧 Development mode: Disabling socket connection to prevent spam');
+        if (DEBUG) console.log('🔧 Development mode: Disabling socket connection to prevent spam');
         this.disconnect();
       }
     });
 
     // Stock update events
     this.socket.on('stockUpdate', (data) => {
-      console.log('📦 Stock update received:', data);
+      if (DEBUG) console.log('📦 Stock update received:', data);
       this.emit('stockUpdate', data);
     });
 
     // Low stock alerts (admin only)
     this.socket.on('lowStockAlert', (data) => {
-      console.log('⚠️ Low stock alert received:', data);
+      if (DEBUG) console.log('⚠️ Low stock alert received:', data);
       this.emit('lowStockAlert', data);
     });
 
     // Order events
     this.socket.on('newOrder', (data) => {
-      console.log('🛒 New order received:', data);
+      if (DEBUG) console.log('🛒 New order received:', data);
       this.emit('newOrder', data);
     });
 
     this.socket.on('orderStatusUpdate', (data) => {
-      console.log('📋 Order status updated:', data);
+      if (DEBUG) console.log('📋 Order status updated:', data);
       this.emit('orderStatusUpdate', data);
     });
 
     this.socket.on('orderUpdate', (data) => {
-      console.log('📋 Order update received:', data);
+      if (DEBUG) console.log('📋 Order update received:', data);
       this.emit('orderUpdate', data);
     });
 
@@ -130,7 +132,7 @@ class SocketService {
 
     // Notification events
     this.socket.on('notification', (data) => {
-      console.log('🔔 Notification received:', data);
+      if (DEBUG) console.log('🔔 Notification received:', data);
       this.emit('notification', data);
     });
   }

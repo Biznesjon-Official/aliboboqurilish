@@ -2,7 +2,7 @@ import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import '../styles/select-styles.css';
 import RecentActivitiesSkeleton from './skeletons/RecentActivitiesSkeleton';
-import FadeInTransition from './transitions/FadeInTransition';
+// Removed FadeInTransition for simpler code
 import { useRecentActivities, useDeleteRecentActivity, useDeleteAllRecentActivities, useRecentActivitiesCache } from '../hooks/useRecentActivities';
 import { ExclamationTriangleFAIcon, FilterFAIcon, ClockFAIcon, BoxFAIcon, CartFAIcon, HammerFAIcon } from './FontAwesome';
 
@@ -187,12 +187,11 @@ const AdminRecentActivities = ({ onNavigate, isLoading = false }) => {
     );
   }
 
+  if (isLoading) {
+    return <RecentActivitiesSkeleton itemCount={5} />;
+  }
+
   return (
-    <FadeInTransition 
-      isLoading={isLoading} 
-      skeleton={<RecentActivitiesSkeleton itemCount={5} />}
-      delay={100}
-    >
       <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100 flex-1 flex flex-col h-full">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 space-y-3 sm:space-y-0">
           <h3 className="text-lg sm:text-xl font-bold text-primary-dark">Oxirgi amallar</h3>
@@ -291,7 +290,6 @@ const AdminRecentActivities = ({ onNavigate, isLoading = false }) => {
           )}
         </div>
       </div>
-    </FadeInTransition>
   );
 };
 

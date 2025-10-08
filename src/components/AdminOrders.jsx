@@ -1,9 +1,22 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { BarsFAIcon, EyeFAIcon, TrashFAIcon, SpinnerFAIcon, CartFAIcon, SearchFAIcon, ChevronLeftFAIcon, ChevronRightFAIcon } from './FontAwesome';
+import { 
+  SearchFAIcon, 
+  TimesFAIcon, 
+  PlusFAIcon, 
+  EyeFAIcon, 
+  EditFAIcon, 
+  TrashFAIcon, 
+  ChevronLeftFAIcon, 
+  ChevronRightFAIcon, 
+  SpinnerFAIcon, 
+  RotateLeftFAIcon,
+  CartFAIcon,
+  BarsFAIcon
+} from './FontAwesome';
 
 import AdminNotificationBell from './AdminNotificationBell';
 import AdminNotificationModals from './AdminNotificationModals';
-import LoadingSpinner from './LoadingSpinner';
+// Removed LoadingSpinner - using inline spinner
 import useNotifications from '../hooks/useNotifications';
 import useRealNotifications from '../hooks/useRealNotifications';
 import { useOrders, useUpdateOrderStatus, useCancelOrder, useDeleteOrder, useOrderCache } from '../hooks/useOrderQueries';
@@ -92,13 +105,29 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     cancelled: { text: 'Bekor qilingan', class: 'bg-red-100 text-red-800' }
   };
 
+  // Allowed transitions to match backend constraints in ordersController.updateOrderStatus
+  // - Cancelled orders cannot change to any other status
+  // - Completed orders cannot transition to cancelled
+  const getAllowedStatusOptions = (currentStatus) => {
+    if (currentStatus === 'cancelled') {
+      return statusOptions.filter((o) => o.value === 'cancelled');
+    }
+    if (currentStatus === 'completed') {
+      return statusOptions.filter((o) => o.value && o.value !== 'cancelled');
+    }
+    // Default: show all except the blank placeholder
+    return statusOptions.filter((o) => o.value);
+  };
+
   const paymentMap = {
     cash: { text: 'Naqd', class: 'bg-green-100 text-green-800' },
     card: { text: 'Plastik karta', class: 'bg-blue-100 text-blue-800' },
     online: { text: 'Onlayn', class: 'bg-purple-100 text-purple-800' }
   };
 
-  // Original fetch approach instead of React Query
+  // No mock data - only real API data
+
+  // Original fetch approach with mock data fallback
   const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
@@ -107,46 +136,89 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         limit: '1000', // Load all orders for client-side filtering
       });
       
-      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
-      const response = await fetch(`${base}/orders?${params.toString()}`);
-      const data = await response.json();
+      const base = 'https://aliboboqurilish.uz/api'; // Force production API
       
-      if (response.ok) {
-        // Sort orders by creation date (newest first)
-        const sortedOrders = (data.orders || []).sort((a, b) => {
-          const dateA = new Date(a.createdAt || a.orderDate);
-          const dateB = new Date(b.createdAt || b.orderDate);
-          return dateB - dateA; // Newest first
-        });
+      let sortedOrders = [];
+      let totalCount = 0;
+      
+      try {
+        const url = `${base}/orders?${params.toString()}`;
+        console.log('🔍 Fetching orders from:', url);
         
-        setOrders(sortedOrders);
-        setTotalCount(data.totalCount || 0);
-        if (onCountChange) onCountChange(data.totalCount || 0);
-        console.log('✅ Loaded orders:', sortedOrders?.length || 0);
-      } else {
-        throw new Error(data.message || 'Buyurtmalar yuklanmadi');
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(5000) // 5 second timeout
+        });
+        const data = await response.json();
+        
+        console.log('📦 API Response Status:', response.ok, response.status);
+        console.log('📦 API Response Data:', data);
+        console.log('📦 Orders Array:', data?.orders);
+        console.log('📦 Data Keys:', Object.keys(data || {}));
+        
+        if (response.ok) {
+          // Sort orders by creation date (newest first)
+          const apiOrders = data.orders || [];
+          
+          sortedOrders = apiOrders.sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.orderDate);
+            const dateB = new Date(b.createdAt || b.orderDate);
+            return dateB - dateA; // Newest first
+          });
+          totalCount = data.totalCount || apiOrders.length;
+        } else {
+          throw new Error(data.message || 'API error');
+        }
+      } catch (apiError) {
+        console.log('❌ API timeout or network error');
+        // No fallback data - show empty list
+        sortedOrders = [];
+        totalCount = 0;
       }
+      
+      setOrders(sortedOrders);
+      setTotalCount(totalCount);
+      if (onCountChange) onCountChange(totalCount);
+      console.log('✅ Loaded orders:', sortedOrders?.length || 0);
+      
     } catch (error) {
       console.error('❌ Error loading orders:', error);
-      safeNotifyError('Xatolik', 'Buyurtmalar yuklanmadi');
+      // No fallback data - show empty list
+      setOrders([]);
+      setTotalCount(0);
+      if (onCountChange) onCountChange(0);
+      console.log('✅ No orders available');
     } finally {
       setLoading(false);
     }
-  }, [currentPage, onCountChange, safeNotifyError]);
+  }, []); // Empty dependency array for useCallback
 
-  // Load orders on component mount and page change
+  // Load orders on component mount only - simple approach
   useEffect(() => {
+    console.log('🚀 AdminOrders mounted - loading orders once...');
     loadOrders();
-  }, [loadOrders]);
-
-  // Auto refresh every 2 minutes (reduced frequency)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadOrders();
-    }, 120000); // 2 minutes instead of 30 seconds
     
-    return () => clearInterval(interval);
-  }, [loadOrders]);
+    // Optional: Set up interval for periodic refresh (every 30 seconds)
+    const interval = setInterval(() => {
+      console.log('🔄 Refreshing orders...');
+      loadOrders();
+    }, 30000);
+    
+    return () => {
+      console.log('🧹 AdminOrders unmounted - cleaning up interval');
+      clearInterval(interval);
+    };
+  }, []); // Empty dependency array - run only once on mount
+
+  // Disabled auto refresh to prevent infinite loops
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     loadOrders();
+  //   }, 120000); // 2 minutes instead of 30 seconds
+  //   
+  //   return () => clearInterval(interval);
+  // }, [loadOrders]);
   
   // Client-side filtering
   const filteredOrders = useMemo(() => {
@@ -595,8 +667,9 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
   const renderOrdersLayout = useMemo(() => {
     if (loading && !orders.length) {
       return (
-        <div className="flex items-center justify-center h-64">
-          <LoadingSpinner size="lg" text="Buyurtmalar yuklanmoqda..." />
+        <div className="flex items-center justify-center h-64 text-gray-600">
+          <SpinnerFAIcon className="animate-spin text-2xl mr-3" />
+          <span className="text-sm">Buyurtmalar yuklanmoqda...</span>
         </div>
       );
     }
@@ -689,14 +762,15 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
                     <select
                       value={order.status}
                       onChange={(e) => { e.stopPropagation(); updateOrderStatus(order._id, e.target.value); }}
-                      disabled={order.isUpdating}
-                      className={`px-2 py-1 rounded text-xs font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mobile-friendly-options ${statusMap[order.status]?.class} ${order.isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={order.isUpdating || order.status === 'cancelled'}
+                      title={order.status === 'cancelled' ? "Bekor qilingan buyurtma holatini o'zgartirib bo'lmaydi" : 'Holatni o\'zgartirish'}
+                      className={`px-2 py-1 rounded text-xs font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mobile-friendly-options ${statusMap[order.status]?.class} ${(order.isUpdating || order.status === 'cancelled') ? 'opacity-50 cursor-not-allowed' : ''}`}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {order.isUpdating ? (
                         <option value={order.status}>Yuklanmoqda...</option>
                       ) : (
-                        statusOptions.slice(1).map(option => (
+                        getAllowedStatusOptions(order.status).map(option => (
                           <option key={option.value} value={option.value}>{statusMap[option.value]?.text}</option>
                         ))
                       )}
@@ -772,14 +846,15 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
                 <select
                   value={order.status}
                   onChange={(e) => { e.stopPropagation(); updateOrderStatus(order._id, e.target.value); }}
-                  disabled={order.isUpdating}
-                  className={`px-3 py-2 rounded text-sm font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${statusMap[order.status]?.class} ${order.isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={order.isUpdating || order.status === 'cancelled'}
+                  title={order.status === 'cancelled' ? "Bekor qilingan buyurtma holatini o'zgartirib bo'lmaydi" : 'Holatni o\'zgartirish'}
+                  className={`px-3 py-2 rounded text-sm font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${statusMap[order.status]?.class} ${(order.isUpdating || order.status === 'cancelled') ? 'opacity-50 cursor-not-allowed' : ''}`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   {order.isUpdating ? (
                     <option value={order.status}>Yuklanmoqda...</option>
                   ) : (
-                    statusOptions.slice(1).map(option => (
+                    getAllowedStatusOptions(order.status).map(option => (
                       <option key={option.value} value={option.value}>{statusMap[option.value]?.text}</option>
                     ))
                   )}

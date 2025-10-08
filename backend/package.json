@@ -5,12 +5,18 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "start:dev": "cross-env NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=false node server.js",
+    "start:dev": "cross-env NODE_ENV=development SKIP_INDEX_CREATION=false ENABLE_CLUSTERING=false DEBUG=false node server.js",
     "start:fast": "cross-env NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=false node server.js",
+    "start:turbo": "cross-env NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=false MICROCACHE_TTL_MS=2000 node server.js",
     "dev": "nodemon server.js",
     "optimize-db": "node scripts/optimize-database.js",
-    "db:reset": "node scripts/reset-database.js",
+    "ensure-indexes": "node scripts/ensure-indexes.js",
+    "seed-db": "node scripts/seed-database.js",
     "db:optimize": "node scripts/optimize-database.js",
+    "db:reset": "node scripts/reset-database.js",
+    "db:indexes": "node scripts/create-performance-indexes.js",
+    "cache:clear": "node scripts/clear-cache.js",
+    "performance:analyze": "node scripts/analyze-performance.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -34,6 +40,7 @@
     "hpp": "^0.2.3",
     "mongoose": "^7.5.0",
     "multer": "^2.0.2",
+    "sharp": "^0.34.4",
     "socket.io": "^4.8.1",
     "uuid": "^13.0.0"
   },

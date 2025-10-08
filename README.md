@@ -21,7 +21,12 @@ A modern web application for managing products with real-time stock updates, bui
 
 ### Running on localhost:3000
 
-1. **Start both frontend and backend concurrently**:
+1. **Set up the development environment** (ensures MongoDB indexes and seeds sample data):
+   ```bash
+   npm run setup:dev
+   ```
+
+2. **Start both frontend and backend concurrently**:
    ```bash
    npm run dev
    ```
@@ -38,7 +43,7 @@ A modern web application for managing products with real-time stock updates, bui
    npm run dev:frontend-3000
    ```
 
-2. **Access the application**:
+3. **Access the application**:
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:5000/api
 
@@ -101,10 +106,13 @@ CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,ht
 ### Backend Scripts
 - `npm run dev:backend-only` - Start backend server
 - `npm run backend-only` - Start backend with development settings
+- `npm run db:ensure-indexes` - Ensure MongoDB indexes for optimal performance
+- `npm run db:seed` - Seed database with sample data
 
 ### Combined Scripts
 - `npm start` - Start both frontend (3001) and backend (5000)
 - `npm run dev` - Start backend first, then frontend (3000) after a 5-second delay
+- `npm run setup:dev` - Set up development environment (indexes + seed data)
 
 ## Development
 

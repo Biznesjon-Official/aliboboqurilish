@@ -1,6 +1,4 @@
 import React from 'react';
-import TelegramSkeleton from './TelegramSkeleton';
-import TelegramShimmer from './TelegramShimmer';
 import RecentActivitiesSkeleton from './RecentActivitiesSkeleton';
 
 const AdminDashboardSkeleton = () => {
@@ -10,31 +8,12 @@ const AdminDashboardSkeleton = () => {
       <header className="bg-white shadow-sm border-b sticky top-0 z-30">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center space-x-4">
-            <TelegramShimmer>
-              <TelegramSkeleton 
-                width="w-6" 
-                height="h-6" 
-                className="bg-gray-200 lg:hidden"
-              />
-            </TelegramShimmer>
-            <TelegramShimmer>
-              <TelegramSkeleton 
-                width="w-32" 
-                height="h-8" 
-                className="bg-gray-200"
-              />
-            </TelegramShimmer>
+            <div className="w-6 h-6 bg-gray-200 rounded animate-pulse lg:hidden"></div>
+            <div className="w-32 h-8 bg-gray-200 rounded animate-pulse"></div>
           </div>
           
           <div className="flex items-center space-x-4">
-            <TelegramShimmer>
-              <TelegramSkeleton 
-                width="w-8" 
-                height="h-8" 
-                rounded="rounded-full" 
-                className="bg-gray-200"
-              />
-            </TelegramShimmer>
+            <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
           </div>
         </div>
       </header>
@@ -44,33 +23,14 @@ const AdminDashboardSkeleton = () => {
         {/* Stats Cards skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {Array.from({ length: 4 }).map((_, index) => (
-            <TelegramShimmer key={index}>
-              <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                <div className="flex items-center justify-between mb-4">
-                  <TelegramSkeleton 
-                    width="w-8" 
-                    height="h-8" 
-                    rounded="rounded-lg" 
-                    className="bg-gray-200"
-                  />
-                  <TelegramSkeleton 
-                    width="w-4" 
-                    height="h-4" 
-                    className="bg-gray-100"
-                  />
-                </div>
-                <TelegramSkeleton 
-                  width="w-16" 
-                  height="h-8" 
-                  className="bg-gray-200 mb-2"
-                />
-                <TelegramSkeleton 
-                  width="w-20" 
-                  height="h-4" 
-                  className="bg-gray-100"
-                />
+            <div key={index} className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-8 h-8 bg-gray-200 rounded-lg animate-pulse"></div>
+                <div className="w-4 h-4 bg-gray-100 rounded animate-pulse"></div>
               </div>
-            </TelegramShimmer>
+              <div className="w-16 h-8 bg-gray-200 rounded animate-pulse mb-2"></div>
+              <div className="w-20 h-4 bg-gray-100 rounded animate-pulse"></div>
+            </div>
           ))}
         </div>
         

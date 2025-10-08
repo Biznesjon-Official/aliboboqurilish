@@ -1,8 +1,15 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys, queryClient } from '../lib/queryClient';
 
-// API base URL - Direct connection to backend
-const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+// API base URL - use same-origin in production to avoid CORS between www/apex
+const API_BASE = (() => {
+  if (process.env.REACT_APP_API_BASE) return process.env.REACT_APP_API_BASE;
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  if (process.env.NODE_ENV === 'production' && origin) {
+    return `${origin.replace(/\/$/, '')}/api`;
+  }
+  return 'http://localhost:5000/api';
+})();
 
 console.log(`🔧 API Base URL: ${API_BASE}`);
 

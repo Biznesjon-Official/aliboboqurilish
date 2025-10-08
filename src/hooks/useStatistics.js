@@ -7,14 +7,14 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  // Feature flag: allow disabling network calls for statistics in production until backend endpoints exist
-  const ENABLE_STATS_API = (process.env.REACT_APP_ENABLE_STATS || '').toLowerCase() === 'true';
+  // Feature flag: enable statistics API by default. Set REACT_APP_ENABLE_STATS=false to disable.
+  const ENABLE_STATS_API = (process.env.REACT_APP_ENABLE_STATS ?? 'true').toLowerCase() === 'true';
 
   // Fetch dashboard statistics
   const fetchDashboardStats = useCallback(async () => {
     try {
       if (!ENABLE_STATS_API) {
-        // Return fallback immediately without hitting backend
+        // Return empty data when API is disabled
         const fallbackData = {
           products: { total: 0, byCategory: [] },
           craftsmen: { total: 0, active: 0, inactive: 0 },
@@ -27,16 +27,36 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
         setError(null);
         return fallbackData;
       }
-      // NOTE: Using direct backend URL instead of proxy due to setupProxy.js issues
-      // This ensures statistics work reliably in development environment
-      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
-      const response = await fetch(`${base}/statistics/dashboard`);
+      // Prefer REACT_APP_API_BASE when set; otherwise choose sensible defaults
+      const primaryBase = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const secondaryBase = primaryBase.includes('aliboboqurilish.uz')
+        ? 'http://localhost:5000/api'
+        : 'https://aliboboqurilish.uz/api';
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Dashboard API Error:', response.status, errorText);
-        
-        // Return fallback data if API fails
+      // Try primary
+      let response = null;
+      try {
+        response = await fetch(`${primaryBase}/statistics/dashboard`);
+      } catch (_) {
+        // Network failure on primary; will try secondary below
+      }
+
+      // If primary fails or not OK, try secondary
+      if (!response || !response.ok) {
+        try {
+          const r2 = await fetch(`${secondaryBase}/statistics/dashboard`);
+          if (r2.ok) {
+            const d2 = await r2.json();
+            setStatistics(d2);
+            setLastUpdated(new Date());
+            setError(null);
+            return d2;
+          }
+        } catch (_) {
+          // swallow and continue to fallback
+        }
+
+        // Fallback data when both bases fail - empty data
         const fallbackData = {
           products: { total: 0, byCategory: [] },
           craftsmen: { total: 0, active: 0, inactive: 0 },
@@ -44,10 +64,9 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
           revenue: { total: 0, thisMonth: 0, lastMonth: 0, growth: 0 },
           timestamp: new Date().toISOString()
         };
-        
         setStatistics(fallbackData);
         setLastUpdated(new Date());
-        setError(null); // Don't show error for fallback data
+        setError(null);
         return fallbackData;
       }
 
@@ -61,7 +80,7 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
     } catch (err) {
       console.error('❌ Dashboard statistikalarini olishda xatolik:', err);
       
-      // Return fallback data on network error
+      // Return empty data on network error
       const fallbackData = {
         products: { total: 0, byCategory: [] },
         craftsmen: { total: 0, active: 0, inactive: 0 },
@@ -94,15 +113,27 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
         setError(null);
         return fallbackData;
       }
-      // NOTE: Using direct backend URL instead of proxy due to setupProxy.js issues
-      const base2 = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
-      const response = await fetch(`${base2}/statistics/edits?days=${days}`);
+      const primaryBase = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const secondaryBase = primaryBase.includes('aliboboqurilish.uz')
+        ? 'http://localhost:5000/api'
+        : 'https://aliboboqurilish.uz/api';
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Edit API Error:', response.status, errorText);
-        
-        // Return fallback data if API fails
+      let response = null;
+      try {
+        response = await fetch(`${primaryBase}/statistics/edits?days=${days}`);
+      } catch (_) {}
+
+      if (!response || !response.ok) {
+        try {
+          const r2 = await fetch(`${secondaryBase}/statistics/edits?days=${days}`);
+          if (r2.ok) {
+            const d2 = await r2.json();
+            setEditStats(d2);
+            setError(null);
+            return d2;
+          }
+        } catch (_) {}
+
         const fallbackData = {
           total: 0,
           today: 0,
@@ -112,7 +143,6 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
           mostEdited: [],
           timestamp: new Date().toISOString()
         };
-        
         setEditStats(fallbackData);
         setError(null);
         return fallbackData;

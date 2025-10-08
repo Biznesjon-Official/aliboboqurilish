@@ -187,18 +187,12 @@ if (enableClustering && cluster.isPrimary) {
       }
       // Use compression filter
       return compression.filter(req, res);
-    },
-    // Add a custom threshold function based on request size
-    threshold: function (req, res) {
-      // Don't bother compressing small responses
-      const contentLength = parseInt(res.getHeader('Content-Length'), 10);
-      return contentLength > 1024; // Only compress responses > 1KB
     }
   }));
 
   // Query timeout middleware for performance
   const { queryTimeoutMiddleware, handleQueryTimeout } = require('./middleware/queryTimeout');
-  app.use(queryTimeoutMiddleware(5000)); // 5 second timeout for all queries
+  app.use(queryTimeoutMiddleware(15000)); // 15 second timeout for all queries (increased for slow MongoDB Atlas)
 
   // Data sanitization against NoSQL query injection
   app.use(mongoSanitize());
@@ -349,11 +343,36 @@ if (enableClustering && cluster.isPrimary) {
     console.log(`✅ Uploads directory exists: ${uploadsDir}`);
   }
 
-  // Static file serving for uploads
+  // Handle OPTIONS requests for uploads (CORS preflight)
+  app.options('/uploads/*', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.status(200).end();
+  });
+
+  // Image optimization middleware (before static serving)
+  const imageOptimization = require('./middleware/imageOptimization');
+  app.use('/uploads', imageOptimization({
+    quality: 80,
+    enableWebP: true,
+    enableResize: true,
+    maxWidth: 1920,
+    maxHeight: 1920
+  }));
+
+  // Static file serving for uploads with CORS headers
   app.use('/uploads', express.static('uploads', {
     maxAge: process.env.NODE_ENV === 'development' ? '0' : '7d', // No cache in development, 7 days in production
     etag: true, // Generate ETags for caching
     setHeaders: (res, path, stat) => {
+      // Add CORS headers for image requests
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      
       if (process.env.NODE_ENV === 'development') {
         // Development: No caching for easier debugging
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -416,7 +435,25 @@ if (enableClustering && cluster.isPrimary) {
 
   if (isBuildDirValid()) {
     console.log('✅ Build directory found with index.html, serving static files');
-    app.use(express.static(buildDir));
+    app.use(express.static(buildDir, {
+      etag: true,
+      setHeaders: (res, filePath) => {
+        // Never cache index.html to ensure latest app shell
+        if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+          return;
+        }
+        // Cache hashed assets aggressively (CRA outputs hashed filenames in build/static)
+        if (/\\.(?:js|css|woff2?|ttf|eot|png|jpe?g|gif|svg|webp)$/.test(filePath)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // 1 year
+        } else {
+          // Default moderate caching for other assets
+          res.setHeader('Cache-Control', process.env.NODE_ENV === 'development' ? 'no-cache' : 'public, max-age=86400'); // 1 day
+        }
+      }
+    }));
 
     // Serve the React app for any non-API routes
     app.get('*', (req, res, next) => {
@@ -456,23 +493,28 @@ if (enableClustering && cluster.isPrimary) {
     });
   }
 
-  // Routes
-  const productRoutes = require('./routes/productRoutes');
-  const craftsmenRoutes = require('./routes/craftsmenRoutes');
-  const notificationsRoutes = require('./routes/notificationsRoutes');
-  const ordersRoutes = require('./routes/ordersRoutes');
-  const statisticsRoutes = require('./routes/statisticsRoutes');
-  const uploadRoutes = require('./routes/uploadRoutes');
-  const { router: recentActivitiesRoutes } = require('./routes/recentActivitiesRoutes');
-
-  app.use('/api/products', productRoutes); // This now includes the fast endpoint
-  app.use('/api/base64', require('./routes/base64Routes'));
-  app.use('/api/craftsmen', craftsmenRoutes);
-  app.use('/api/notifications', notificationsRoutes);
-  app.use('/api/orders', ordersRoutes);
-  app.use('/api/statistics', statisticsRoutes);
-  app.use('/api/upload', uploadRoutes);
-  app.use('/api/recent-activities', recentActivitiesRoutes);
+  // API routes
+  app.use('/api', require('./routes/healthRoutes'));
+  app.use('/api/products', require('./routes/productRoutes'));
+  app.use('/api/craftsmen', require('./routes/craftsmenRoutes'));
+  app.use('/api/orders', require('./routes/orderRoutes'));
+  app.use('/api/statistics', require('./routes/statisticsRoutes'));
+  app.use('/api/recent-activities', require('./routes/recentActivitiesRoutes').router);
+  
+  if (process.env.ENABLE_BASE64_ROUTES === 'true') {
+    app.use('/api/base64', require('./routes/base64Routes'));
+  }
+  if (process.env.ENABLE_NOTIFICATIONS_ROUTES === 'true') {
+    app.use('/api/notifications', require('./routes/notificationsRoutes'));
+  }
+  // Always enable upload routes for image uploads
+  app.use('/api/upload', require('./routes/uploadRoutes'));
+  
+  // Image optimization routes
+  app.use('/api/image-optimization', require('./routes/imageOptimizationRoutes'));
+  
+  // Image conversion routes
+  app.use('/api/image-conversion', require('./routes/imageConversionRoutes'));
 
   // Global error handler for DB query timeouts (must be after routes)
   app.use(handleQueryTimeout);
@@ -551,33 +593,32 @@ if (enableClustering && cluster.isPrimary) {
         console.error('❌ MongoDB connection error:', err?.message || err);
       });
 
-      // ULTRA-OPTIMIZED connection options for maximum performance
+      // OPTIMIZED connection options for slow MongoDB Atlas
       const isDevelopment = process.env.NODE_ENV === 'development';
       const conn = await mongoose.connect(uri, {
-        // Connection timeouts - optimized for performance
-        serverSelectionTimeoutMS: isDevelopment ? 10000 : 5000,  // Faster timeout for quick failure
-        connectTimeoutMS: isDevelopment ? 10000 : 5000,          // Quick connection establishment
-        socketTimeoutMS: isDevelopment ? 30000 : 15000,          // Reasonable socket timeout
+        // Connection timeouts - optimized for faster response
+        serverSelectionTimeoutMS: 5000,         // 5 seconds for faster failure
+        connectTimeoutMS: 10000,                 // 10 seconds connection timeout
+        socketTimeoutMS: 30000,                  // 30 seconds socket timeout
 
-        // Connection pooling - optimized for concurrent requests
-        maxPoolSize: isDevelopment ? 10 : 25,    // Increased pool size for better concurrency
-        minPoolSize: isDevelopment ? 2 : 5,      // Higher minimum to avoid connection overhead
-        maxIdleTimeMS: 30000,                    // Close idle connections after 30s
+        // Connection pooling - optimized for slow connections
+        maxPoolSize: isDevelopment ? 5 : 15,     // Larger pool for better performance
+        minPoolSize: isDevelopment ? 2 : 5,      // More minimum connections
+        maxIdleTimeMS: 300000,                   // 5 minutes idle time
 
         // Performance optimizations
         family: 4,                               // Prefer IPv4 for faster DNS resolution
-        heartbeatFrequencyMS: 10000,             // More frequent heartbeats for faster failure detection
-        bufferCommands: false,                   // Fail fast instead of buffering
-        // bufferMaxEntries is deprecated, using bufferCommands: false instead
+        heartbeatFrequencyMS: 30000,             // Less frequent heartbeats for slow connections
+        bufferCommands: true,                    // Buffer commands for slow connections
 
         // Reliability settings
         retryWrites: true,
         retryReads: true,
-        readPreference: 'primary',               // Always read from primary for consistency
+        readPreference: 'primaryPreferred',      // Allow secondary reads for better performance
 
         // Compression for better network performance
         compressors: ['zlib'],
-        zlibCompressionLevel: 6
+        zlibCompressionLevel: 3                  // Lower compression for faster processing
       });
       if (process.env.DEBUG === 'true') {
         console.log(`✅ MongoDB Connected: ${conn.connection.host}`);

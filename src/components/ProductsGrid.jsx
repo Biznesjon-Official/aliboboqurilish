@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useInfiniteProducts } from '../hooks/useProductQueries';
 import { useDebounce } from '../hooks/useDebounce';
+import { useFastProducts } from '../hooks/useFastProducts';
+import { queryClient } from '../lib/queryClient';
 
 import CartSidebar from './CartSidebar';
 import CategoryNavigation from './CategoryNavigation';
-
 import ModernProductGrid from './ModernProductGrid';
-import { getFuzzyMatches, getDidYouMeanTerms, normalizeText } from '../hooks/useFuzzySearch';
+import ProductLoader from './ProductLoader';
+import ConstructionLoader from './ConstructionLoader';
 import { SearchIcon, TimesIcon } from './Icons';
-import ProductGridSkeleton from './skeleton/ProductGridSkeleton';
-import '../styles/select-styles.css';
+
 
 const ProductsGrid = ({
   cart,
@@ -20,34 +21,19 @@ const ProductsGrid = ({
   onUpdateQuantity,
   onCheckout,
   selectedCategory,
-  searchQuery,
-  onInitialProductsLoaded,
   onCategorySelect,
+  searchQuery,
   onSearch
 }) => {
-  // Optimized filtering with debounced search and deferred heavy operations
-  const [debouncedSearchQuery] = useDebounce(searchQuery || '', 300);
-  const [debouncedCategory] = useDebounce(selectedCategory || '', 150);
+
+  // Direct search without debounce (like Craftsmen component)
+  // Use selectedCategory directly instead of debouncing for instant category changes
+  const debouncedCategory = selectedCategory || '';
   
-  // Use deferred value for expensive fuzzy search
-  const deferredSearchQuery = useDeferredValue(debouncedSearchQuery);
 
-
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [showSkeleton, setShowSkeleton] = useState(true);
-  const [currentCategory, setCurrentCategory] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const hasSignaledInitialRenderRef = useRef(false);
-  const restoreAttemptsRef = useRef(0);
-  const restoreFoundRef = useRef(false);
+  // No initial load state needed - show content immediately
 
   const [quickFilter, setQuickFilter] = useState('all');
-  // Track previous filters to detect changes
-  const [previousFilters, setPreviousFilters] = useState({
-    selectedCategory: '',
-    searchQuery: ''
-  });
-  // Modal (bottom sheet) for filtering by price and rating
   const [isPriceRatingSheetOpen, setIsPriceRatingSheetOpen] = useState(false);
   const [sheetMinPrice, setSheetMinPrice] = useState('');
   const [sheetMaxPrice, setSheetMaxPrice] = useState('');
@@ -67,132 +53,199 @@ const ProductsGrid = ({
   // Category mapping function - frontend to backend
   const getCategoryApiValue = (frontendCategory) => {
     const categoryMapping = {
-      "xoz-mag": "xoz-mag",
-      "yevro-remont": "yevro-remont",
-      "elektrika": "elektrika",
-      "dekorativ-mahsulotlar": "dekorativ-mahsulotlar",
-      "santexnika": "santexnika",
+      // Map slugs to DB values (capitalized exact match in backend)
+      "xoz-mag": "Xoz-Mag",
+      "yevro-remont": "Yevro-Remont",
+      "elektrika": "Elektrika",
+      "dekor-mahsulotlar": "Dekor-mahsulotlar",
+      "dekorativ-mahsulotlar": "Dekor-mahsulotlar",
+      "santexnika": "Santexnika",
     };
 
     return categoryMapping[frontendCategory] || frontendCategory;
   };
 
+  // Normalize categories to a canonical slug for reliable comparisons
+  const normalizeCategory = (value) => {
+    const v = (value || '').toString().trim().toLowerCase();
+    if (!v) return '';
+    const map = {
+      'xoz-mag': 'xoz-mag',
+      'xoz': 'xoz-mag',
+      'mag': 'xoz-mag',
+      'yevro-remont': 'yevro-remont',
+      'yevro': 'yevro-remont',
+      'remont': 'yevro-remont',
+      'elektrika': 'elektrika',
+      'dekor-mahsulotlar': 'dekor-mahsulotlar',
+      'dekorativ-mahsulotlar': 'dekor-mahsulotlar',
+      'dekorativ': 'dekor-mahsulotlar',
+      'dekor': 'dekor-mahsulotlar',
+      'santexnika': 'santexnika',
+      'santexnik': 'santexnika',
+    };
+    return map[v] || v;
+  };
+
   // Backend infinite pagination via React Query
   const mappedCategory = useMemo(() => (
-    selectedCategory && selectedCategory !== 'all' && selectedCategory !== ''
-      ? getCategoryApiValue(selectedCategory)
+    debouncedCategory && debouncedCategory !== 'all' && debouncedCategory !== ''
+      ? getCategoryApiValue(debouncedCategory)
       : ''
-  ), [selectedCategory]);
+  ), [debouncedCategory]);
 
+  // Super fast initial load with 6 products - IMMEDIATE RENDER
+  const {
+    data: fastData,
+    isLoading: fastLoading,
+    error: fastError,
+    isFetched: fastFetched
+  } = useFastProducts(debouncedCategory, searchQuery || '');
+
+  // Show products immediately if available
+  const hasInitialProducts = fastData?.products?.length > 0;
+
+  // Use ultra-fast products hook for better performance
   const {
     data,
     isLoading,
     isFetching,
-    isSuccess,
-    error: apiError,
+    error,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
     refetch
-  } = useInfiniteProducts(mappedCategory, searchQuery || '', 20); // Reduced from 60 to 20 for faster initial load
+  } = useInfiniteProducts(debouncedCategory, searchQuery || '', 8); // Reduced to 8 for much faster initial load
 
-  // Flatten pages into a single list with deduplication to prevent React key warnings
-  const fetchedProducts = useMemo(() => {
-    if (!data || !data.pages) return [];
-    const allProducts = data.pages.flatMap(p => Array.isArray(p?.products) ? p.products : []);
-    
-    // Deduplicate by _id to prevent duplicate key warnings
-    const deduplicatedProducts = allProducts.filter((product, index, self) => 
-      index === self.findIndex(p => p._id === product._id)
-    );
-    
-    return deduplicatedProducts;
-  }, [data]);
+  // Current page state for pagination
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [isPageChanging, setIsPageChanging] = useState(false);
 
-
-  // Hide skeleton once the first response arrives (even if empty)
+  // Reset to first page when category or search changes
   useEffect(() => {
-    if (data) {
-      setIsInitialLoad(false);
-      if (!isLoading && !isFetching) setShowSkeleton(false);
+    setCurrentPageIndex(0);
+  }, [debouncedCategory, searchQuery]);
+
+  // No category loading state needed
+
+  // Start infinite query after fast query completes
+  useEffect(() => {
+    if (fastData && !isLoading && !data) {
+      // Fast query completed, start infinite query in background
+      const timer = setTimeout(() => {
+        // This will trigger the infinite query to start
+        if (hasNextPage && !isFetchingNextPage) {
+          fetchNextPage().catch(() => {
+            // Ignore errors silently
+          });
+        }
+      }, 50);
+      return () => clearTimeout(timer);
     }
-  }, [data, isLoading, isFetching]);
+  }, [fastData, isLoading, data, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Notify parent once when products are first rendered (used to restore scroll)
+  // Aggressive prefetching for faster loading
   useEffect(() => {
-    if (hasSignaledInitialRenderRef.current) return;
-    const skeletonGone = !showSkeleton && !isInitialLoad;
-    if (skeletonGone) {
-      hasSignaledInitialRenderRef.current = true;
-      if (typeof onInitialProductsLoaded === 'function') {
-        onInitialProductsLoaded();
+    // Always prefetch next page immediately when first page loads
+    if (data && data.pages && data.pages.length === 1 && hasNextPage && !isFetchingNextPage) {
+      const timer = setTimeout(() => {
+        fetchNextPage().catch(() => {
+          // Ignore errors silently
+        });
+      }, 100); // Very fast prefetch
+      return () => clearTimeout(timer);
+    }
+  }, [data, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Load more pages gradually when category is selected
+  useEffect(() => {
+    if (debouncedCategory && debouncedCategory !== '' && debouncedCategory !== 'all') {
+      // Load additional pages faster
+      if (hasNextPage && !isFetchingNextPage) {
+        const timer = setTimeout(() => {
+          fetchNextPage().catch(() => {
+            // Ignore errors silently
+          });
+        }, 150); // Faster than before
+        return () => clearTimeout(timer);
       }
     }
-  }, [showSkeleton, isInitialLoad, onInitialProductsLoaded]);
+  }, [debouncedCategory, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Get all products from all pages for local filtering - IMMEDIATE DISPLAY
+  const fetchedProducts = useMemo(() => {
+    let products = [];
+    
+    // PRIORITY: Use fast products for immediate display if available
+    if (fastData && fastData.products && fastData.products.length > 0) {
+      products = [...fastData.products];
+    }
+    
+    // Merge with infinite query data if available
+    if (data && data.pages) {
+      const infiniteProducts = data.pages.flatMap(p => Array.isArray(p?.products) ? p.products : []);
+      // Merge and deduplicate by _id
+      const allProducts = [...products, ...infiniteProducts];
+      products = allProducts.filter((product, index, self) => 
+        index === self.findIndex(p => p._id === product._id)
+      );
+    }
+    
+    return products;
+  }, [data, fastData]);
+
+  // IMMEDIATE RENDER: Show content as soon as we have any products
+  const shouldShowContent = fetchedProducts.length > 0;
+  const isInitialLoading = !shouldShowContent && (fastLoading || isLoading);
+
+
+  // No need to manage initial load state
+
+
 
   
 
-  // Background prefetch: defer until after first paint/load to avoid LCP contention
+  // Disabled background prefetch for faster initial load
+  // Will be re-enabled after first successful load
+
+
+  // No need for error handling of initial load state
+
+  // Aggressive prefetching on scroll
   useEffect(() => {
-    // Only run when we have first page and there are more pages
-    if (!data || !hasNextPage || !fetchNextPage) return;
+    if (!hasNextPage || isFetchingNextPage) return;
 
-    let cancelled = false;
-    const start = Date.now();
-    const MAX_TIME_MS = 300; // shorter budget to avoid competing with rendering
-    const MAX_PAGES = 1; // fetch only 1 extra page early; others will be manual or truly idle
-
-    const prefetchMore = async () => {
-      try {
-        let pagesFetched = 0;
-        while (!cancelled && hasNextPage && pagesFetched < MAX_PAGES && (Date.now() - start) < MAX_TIME_MS) {
-          await new Promise((r) => setTimeout(r, 16)); // yield a frame
-          const res = await fetchNextPage();
-          pagesFetched += 1;
-          if (!res?.hasNextPage) break;
-        }
-      } catch (_) {
-        // ignore background prefetch errors
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+      
+      // Trigger prefetch when user scrolls to 60% of the page (more aggressive)
+      const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+      
+      if (scrollPercentage > 0.6 && hasNextPage && !isFetchingNextPage) {
+        console.log('🔄 Fetching next page via scroll...', { scrollPercentage, hasNextPage, isFetchingNextPage });
+        fetchNextPage();
       }
     };
 
-    const schedule = () => {
-      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-        const idleId = window.requestIdleCallback(prefetchMore, { timeout: 1500 });
-        return () => {
-          cancelled = true;
-          try { window.cancelIdleCallback && window.cancelIdleCallback(idleId); } catch {}
-        };
-      } else {
-        const t = setTimeout(prefetchMore, 1500);
-        return () => { cancelled = true; clearTimeout(t); };
+    // Throttle scroll events for better performance
+    let ticking = false;
+    const throttledScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 
-    let cleanup = () => { cancelled = true; };
-    if (typeof document !== 'undefined' && document.readyState === 'complete') {
-      cleanup = schedule();
-    } else if (typeof window !== 'undefined') {
-      const onLoad = () => {
-        cleanup = schedule();
-        window.removeEventListener('load', onLoad);
-      };
-      window.addEventListener('load', onLoad);
-      cleanup = () => { cancelled = true; window.removeEventListener('load', onLoad); };
-    }
-    return () => cleanup();
-  }, [data, hasNextPage, fetchNextPage]);
+    window.addEventListener('scroll', throttledScroll, { passive: true });
+    return () => window.removeEventListener('scroll', throttledScroll);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-
-  // Handle API errors - hide skeleton and show error state
-  useEffect(() => {
-    if (apiError) {
-      setShowSkeleton(false);
-      setIsInitialLoad(false);
-    }
-  }, [apiError]);
-
-  // Automatic infinite scroll using IntersectionObserver
+  // Automatic infinite scroll using IntersectionObserver (backup)
   useEffect(() => {
     if (!hasNextPage) return; // nothing to observe
     const el = loadMoreRef.current;
@@ -201,14 +254,15 @@ const ProductsGrid = ({
     const observer = new IntersectionObserver(
       (entries) => {
         const first = entries[0];
-        if (first.isIntersecting && !isFetchingNextPage) {
+        if (first.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          console.log('🔄 Fetching next page via intersection...', { hasNextPage, isFetchingNextPage });
           // Trigger next page fetch when sentinel comes into view
           fetchNextPage();
         }
       },
       {
         root: null,
-        rootMargin: '200px', // prefetch a bit earlier for smoother UX
+        rootMargin: '800px', // Super aggressive prefetching
         threshold: 0.1,
       }
     );
@@ -222,23 +276,7 @@ const ProductsGrid = ({
   // no-op
 
 
-  // Detect filter changes and show skeleton (only during active fetch)
-  useEffect(() => {
-    const currentFilters = {
-      selectedCategory: debouncedCategory || '',
-      searchQuery: debouncedSearchQuery || ''
-    };
-
-    const filtersChanged = JSON.stringify(currentFilters) !== JSON.stringify(previousFilters);
-
-    if (filtersChanged && !isInitialLoad) {
-      setShowSkeleton(true);
-      // Reset to first page by refetching
-      if (refetch) refetch();
-    }
-
-    setPreviousFilters(currentFilters);
-  }, [debouncedCategory, debouncedSearchQuery, isInitialLoad, refetch]);
+  // Removed complex filter change detection
 
 
   // no-op
@@ -262,7 +300,7 @@ const ProductsGrid = ({
   // no-op
 
 
-  // Optimized category filtering (much faster than client-side search)
+  // Simple category filtering
   const categoryFilteredProducts = useMemo(() => {
     if (!fetchedProducts || fetchedProducts.length === 0) return [];
     
@@ -270,53 +308,48 @@ const ProductsGrid = ({
       return fetchedProducts;
     }
     
-    return fetchedProducts.filter(product => {
-      const productCategory = product.category?.toLowerCase();
-      const selectedCat = debouncedCategory.toLowerCase();
-      return productCategory === selectedCat || productCategory?.includes(selectedCat);
+    const selectedSlug = normalizeCategory(debouncedCategory);
+    
+    const filtered = fetchedProducts.filter(product => {
+      const productSlug = normalizeCategory(product.category);
+      return productSlug === selectedSlug;
     });
-  }, [fetchedProducts, debouncedCategory]);
-
-  // Optimized fuzzy search - only run when search query changes significantly
-  const fuzzySearchResults = useMemo(() => {
-    if (!deferredSearchQuery || deferredSearchQuery.trim().length < 2) return null;
     
-    const q = normalizeText(deferredSearchQuery);
-    const matches = getFuzzyMatches(categoryFilteredProducts, deferredSearchQuery, 20);
-    
-    return {
-      directMatches: categoryFilteredProducts.filter(product => {
-        const name = normalizeText(product.name || '');
-        const description = normalizeText(product.description || '');
-        const category = normalizeText(product.category || '');
-        const brand = normalizeText(product.brand || '');
-        const unit = normalizeText(product.unit || '');
-        const badge = normalizeText(product.badge || '');
-        return (
-          name.includes(q) ||
-          description.includes(q) ||
-          category.includes(q) ||
-          brand.includes(q) ||
-          unit.includes(q) ||
-          badge.includes(q)
-        );
-      }),
-      fuzzyMatches: matches.map(m => m.product)
-    };
-  }, [categoryFilteredProducts, deferredSearchQuery]);
-
-  // Final filtered products - much lighter computation
-  const filteredProducts = useMemo(() => {
-    let products = categoryFilteredProducts;
-
-    // Apply search filtering
-    if (fuzzySearchResults) {
-      if (fuzzySearchResults.directMatches.length > 0) {
-        products = fuzzySearchResults.directMatches;
-      } else {
-        products = fuzzySearchResults.fuzzyMatches;
-      }
+    // If no products found but we're still loading more pages, return empty array
+    // This prevents "Mahsulot topilmadi" from showing while loading
+    if (filtered.length === 0 && hasNextPage && debouncedCategory) {
+      return [];
     }
+    
+    return filtered;
+  }, [fetchedProducts, debouncedCategory, hasNextPage]);
+
+  // Enhanced search - search in multiple fields (like Craftsmen component)
+  const searchResults = useMemo(() => {
+    let products = categoryFilteredProducts;
+    
+    // Apply search filter if there's a search query
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (q) {
+      products = products.filter(product => {
+        const name = (product.name || '').toLowerCase();
+        const category = (product.category || '').toLowerCase();
+        const description = (product.description || '').toLowerCase();
+        const badge = (product.badge || '').toLowerCase();
+        
+        return name.includes(q) || 
+               category.includes(q) || 
+               description.includes(q) || 
+               badge.includes(q);
+      });
+    }
+    
+    return products;
+  }, [categoryFilteredProducts, searchQuery]);
+
+  // Final filtered products
+  const filteredProducts = useMemo(() => {
+    let products = searchResults || categoryFilteredProducts;
 
     // Price filter (fast operation)
     if (appliedMinPrice || appliedMaxPrice) {
@@ -377,19 +410,39 @@ const ProductsGrid = ({
     }
 
     return products;
-  }, [categoryFilteredProducts, fuzzySearchResults, appliedMinPrice, appliedMaxPrice, quickFilter]);
+  }, [categoryFilteredProducts, searchResults, appliedMinPrice, appliedMaxPrice, quickFilter]);
 
+  // Pagination for filtered products - 100 products per page
+  const PRODUCTS_PER_PAGE = 100;
+  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+  
+  const paginatedProducts = useMemo(() => {
+    const startIndex = currentPageIndex * PRODUCTS_PER_PAGE;
+    const endIndex = startIndex + PRODUCTS_PER_PAGE;
+    return filteredProducts.slice(startIndex, endIndex);
+  }, [filteredProducts, currentPageIndex]);
 
-  // Optimized fuzzy suggestions - only when needed
-  const fuzzyMatches = useMemo(() => {
-    if (!deferredSearchQuery || deferredSearchQuery.trim().length < 3) return [];
-    return getFuzzyMatches(categoryFilteredProducts, deferredSearchQuery, 12);
-  }, [categoryFilteredProducts, deferredSearchQuery]);
-
-  const didYouMeanTerms = useMemo(() => {
-    if (!deferredSearchQuery || fuzzyMatches.length === 0) return [];
-    return getDidYouMeanTerms(fuzzyMatches, 5);
-  }, [fuzzyMatches, deferredSearchQuery]);
+  // Safe page change function with debounce
+  const changePage = useCallback((newPageIndex) => {
+    if (isPageChanging) return; // Prevent multiple clicks
+    
+    setIsPageChanging(true);
+    setCurrentPageIndex(newPageIndex);
+    
+    // Scroll to products section for better UX
+    const productsEl = document.getElementById('products');
+    if (productsEl) {
+      productsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      // Fallback to top if products section not found
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    // Reset debounce after a short delay
+    setTimeout(() => {
+      setIsPageChanging(false);
+    }, 300);
+  }, [isPageChanging]);
 
 
   // Use centralized addToCart function
@@ -398,6 +451,8 @@ const ProductsGrid = ({
       onAddToCart(product);
     }
   };
+
+  // Removed prefetch for simpler code
 
 
   // Manual refresh function
@@ -459,43 +514,26 @@ const ProductsGrid = ({
 
   // Handle category selection from CategoryNavigation
   const handleCategorySelect = useCallback((categoryName) => {
-    // Use the parent's onCategorySelect if available, otherwise update local state
+    // Use the parent's onCategorySelect if available
     if (onCategorySelect) {
       onCategorySelect(categoryName);
     }
-    setCurrentCategory(categoryName || 'all');
-  }, [onCategorySelect, setCurrentCategory]);
+    // Removed setCurrentCategory - not needed
+  }, [onCategorySelect]);
 
   // Handle retry functionality
   const handleRetry = useCallback(() => {
-    setShowSkeleton(true);
-    setIsInitialLoad(true);
     if (refetch) {
       refetch();
     }
-  }, [refetch, setShowSkeleton, setIsInitialLoad]);
+  }, [refetch]);
 
-  // Determine when to show skeleton
-  // Use explicit showSkeleton flag to avoid brief empty-state flicker before data arrives
-  const shouldShowSkeleton = (
-    showSkeleton ||
-    (isInitialLoad && isLoading) ||
-    ((isLoading || isFetching || isFetchingNextPage) && fetchedProducts.length === 0)
-  );
+  // No loader logic needed - show content immediately
 
-
-  // Debug logging - disabled to prevent infinite loop
-  // console.log('=== ProductsGrid Debug ===');
-  // console.log('Products length:', products.length);
-  // console.log('Filtered products length:', filteredProducts.length);
-
-  // Show skeleton when appropriate
-  if (shouldShowSkeleton) {
-    return <ProductGridSkeleton count={8} />;
-  }
+  // No loader - show content immediately
 
   // Show error state if there's an API error and no products
-  if (apiError && fetchedProducts.length === 0) {
+  if ((error || fastError) && fetchedProducts.length === 0) {
     return (
       <div className="container mx-auto px-4 lg:px-6 py-4 lg:py-6">
         <div className="text-center py-16">
@@ -641,103 +679,100 @@ const ProductsGrid = ({
         </div>
       </div>
 
-      {/* Products Grid */}
-      {filteredProducts.length > 0 ? (
+      {/* Products Grid - IMMEDIATE DISPLAY */}
+      {shouldShowContent ? (
         <>
           {/* Modern Product Grid with enhanced design */}
           <ModernProductGrid
-            products={filteredProducts}
+            products={paginatedProducts}
             onAddToCart={addToCart}
-            loading={isLoading && filteredProducts.length === 0}
           />
 
-          {/* Infinite Scroll Sentinel - invisible spacer to trigger next page */}
-          <div ref={loadMoreRef} aria-hidden="true" className="h-1 w-full"></div>
+          {/* Infinite Scroll Sentinel - hidden for pagination */}
+          <div ref={loadMoreRef} className="h-1 w-full" aria-hidden="true"></div>
 
-          {/* Load More Button */}
-          {(hasNextPage || isFetchingNextPage) && (
-            <div className="flex justify-start mt-8">
-              <button
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="px-8 py-3 bg-primary-orange hover:bg-orange-600 disabled:bg-orange-300 text-white rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
-              >
-                {isFetchingNextPage ? "Yuklanmoqda..." : "Ko'proq ko'rish"}
-              </button>
+          {/* Pagination - always show when there are multiple pages */}
+          {totalPages > 1 && (
+            <div className="flex justify-center mt-8 space-x-2">
+              {/* Previous Page */}
+              {currentPageIndex > 0 && (
+                <button
+                  onClick={() => changePage(Math.max(0, currentPageIndex - 1))}
+                  disabled={isPageChanging}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 text-gray-700 rounded-lg font-medium transition-colors"
+                >
+                  ←
+                </button>
+              )}
+              
+              {/* Page Numbers - Sliding Window */}
+              {(() => {
+                const maxVisiblePages = 10;
+                let startPage = Math.max(0, currentPageIndex - Math.floor(maxVisiblePages / 2));
+                let endPage = Math.min(totalPages - 1, startPage + maxVisiblePages - 1);
+                
+                // Adjust start if we're near the end
+                if (endPage - startPage + 1 < maxVisiblePages) {
+                  startPage = Math.max(0, endPage - maxVisiblePages + 1);
+                }
+                
+                return Array.from({ length: endPage - startPage + 1 }, (_, i) => {
+                  const pageIndex = startPage + i;
+                  const pageNum = pageIndex + 1;
+                  const isCurrentPage = pageIndex === currentPageIndex;
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => changePage(pageIndex)}
+                      disabled={isPageChanging || isCurrentPage}
+                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                        isCurrentPage 
+                          ? 'bg-primary-orange text-white' 
+                          : isPageChanging
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-blue-100 hover:bg-blue-200 text-blue-700'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                });
+              })()}
+              
+              {/* Next Page */}
+              {currentPageIndex < totalPages - 1 && (
+                <button
+                  onClick={() => changePage(Math.min(totalPages - 1, currentPageIndex + 1))}
+                  disabled={isPageChanging}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 text-gray-700 rounded-lg font-medium transition-colors"
+                >
+                  →
+                </button>
+              )}
+              
+            </div>
+          )}
+          
+          {/* Products Info */}
+          {filteredProducts.length > 0 && (
+            <div className="text-center text-sm text-gray-600 mt-4">
+              {filteredProducts.length} ta mahsulotdan {currentPageIndex * PRODUCTS_PER_PAGE + 1}-{Math.min((currentPageIndex + 1) * PRODUCTS_PER_PAGE, filteredProducts.length)} tasi ko'rsatilmoqda
             </div>
           )}
         </>
+      ) : isInitialLoading ? (
+        // Clear construction-themed loader
+        <ConstructionLoader 
+          message="Mahsulotlar yuklanmoqda..."
+          size="large"
+          theme="orange"
+        />
       ) : (
+        // Show "no products" message only if we're not loading
         <div className="text-center py-16">
-          <div className="max-w-md mx-auto">
-            <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-full w-32 h-32 flex items-center justify-center mx-auto mb-6">
-              <SearchIcon className="w-16 h-16 text-gray-400" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-700 mb-3">
-              {searchQuery ? 'Hech narsa topilmadi' :
-                (!selectedCategory || selectedCategory === '') ? 'Mahsulotlar yo\'q' : `${selectedCategory} kategoriyasida mahsulot yo'q`}
-            </h3>
-            <p className="text-gray-500 mb-6">
-              {searchQuery ?
-                `"${searchQuery}" so'rovi bo'yicha hech qanday mahsulot topilmadi. Boshqa kalit so'zlar bilan qidiring.` :
-                (!selectedCategory || selectedCategory === '') ?
-                  'Hozircha mahsulotlar qo\'shilmagan. Keyinroq qayta urinib ko\'ring.' :
-                  'Bu kategoriyada mahsulotlar mavjud emas. Boshqa kategoriyalarni ko\'rib chiqing.'
-              }
-            </p>
-            {/* Did you mean suggestions */}
-            {searchQuery && didYouMeanTerms.length > 0 && (
-              <div className="mb-6">
-                <div className="text-sm text-gray-600 mb-2">Balki shuni nazarda tutgandirsiz:</div>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {didYouMeanTerms.map((term) => (
-                    <button
-                      key={term}
-                      onClick={() => onSearch && onSearch(term)}
-                      className="px-3 py-1.5 bg-orange-50 text-orange-700 border border-orange-200 rounded-full text-sm hover:bg-orange-100"
-                    >
-                      {term}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              {searchQuery && (
-                <button
-                  onClick={() => {
-                    if (onSearch) onSearch('');
-                  }}
-                  className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2"
-                >
-                  <TimesIcon className="w-4 h-4" />
-                  Qidiruvni tozalash
-                </button>
-              )}
-              {selectedCategory && selectedCategory !== '' && (
-                <button
-                  onClick={() => onCategorySelect && onCategorySelect('')}
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 5.73 6.974 6 7.5 6A1.5 1.5 0 019 7.5V8a2 2 0 004 0 2 2 0 011.523-1.943A5.977 5.977 0 0116 10c0 .34-.028.675-.083 1H15a2 2 0 00-2 2v2.197A5.973 5.973 0 0110 16v-2a2 2 0 00-2-2 2 2 0 01-2-2 2 2 0 00-1.668-1.973z" clipRule="evenodd" />
-                  </svg>
-                  Barcha mahsulotlar
-                </button>
-              )}
-            </div>
-            {/* Similar products grid based on fuzzy matches */}
-            {searchQuery && fuzzyMatches.length > 0 && (
-              <div className="mt-10">
-                <h4 className="text-lg font-semibold text-gray-800 mb-4">Shunga o'xshash mahsulotlar</h4>
-                <ModernProductGrid
-                  products={fuzzyMatches.map((m) => m.product)}
-                  onAddToCart={onAddToCart}
-                  loading={false}
-                />
-              </div>
-            )}
-          </div>
+          <div className="text-gray-500 text-lg mb-2">Mahsulotlar topilmadi</div>
+          <p className="text-gray-400">Boshqa kategoriya yoki qidiruv so'zini sinab ko'ring</p>
         </div>
       )}
 

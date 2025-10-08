@@ -1,139 +1,226 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs').promises;
+const sharp = require('sharp');
+const { v4: uuidv4 } = require('uuid');
+
 const router = express.Router();
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadPath = 'uploads/products/original';
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
+// Ensure upload directories exist
+const ensureUploadDirs = async () => {
+  const dirs = [
+    'uploads/products/original',
+    'uploads/products/thumbnails',
+    'uploads/products/medium',
+    'uploads/products/large'
+  ];
+  
+  for (const dir of dirs) {
+    try {
+      await fs.mkdir(dir, { recursive: true });
+    } catch (err) {
+      console.error(`Error creating directory ${dir}:`, err);
     }
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    // Generate unique filename
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-// File filter for images only
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|gif|webp/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
-
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Faqat rasm fayllari ruxsat etilgan (JPEG, JPG, PNG, GIF, WebP)'));
   }
 };
 
+// Initialize upload directories
+ensureUploadDirs();
+
+// Configure multer for memory storage (we'll process and save manually)
 const upload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+    files: 10 // Max 10 files at once
   },
-  fileFilter: fileFilter
-});
-
-// POST /api/upload/variant-images - Upload variant images
-router.post('/variant-images', upload.array('images', 5), async (req, res) => {
-  try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Hech qanday fayl yuklanmadi' 
-      });
+  fileFilter: (req, file, cb) => {
+    // Check file type
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Faqat rasm fayllari qabul qilinadi'), false);
     }
-
-    // Generate URLs for uploaded files
-    const imageUrls = req.files.map(file => {
-      return `/uploads/products/original/${file.filename}`;
-    });
-
-    console.log('✅ Variant images uploaded:', imageUrls);
     
-    res.json({
-      success: true,
-      message: 'Rasmlar muvaffaqiyatli yuklandi',
-      images: imageUrls
-    });
-  } catch (error) {
-    console.error('❌ Upload variant images error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Rasmlarni yuklashda xatolik',
-      error: error.message 
-    });
+    // Check file extension
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!allowedExts.includes(ext)) {
+      return cb(new Error('Qo\'llab-quvvatlanmaydigan fayl formati'), false);
+    }
+    
+    cb(null, true);
   }
 });
 
-// POST /api/upload/product-image - Upload single product image
-router.post('/product-image', upload.single('image'), async (req, res) => {
+// Image processing and optimization
+const processImage = async (buffer, filename) => {
+  const baseFilename = path.parse(filename).name;
+  const timestamp = Date.now();
+  const uniqueId = uuidv4().split('-')[0];
+  const baseName = `${baseFilename}_${timestamp}_${uniqueId}`;
+  
+  const sizes = {
+    thumbnail: { width: 150, height: 150, quality: 80 },
+    medium: { width: 400, height: 400, quality: 85 },
+    large: { width: 800, height: 800, quality: 90 },
+    original: { quality: 95 } // Keep original size but optimize
+  };
+  
+  const results = {};
+  
+  for (const [sizeName, config] of Object.entries(sizes)) {
+    try {
+      let processor = sharp(buffer);
+      
+      // Resize if dimensions specified
+      if (config.width && config.height) {
+        processor = processor.resize(config.width, config.height, {
+          fit: 'cover',
+          position: 'center'
+        });
+      }
+      
+      // Convert to WebP for better compression, fallback to JPEG
+      const webpFilename = `${baseName}_${sizeName}.webp`;
+      const jpegFilename = `${baseName}_${sizeName}.jpg`;
+      
+      const webpPath = path.join('uploads', 'products', sizeName, webpFilename);
+      const jpegPath = path.join('uploads', 'products', sizeName, jpegFilename);
+      
+      // Save WebP version
+      await processor
+        .webp({ quality: config.quality })
+        .toFile(webpPath);
+      
+      // Save JPEG fallback
+      await processor
+        .jpeg({ quality: config.quality })
+        .toFile(jpegPath);
+      
+      results[sizeName] = {
+        webp: `/${webpPath.replace(/\\/g, '/')}`,
+        jpeg: `/${jpegPath.replace(/\\/g, '/')}`
+      };
+      
+    } catch (err) {
+      console.error(`Error processing ${sizeName}:`, err);
+      throw new Error(`Rasm qayta ishlanmadi: ${sizeName}`);
+    }
+  }
+  
+  return results;
+};
+
+// Single image upload endpoint
+router.post('/image', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Hech qanday fayl yuklanmadi' 
+      return res.status(400).json({
+        error: 'Rasm fayli topilmadi',
+        message: 'Iltimos, rasm faylini tanlang'
       });
     }
-
-    const imageUrl = `/uploads/products/original/${req.file.filename}`;
-
-    console.log('✅ Product image uploaded:', imageUrl);
+    
+    console.log('📸 Processing image:', req.file.originalname);
+    
+    // Process and optimize image
+    const processedImages = await processImage(req.file.buffer, req.file.originalname);
+    
+    // Return the medium size URL as the main image URL
+    const imageUrl = processedImages.medium.webp;
+    
+    console.log('✅ Image processed successfully:', imageUrl);
     
     res.json({
       success: true,
-      message: 'Rasm muvaffaqiyatli yuklandi',
-      image: imageUrl
+      imageUrl: imageUrl,
+      sizes: processedImages,
+      originalName: req.file.originalname,
+      fileSize: req.file.size
     });
+    
   } catch (error) {
-    console.error('❌ Upload product image error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Rasmni yuklashda xatolik',
-      error: error.message 
+    console.error('❌ Image upload error:', error);
+    res.status(500).json({
+      error: 'Rasm yuklanmadi',
+      message: error.message || 'Server xatoligi'
     });
   }
 });
 
-// DELETE /api/upload/image/:filename - Delete image
-router.delete('/image/:filename', async (req, res) => {
+// Multiple images upload endpoint
+router.post('/images', upload.array('images', 10), async (req, res) => {
   try {
-    const { filename } = req.params;
-    const filePath = path.join(__dirname, '../uploads/products/original', filename);
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Fayl topilmadi' 
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        error: 'Rasm fayllari topilmadi',
+        message: 'Iltimos, kamida bitta rasm faylini tanlang'
       });
     }
-
-    // Delete file
-    fs.unlinkSync(filePath);
-
-    console.log('✅ Image deleted:', filename);
+    
+    console.log('📸 Processing multiple images:', req.files.length);
+    
+    const results = [];
+    const errors = [];
+    
+    // Process each image
+    for (const file of req.files) {
+      try {
+        const processedImages = await processImage(file.buffer, file.originalname);
+        results.push({
+          originalName: file.originalname,
+          imageUrl: processedImages.medium.webp,
+          sizes: processedImages,
+          fileSize: file.size
+        });
+      } catch (err) {
+        errors.push({
+          filename: file.originalname,
+          error: err.message
+        });
+      }
+    }
+    
+    console.log('✅ Images processed:', results.length, 'errors:', errors.length);
     
     res.json({
       success: true,
-      message: 'Rasm muvaffaqiyatli o\'chirildi'
+      images: results,
+      errors: errors,
+      totalProcessed: results.length,
+      totalErrors: errors.length
     });
+    
   } catch (error) {
-    console.error('❌ Delete image error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Rasmni o\'chirishda xatolik',
-      error: error.message 
+    console.error('❌ Multiple images upload error:', error);
+    res.status(500).json({
+      error: 'Rasmlar yuklanmadi',
+      message: error.message || 'Server xatoligi'
     });
   }
+});
+
+// Error handling middleware
+router.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        error: 'Fayl juda katta',
+        message: 'Rasm hajmi 5MB dan oshmasin'
+      });
+    }
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        error: 'Juda ko\'p fayl',
+        message: 'Bir vaqtda maksimal 10 ta rasm yuklash mumkin'
+      });
+    }
+  }
+  
+  res.status(400).json({
+    error: 'Fayl yuklash xatoligi',
+    message: error.message || 'Noma\'lum xatolik'
+  });
 });
 
 module.exports = router;

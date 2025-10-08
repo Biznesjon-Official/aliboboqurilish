@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
-  <rect width="200" height="200" fill="#f3f4f6"/>
-  <circle cx="100" cy="80" r="20" fill="#9ca3af"/>
-  <path d="M60 120 L100 100 L140 120 L140 160 L60 160 Z" fill="#9ca3af"/>
-  <text x="100" y="180" text-anchor="middle" fill="#6b7280" font-family="Arial" font-size="12">Rasm mavjud emas</text>
+<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="400" fill="#f3f4f6"/>
+  <rect x="100" y="100" width="200" height="200" rx="8" fill="#e5e7eb"/>
+  <circle cx="150" cy="150" r="20" fill="#d1d5db"/>
+  <path d="M120 220 L180 160 L220 200 L280 140 L280 220 H120Z" fill="#d1d5db"/>
+  <text x="200" y="330" text-anchor="middle" fill="#9ca3af" font-family="Arial, sans-serif" font-size="16">Rasm yo'q</text>
 </svg>

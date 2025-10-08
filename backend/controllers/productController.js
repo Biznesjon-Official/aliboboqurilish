@@ -4,7 +4,7 @@ const { addActivity } = require('../routes/recentActivitiesRoutes');
 
 // Performance constants
 const MAX_LIMIT = 1000; // Maximum items per page
-const DEFAULT_LIMIT = 20; // Default items per page
+const DEFAULT_LIMIT = 100; // Default items per page
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 
 // Simple in-memory cache for frequently accessed data
@@ -46,6 +46,9 @@ const getProducts = async (req, res) => {
         timestamp: new Date().toISOString()
       });
     }
+    
+    // Debug: Always log includeImages parameter
+    console.log('[getProducts] includeImages parameter:', includeImages, 'from query:', req.query.includeImages);
     
     if (debug) {
       console.log('[getProducts] Incoming params:', {

@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProduct } from '../hooks/useProductQueries';
 import { getCategoryDisplayName } from '../utils/categoryMapping';
-import MobileBottomNav from './MobileBottomNav';
+// Removed MobileBottomNav for simpler code
 import ProductVariantSelector from './ProductVariantSelector';
 import { ProductsGridSkeleton } from './LoadingSkeleton';
 import { CartFAIcon, TimesFAIcon, PlusFAIcon, MinusFAIcon } from './FontAwesome';
@@ -28,8 +28,10 @@ const ProductDetailPage = () => {
   const [justAddedProduct, setJustAddedProduct] = useState(null);
 
   // Fetch product data with React Query caching
-  const { data, isLoading, error } = useProduct(id);
-  const product = data?.product;
+  const { data, isLoading, isFetching, isError, isSuccess, error, fetchStatus } = useProduct(id);
+  const loading = isLoading || isFetching || fetchStatus === 'fetching';
+  // Normalize API shape: accept either { product } or raw product document
+  const product = data?.product ?? (data && data._id ? data : null);
 
   // Handle back navigation
   const handleBack = useCallback(() => {
@@ -50,10 +52,10 @@ const ProductDetailPage = () => {
     if (!product) return;
 
     // Build display name with variant info
-    let displayName = product.name;
-    if (product.hasVariants && Object.keys(selectedVariants).length > 0) {
+    let displayName = product?.name || 'Mahsulot';
+    if (product?.hasVariants && Object.keys(selectedVariants).length > 0) {
       const variantInfo = Object.values(selectedVariants).join(', ');
-      displayName = `${product.name} (${variantInfo})`;
+      displayName = `${product?.name || 'Mahsulot'} (${variantInfo})`;
     }
 
     const productToAdd = {
@@ -62,16 +64,16 @@ const ProductDetailPage = () => {
       selectedColor,
       selectedSize,
       quantity,
-      price: product.hasVariants ? variantPrice : product.price,
-      selectedVariants: product.hasVariants ? selectedVariants : {},
-      finalPrice: product.hasVariants ? variantPrice : product.price,
-      finalStock: product.hasVariants ? variantStock : (product.stock || product.quantity),
-      finalImage: product.hasVariants ? variantImage : product.image,
-      image: product.hasVariants ? (variantImage || product.image) : product.image,
-      unit: product.unit,
-      cartId: product.hasVariants
-        ? `${product.id || product._id}-${Object.values(selectedVariants).join('-')}`
-        : (product.id || product._id)
+      price: product?.hasVariants ? variantPrice : product?.price,
+      selectedVariants: product?.hasVariants ? selectedVariants : {},
+      finalPrice: product?.hasVariants ? variantPrice : product?.price,
+      finalStock: product?.hasVariants ? variantStock : (product?.stock || product?.quantity),
+      finalImage: product?.hasVariants ? variantImage : product?.image,
+      image: product?.hasVariants ? (variantImage || product?.image) : product?.image,
+      unit: product?.unit,
+      cartId: product?.hasVariants
+        ? `${product?.id || product?._id}-${Object.values(selectedVariants).join('-')}`
+        : (product?.id || product?._id)
     };
 
     // Dispatch a global event (legacy)
@@ -127,21 +129,21 @@ const ProductDetailPage = () => {
 
     setSelectedImage(0);
     setQuantity(1);
-    setSelectedColor(product.colors?.[0] || '');
-    setSelectedSize(product.sizes?.[0] || '');
-    setVariantPrice(product.price || 0);
-    setVariantStock(product.stock || product.quantity || 0);
-    setVariantImage(product.image || '');
-    setVariantImages(product.images || (product.image ? [product.image] : []));
+    setSelectedColor(product?.colors?.[0] || '');
+    setSelectedSize(product?.sizes?.[0] || '');
+    setVariantPrice(product?.price || 0);
+    setVariantStock(product?.stock || product?.quantity || 0);
+    setVariantImage(product?.image || '');
+    setVariantImages(product?.images || (product?.image ? [product?.image] : []));
 
-    if (product.hasVariants && Array.isArray(product.variants) && product.variants.length > 0) {
+    if (product?.hasVariants && Array.isArray(product?.variants) && product?.variants.length > 0) {
       const autoSelected = {};
-      let autoPrice = product.price || 0;
-      let autoOldPrice = (typeof product.oldPrice === 'number' ? product.oldPrice : null);
-      let autoStock = (typeof product.stock === 'number' ? product.stock : (typeof product.quantity === 'number' ? product.quantity : 0));
-      let autoImage = product.image || '';
-      let autoImages = product.images || (product.image ? [product.image] : []);
-      product.variants.forEach(v => {
+      let autoPrice = product?.price || 0;
+      let autoOldPrice = (typeof product?.oldPrice === 'number' ? product?.oldPrice : null);
+      let autoStock = (typeof product?.stock === 'number' ? product?.stock : (typeof product?.quantity === 'number' ? product?.quantity : 0));
+      let autoImage = product?.image || '';
+      let autoImages = product?.images || (product?.image ? [product?.image] : []);
+      product?.variants.forEach(v => {
         if (Array.isArray(v.options) && v.options.length > 0) {
           const first = v.options[0];
           autoSelected[v.name] = first.value;
@@ -165,7 +167,7 @@ const ProductDetailPage = () => {
       setVariantOldPrice(autoOldPrice);
     } else {
       setSelectedVariants({});
-      setVariantOldPrice(product.oldPrice ?? null);
+      setVariantOldPrice(product?.oldPrice ?? null);
     }
 
     initForProductRef.current = product._id;
@@ -183,7 +185,7 @@ const ProductDetailPage = () => {
     if (variantImages && variantImages.length > 0) return variantImages;
     const baseImages = product?.images && product.images.length > 0
       ? product.images
-      : (product?.image ? [product.image] : ['/assets/default-product.svg']);
+      : (product?.image ? [product.image] : []);
     return baseImages;
   }, [variantImages, product?.images, product?.image]);
 
@@ -203,7 +205,7 @@ const ProductDetailPage = () => {
     [productImages, toSrc]
   );
 
-  const currentImage = normalizedImages[selectedImage] || '/assets/default-product.svg';
+  const currentImage = normalizedImages[selectedImage] || null;
   const effectivePrice = (product?.hasVariants ? variantPrice : product?.price) ?? 0;
   const effectiveOldPriceCandidate = product?.hasVariants
     ? (typeof variantOldPrice === 'number' ? variantOldPrice : product?.oldPrice)
@@ -227,8 +229,8 @@ const ProductDetailPage = () => {
     return () => clearTimeout(t);
   }, [showAddedModal]);
 
-  // Loading state
-  if (isLoading) {
+  // Loading state - show skeleton until we have product data
+  if (loading || !product) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="container mx-auto px-4 py-8">
@@ -238,8 +240,10 @@ const ProductDetailPage = () => {
     );
   }
 
-  // Error state
-  if (error || !product) {
+  // Error/empty state: show only after a settled successful fetch with no product,
+  // or when there is an error and no ongoing fetch (avoid flashing cached error during refetch)
+  // Don't show error immediately - give it time to load
+  if (!loading && !product && ((isError && !isFetching) || isSuccess)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -289,7 +293,7 @@ const ProductDetailPage = () => {
               <div className="aspect-square bg-white rounded-lg overflow-hidden relative border border-gray-100">
                 <OptimizedImage
                   src={currentImage}
-                  alt={product.name}
+                  alt={product?.name || 'Mahsulot rasmi'}
                   className="w-full h-full"
                   objectFit="contain"
                   priority={true}
@@ -341,7 +345,7 @@ const ProductDetailPage = () => {
                     >
                       <OptimizedImage
                         src={image}
-                        alt={`${product.name} ${index + 1}`}
+                        alt={`${product?.name || 'Mahsulot'} ${index + 1}`}
                         className="w-full h-full"
                         objectFit="contain"
                         placeholder="skeleton"
@@ -356,13 +360,13 @@ const ProductDetailPage = () => {
             <div className="space-y-4 sm:space-y-5">
               {/* Product Name and Brand */}
               <div>
-                {product.brand && (
+                {product?.brand && (
                   <div className="text-xs sm:text-sm text-gray-500 uppercase tracking-wide mb-1.5">
-                    {product.brand}
+                    {product?.brand}
                   </div>
                 )}
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight">
-                  {product.name}
+                  {product?.name || 'Mahsulot nomi'}
                 </h1>
               </div>
 
@@ -383,7 +387,7 @@ const ProductDetailPage = () => {
                     </div>
                     <span className="text-xl font-bold text-primary-orange flex items-baseline gap-1">
                       {formatPrice(effectivePrice)}
-                      <span className="text-sm font-medium text-gray-500">/ {product.unit || 'dona'}</span>
+                      <span className="text-sm font-medium text-gray-500">/ {product?.unit || 'dona'}</span>
                     </span>
                   </div>
                   {/* Holati row (like modal) */}
@@ -411,17 +415,17 @@ const ProductDetailPage = () => {
               </div>
 
               {/* Description */}
-              {product.description && (
+              {product?.description && (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Tavsif</h3>
                   <p className="text-gray-700 leading-relaxed">
-                    {product.description}
+                    {product?.description}
                   </p>
                 </div>
               )}
 
               {/* Product Variants */}
-              {product.hasVariants && product.variants && product.variants.length > 0 && (
+              {product?.hasVariants && product?.variants && product?.variants.length > 0 && (
                 <div className="space-y-4">
                   <ProductVariantSelector
                     product={product}
@@ -443,7 +447,7 @@ const ProductDetailPage = () => {
               {/* Quantity Selector */}
               {stockBound > 0 && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Miqdor ({product.unit || 'dona'})</label>
+                  <label className="text-sm font-medium text-gray-700">Miqdor ({product?.unit || 'dona'})</label>
                   <div className="flex items-center space-x-3">
                     <button
                       onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
@@ -477,7 +481,7 @@ const ProductDetailPage = () => {
                       <span className="text-gray-700 text-sm font-medium">Kategoriya</span>
                     </div>
                     <span className="text-gray-900 font-semibold text-sm bg-blue-50 px-2 py-1 rounded-md">
-                      {getCategoryDisplayName(product.category)}
+                      {getCategoryDisplayName(product?.category)}
                     </span>
                   </div>
 
@@ -543,8 +547,7 @@ const ProductDetailPage = () => {
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation (always visible on phones) */}
-      <MobileBottomNav />
+      {/* Removed MobileBottomNav for simpler code */}
 
       {/* Add-to-cart toast (top-right) */}
       {showAddedModal && (

@@ -1,0 +1,116 @@
+// Mock products for instant loading when database is slow
+export const mockProducts = [
+  {
+    _id: 'mock-1',
+    name: 'Lampa LED 12W',
+    price: 44000,
+    oldPrice: null,
+    category: 'elektrika',
+    stock: 90,
+    unit: 'dona',
+    badge: null,
+    rating: 4.5,
+    isNew: false,
+    isPopular: false,
+    image: 'https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=400&h=400&fit=crop',
+    images: ['https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=400&h=400&fit=crop'],
+    updatedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString()
+  },
+  {
+    _id: 'mock-2',
+    name: 'Aboy Pichog Nikl',
+    price: 13000,
+    oldPrice: null,
+    category: 'santexnika',
+    stock: 80,
+    unit: 'dona',
+    badge: null,
+    rating: 4.2,
+    isNew: false,
+    isPopular: false,
+    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop',
+    images: ['https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop'],
+    updatedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString()
+  },
+  {
+    _id: 'mock-3',
+    name: 'Razbavitel kichik 0.7L',
+    price: 7000,
+    oldPrice: null,
+    category: 'dekor-mahsulotlar',
+    stock: 80,
+    unit: 'dona',
+    badge: null,
+    rating: 4.0,
+    isNew: false,
+    isPopular: false,
+    image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=400&h=400&fit=crop',
+    images: ['https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=400&h=400&fit=crop'],
+    updatedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString()
+  },
+  {
+    _id: 'mock-4',
+    name: 'Akfa Bulb 3w 6500K',
+    price: 10000,
+    oldPrice: 12000,
+    category: 'elektrika',
+    stock: 40,
+    unit: 'dona',
+    badge: null,
+    rating: 4.8,
+    isNew: false,
+    isPopular: false,
+    image: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=400&fit=crop',
+    images: ['https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=400&fit=crop'],
+    updatedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString()
+  },
+  {
+    _id: 'mock-5',
+    name: 'Atvertka Lit Oranjeviy',
+    price: 15000,
+    oldPrice: null,
+    category: 'xoz-mag',
+    stock: 29,
+    unit: 'dona',
+    badge: null,
+    rating: 4.3,
+    isNew: false,
+    isPopular: false,
+    image: 'https://images.unsplash.com/photo-1572981779307-38b8cabb2407?w=400&h=400&fit=crop',
+    images: ['https://images.unsplash.com/photo-1572981779307-38b8cabb2407?w=400&h=400&fit=crop'],
+    updatedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString()
+  },
+  {
+    _id: 'mock-6',
+    name: 'Arra Stuslo Katta',
+    price: 58000,
+    oldPrice: null,
+    category: 'xoz-mag',
+    stock: 39,
+    unit: 'dona',
+    badge: null,
+    rating: 4.1,
+    isNew: false,
+    isPopular: false,
+    image: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&h=400&fit=crop',
+    images: ['https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&h=400&fit=crop'],
+    updatedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString()
+  }
+];
+
+export const mockResponse = {
+  products: mockProducts,
+  pagination: {
+    currentPage: 1,
+    totalPages: 10,
+    totalProducts: 60,
+    hasNextPage: true,
+    hasPrevPage: false
+  }
+};

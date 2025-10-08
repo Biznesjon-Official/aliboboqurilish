@@ -49,6 +49,16 @@ const AdminOrders = lazy(() => loadComponentWithRetry(() => import(
   './AdminOrders'
 )));
 
+const ImageOptimization = lazy(() => loadComponentWithRetry(() => import(
+  /* webpackChunkName: "admin-image-optimization" */
+  './admin/ImageOptimization'
+)));
+
+const Base64ConversionPage = lazy(() => loadComponentWithRetry(() => import(
+  /* webpackChunkName: "admin-base64-conversion" */
+  '../pages/admin/Base64ConversionPage'
+)));
+
 const AdminAnalytics = lazy(() => loadComponentWithRetry(() => import(
   /* webpackChunkName: "admin-analytics" */
   './AdminAnalytics'
@@ -205,6 +215,18 @@ const AdminRoutes = ({
                   <AdminAnalytics
                     onMobileToggle={onMobileToggle}
                   />
+                } 
+              />
+              <Route 
+                path="/image-optimization" 
+                element={
+                  <ImageOptimization />
+                } 
+              />
+              <Route 
+                path="/base64-conversion" 
+                element={
+                  <Base64ConversionPage />
                 } 
               />
             </Routes>

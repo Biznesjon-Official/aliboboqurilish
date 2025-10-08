@@ -101,10 +101,11 @@ const ModernProductGrid = memo(({
 
       {/* Products Grid */}
       <div className={`grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-6 ${className}`}>
-        {products.map((product) => (
+        {products.map((product, index) => (
           <ModernProductCard
             key={product._id}
             product={product}
+            index={index}
             onAddToCart={handleAddToCart}
             currentImageIndex={currentImageIndexes[product._id] || 0}
             onImageChange={handleImageChange}
