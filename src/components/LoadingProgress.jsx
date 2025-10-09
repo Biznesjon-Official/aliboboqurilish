@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const LoadingProgress = ({ isVisible = true, onComplete }) => {
   const [progress, setProgress] = useState(0);
-  
+
   useEffect(() => {
     if (!isVisible) {
       // When loading is complete, quickly finish to 100% and call onComplete
@@ -18,7 +18,7 @@ const LoadingProgress = ({ isVisible = true, onComplete }) => {
     const interval = setInterval(() => {
       // Slower progress that doesn't reach 100% automatically
       currentProgress += Math.random() * 15 + 5; // 5-20% har safar (sekinroq)
-      
+
       // Cap at 90% to wait for actual data loading
       const maxProgress = 90;
       if (currentProgress > maxProgress) {
@@ -39,10 +39,10 @@ const LoadingProgress = ({ isVisible = true, onComplete }) => {
       <div className="text-center max-w-md mx-auto px-6">
         {/* Logo */}
         <div className="mb-8">
-          <img 
-            src="/alibobo-logo.png" 
-            alt="Alibobo" 
-            className="h-32 w-128 mx-auto object-contain"
+          <img
+            src="/alibobo-logo.png"
+            alt="Alibobo"
+            className="h-32 w-64 mx-auto object-contain"
             style={{ aspectRatio: '144/56' }}
             onError={(e) => {
               // Fallback if logo doesn't load
@@ -58,7 +58,7 @@ const LoadingProgress = ({ isVisible = true, onComplete }) => {
         {/* Progress Bar */}
         <div className="mb-6">
           <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-            <div 
+            <div
               className="bg-gradient-to-r from-orange-400 to-orange-600 h-2 rounded-full transition-all duration-300 ease-out"
               style={{ width: `${progress}%` }}
             />

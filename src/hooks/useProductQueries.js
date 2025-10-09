@@ -81,7 +81,7 @@ const fetchProduct = async (id, signal) => {
 export const useProducts = (category, search, page = 1, limit = 20) => {
   return useQuery({
     queryKey: queryKeys.products.list(category, search, page, limit),
-    queryFn: ({ signal }) => fetchProducts({ category, search, page, limit, signal }),
+    queryFn: ({ signal }) => fetchProducts({ category, search, page, limit, signal, useFastEndpoint: false }),
     keepPreviousData: true, // Keep previous page data to avoid UI flicker
     staleTime: 30 * 1000, // 30 seconds - faster updates
     cacheTime: 2 * 60 * 1000, // 2 minutes cache time

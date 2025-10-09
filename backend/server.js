@@ -345,7 +345,10 @@ if (enableClustering && cluster.isPrimary) {
 
   // Handle OPTIONS requests for uploads (CORS preflight)
   app.options('/uploads/*', (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const origin = req.get('Origin');
+    if (allowedOrigins.includes(origin) || !origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -367,8 +370,11 @@ if (enableClustering && cluster.isPrimary) {
     maxAge: process.env.NODE_ENV === 'development' ? '0' : '7d', // No cache in development, 7 days in production
     etag: true, // Generate ETags for caching
     setHeaders: (res, path, stat) => {
-      // Add CORS headers for image requests
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      // Add CORS headers for image requests - use same origins as main CORS
+      const origin = req.get('Origin');
+      if (allowedOrigins.includes(origin) || !origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin || '*');
+      }
       res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');

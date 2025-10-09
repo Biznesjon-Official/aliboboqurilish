@@ -1,47 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  CartFAIcon, 
-  TimesFAIcon, 
-  MinusFAIcon, 
-  PlusFAIcon, 
-  TrashFAIcon, 
-  HammerFAIcon, 
-  UserFAIcon, 
-  PhoneFAIcon, 
-  MapMarkerAltFAIcon, 
-  ExclamationTriangleFAIcon, 
-  SpinnerFAIcon, 
-  CheckFAIcon 
+import {
+  CartFAIcon,
+  TimesFAIcon,
+  MinusFAIcon,
+  PlusFAIcon,
+  TrashFAIcon,
+  HammerFAIcon,
+  UserFAIcon,
+  PhoneFAIcon,
+  MapMarkerAltFAIcon,
+  ExclamationTriangleFAIcon,
+  SpinnerFAIcon,
+  CheckFAIcon
 } from './FontAwesome';
 import { queryClient } from '../lib/queryClient';
 import { useCreateOrder } from '../hooks/useOrderQueries';
 import OptimizedImage from './OptimizedImage';
 
-const CartSidebar = ({ 
-  isOpen, 
-  onClose, 
-  cart, 
-  onRemoveFromCart, 
-  onUpdateQuantity, 
+const CartSidebar = ({
+  isOpen,
+  onClose,
+  cart,
+  onRemoveFromCart,
+  onUpdateQuantity,
   onCheckout
 }) => {
   // React Query mutation for order creation
   const createOrderMutation = useCreateOrder();
-  
+
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [customerData, setCustomerData] = useState({
     name: '',
     phone: '',
     address: ''
   });
-  
+
   // Add form validation state
   const [formErrors, setFormErrors] = useState({
     name: '',
     phone: '',
     address: ''
   });
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -65,7 +65,7 @@ const CartSidebar = ({
       phone: '',
       address: ''
     };
-    
+
     let isValid = true;
 
     // Validate Name
@@ -101,11 +101,11 @@ const CartSidebar = ({
 
   // Clear errors when user starts typing
   const handleInputChange = (field, value) => {
-    setCustomerData({...customerData, [field]: value});
-    
+    setCustomerData({ ...customerData, [field]: value });
+
     // Clear error for this field when user starts typing
     if (formErrors[field]) {
-      setFormErrors({...formErrors, [field]: ''});
+      setFormErrors({ ...formErrors, [field]: '' });
     }
   };
 
@@ -113,18 +113,18 @@ const CartSidebar = ({
   const formatPhoneNumber = (value) => {
     // Extract only digits
     const digits = value.replace(/\D/g, '');
-    
+
     // Always start with +998
     if (digits.length <= 3) {
       return '+998';
     }
-    
+
     // Get phone digits after country code (max 9 digits)
     const phoneDigits = digits.slice(3, 12);
-    
+
     // Format as +998 (XX) XXX-XX-XX
     let formatted = '+998';
-    
+
     if (phoneDigits.length > 0) {
       formatted += ` (${phoneDigits.slice(0, 2)}`;
       if (phoneDigits.length >= 2) {
@@ -137,7 +137,7 @@ const CartSidebar = ({
         }
       }
     }
-    
+
     return formatted;
   };
 
@@ -147,7 +147,7 @@ const CartSidebar = ({
     if (isAdding) {
       // Count digits before cursor in old value
       const digitsBeforeCursor = oldValue.slice(0, oldCursor).replace(/\D/g, '').length;
-      
+
       // Find position after the same number of digits in new value
       let digitCount = 0;
       for (let i = 0; i < newValue.length; i++) {
@@ -158,12 +158,12 @@ const CartSidebar = ({
           }
         }
       }
-      
+
       return newValue.length;
     } else {
       // For deletion, maintain relative position
       const digitsBeforeCursor = oldValue.slice(0, oldCursor).replace(/\D/g, '').length;
-      
+
       let digitCount = 0;
       for (let i = 0; i < newValue.length; i++) {
         if (/\d/.test(newValue[i])) {
@@ -173,7 +173,7 @@ const CartSidebar = ({
           }
         }
       }
-      
+
       return Math.min(oldCursor, newValue.length);
     }
   };
@@ -183,21 +183,21 @@ const CartSidebar = ({
     const cursorPosition = input.selectionStart;
     const oldValue = customerData.phone;
     const newValue = e.target.value;
-    
+
     // Allow complete deletion
     if (newValue === '' || newValue.length < 4) {
       handleInputChange('phone', '');
       return;
     }
-    
+
     // Determine if user is adding or removing characters
     const oldDigits = oldValue.replace(/\D/g, '');
     const newDigits = newValue.replace(/\D/g, '');
     const isAdding = newDigits.length > oldDigits.length;
-    
+
     const formatted = formatPhoneNumber(newValue);
     handleInputChange('phone', formatted);
-    
+
     // Set cursor position after formatting
     setTimeout(() => {
       if (input && document.activeElement === input) {
@@ -209,7 +209,7 @@ const CartSidebar = ({
 
   const handleCheckout = async (e) => {
     e.preventDefault();
-    
+
     // Client-side validation
     if (!validateForm()) {
       return;
@@ -226,16 +226,16 @@ const CartSidebar = ({
     const invalidItems = cart.filter(item => {
       const productId = item._id || item.id;
       if (!productId) return true;
-      
+
       // Extract actual MongoDB ID if it's a cartId
-      const extractedId = typeof productId === 'string' && productId.includes('-') 
-        ? productId.split('-')[0] 
+      const extractedId = typeof productId === 'string' && productId.includes('-')
+        ? productId.split('-')[0]
         : productId;
-      
+
       // Check if it looks like a valid MongoDB ObjectId (24 hex characters)
       return !(typeof extractedId === 'string' && /^[a-fA-F0-9]{24}$/.test(extractedId));
     });
-    
+
     if (invalidItems.length > 0) {
       console.error('Invalid cart items found:', invalidItems);
       setErrorMessage(`Savatchada noto\'g\'ri mahsulotlar bor: ${invalidItems.map(item => item.name).join(', ')}. Iltimos, savatchani tozalang va qayta urinib ko\'ring.`);
@@ -254,12 +254,12 @@ const CartSidebar = ({
         items: cart.map(item => {
           // Extract proper MongoDB ObjectId
           let productId = item._id || item.id;
-          
+
           // If productId is a cartId (contains hyphens), extract the actual MongoDB ID
           if (typeof productId === 'string' && productId.includes('-')) {
             productId = productId.split('-')[0];
           }
-          
+
           // Log for debugging
           console.log('Processing cart item:');
           console.table({
@@ -270,20 +270,20 @@ const CartSidebar = ({
             selectedVariants: JSON.stringify(item.selectedVariants),
             hasSelectedVariants: item.selectedVariants && typeof item.selectedVariants === 'object' && Object.keys(item.selectedVariants).length > 0,
             variantOptionToSend: (
-              item.selectedVariants && 
-              typeof item.selectedVariants === 'object' && 
+              item.selectedVariants &&
+              typeof item.selectedVariants === 'object' &&
               Object.keys(item.selectedVariants).length > 0
             ) ? Object.values(item.selectedVariants).join(', ') : undefined
           });
-          
+
           return {
             productId: productId, // Product ID for inventory tracking
             name: item.name,
             quantity: parseInt(item.quantity) || 1,
             price: parseInt(item.price?.toString().replace(/[^\d]/g, '') || '0'),
             variantOption: (
-              item.selectedVariants && 
-              typeof item.selectedVariants === 'object' && 
+              item.selectedVariants &&
+              typeof item.selectedVariants === 'object' &&
               Object.keys(item.selectedVariants).length > 0
             ) ? Object.values(item.selectedVariants).join(', ') : undefined
           };
@@ -296,28 +296,28 @@ const CartSidebar = ({
       console.log('Buyurtma ma\'lumotlari yuborilmoqda:');
       console.table(orderData);
       console.log('Cart items with corrected productIds:');
-      console.table(orderData.items.map(item => ({ 
-        name: item.name, 
-        productId: item.productId, 
+      console.table(orderData.items.map(item => ({
+        name: item.name,
+        productId: item.productId,
         quantity: item.quantity,
         variantOption: item.variantOption
       })));
 
       // Use React Query mutation for automatic cache invalidation
       const savedOrder = await createOrderMutation.mutateAsync(orderData);
-      
+
       console.log('Buyurtma muvaffaqiyatli saqlandi:', savedOrder);
-      
+
       // IMMEDIATE: Force aggressive cache refresh for real-time updates
       queryClient.removeQueries({ queryKey: ['products'], exact: false });
       queryClient.refetchQueries({ queryKey: ['products'], exact: false, type: 'all' });
-      
+
       // Force refresh all stocks globally
       if (window.forceRefreshAllStocks) {
         console.log('🔄 Triggering force refresh after order creation');
         window.forceRefreshAllStocks();
       }
-      
+
       // Force DOM events for immediate UI updates
       window.dispatchEvent(new CustomEvent('forceStockRefresh', {
         detail: { reason: 'order_created', orderId: savedOrder._id }
@@ -337,7 +337,7 @@ const CartSidebar = ({
 
       // Close checkout modal
       setShowCheckoutModal(false);
-      
+
       // Clear cart if callback provided
       if (onCheckout) {
         onCheckout();
@@ -347,13 +347,13 @@ const CartSidebar = ({
       const total = calculateTotal();
       setOrderTotal(total);
       setShowSuccessModal(true);
-      
+
     } catch (error) {
       console.error('Buyurtma yuborishda xatolik:', error);
-      
+
       // Handle different types of errors
       let errorMessage = 'Buyurtma yuborishda xatolik yuz berdi.';
-      
+
       if (error.name === 'AbortError') {
         errorMessage = 'So\'rov vaqti tugadi. Iltimos, internetni tekshiring va qayta urinib ko\'ring.';
       } else if (error.message.includes('Failed to fetch')) {
@@ -363,7 +363,7 @@ const CartSidebar = ({
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       setErrorMessage(errorMessage);
       setShowErrorModal(true);
     } finally {
@@ -387,7 +387,7 @@ const CartSidebar = ({
     } else {
       document.body.classList.remove('overflow-hidden');
     }
-    
+
     return () => {
       document.body.classList.remove('overflow-hidden');
     };
@@ -403,9 +403,8 @@ const CartSidebar = ({
 
       {/* Shopping Cart Sidebar */}
       <div
-        className={`fixed inset-y-0 right-0 w-full sm:w-96 md:w-[30rem] lg:w-[36rem] xl:w-[40rem] bg-white shadow-2xl transform transition-transform duration-300 z-[70] flex flex-col ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className={`fixed inset-y-0 right-0 w-full sm:w-96 md:w-[30rem] lg:w-[36rem] xl:w-[40rem] bg-white shadow-2xl transform transition-transform duration-300 z-[70] flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
       >
         {/* Cart Header */}
         <div className="flex items-center justify-between p-4 bg-primary-orange text-white">
@@ -433,13 +432,13 @@ const CartSidebar = ({
               {cart.map((item) => {
                 const price = parseInt(item.price?.toString().replace(/[^\d]/g, '') || '0');
                 const totalPrice = (price * item.quantity).toLocaleString();
-                
+
                 return (
                   <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-2">
                     {/* Top Row: Image, Name, Price */}
                     <div className="flex items-start gap-3 mb-2">
                       {/* Product Image */}
-                      <div 
+                      <div
                         className="flex-shrink-0 bg-gray-50 rounded-lg overflow-hidden p-2 border border-gray-200"
                         style={{ width: '70px', height: '70px' }}
                       >
@@ -453,7 +452,7 @@ const CartSidebar = ({
                           style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
                         />
                       </div>
-                      
+
                       {/* Product Info */}
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
@@ -468,7 +467,7 @@ const CartSidebar = ({
                           {item.price} / {item.unit || 'dona'}
                         </p>
                       </div>
-                      
+
                       {/* Price */}
                       <div className="text-right flex-shrink-0">
                         <p className="text-lg font-bold text-primary-orange">
@@ -476,7 +475,7 @@ const CartSidebar = ({
                         </p>
                       </div>
                     </div>
-                    
+
                     {/* Bottom Row: Quantity Controls and Delete */}
                     <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                       {/* Quantity Controls */}
@@ -500,7 +499,7 @@ const CartSidebar = ({
                           </button>
                         </div>
                       </div>
-                      
+
                       {/* Delete Button */}
                       <button
                         onClick={() => onRemoveFromCart(item.id)}
@@ -563,11 +562,10 @@ const CartSidebar = ({
                   type="text"
                   value={customerData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
-                  className={`w-full px-3 py-2 text-sm rounded-lg border transition focus:outline-none focus:ring-1 focus:ring-primary-orange focus:border-transparent ${
-                    formErrors.name 
-                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
-                      : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 text-sm rounded-lg border transition focus:outline-none focus:ring-1 focus:ring-primary-orange focus:border-transparent ${formErrors.name
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                    : 'border-gray-300'
+                    }`}
                   placeholder="To'liq ismingizni kiriting"
                 />
                 {formErrors.name && (
@@ -592,7 +590,7 @@ const CartSidebar = ({
                     const input = e.target;
                     const cursorPosition = input.selectionStart;
                     const value = input.value;
-                    
+
                     // Handle backspace
                     if (e.key === 'Backspace') {
                       // Prevent deletion of +998 prefix
@@ -601,7 +599,7 @@ const CartSidebar = ({
                         return;
                       }
                     }
-                    
+
                     // Only allow digits and control keys
                     if (!/[\d]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Home', 'End'].includes(e.key)) {
                       e.preventDefault();
@@ -612,11 +610,10 @@ const CartSidebar = ({
                       handleInputChange('phone', '+998');
                     }
                   }}
-                  className={`w-full px-3 py-2 text-sm rounded-lg border transition focus:outline-none focus:ring-1 focus:ring-primary-orange focus:border-transparent ${
-                    formErrors.phone 
-                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
-                      : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 text-sm rounded-lg border transition focus:outline-none focus:ring-1 focus:ring-primary-orange focus:border-transparent ${formErrors.phone
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                    : 'border-gray-300'
+                    }`}
                   placeholder="+998 (__) ___-__-__"
                 />
                 {formErrors.phone && (
@@ -636,11 +633,10 @@ const CartSidebar = ({
                 <textarea
                   value={customerData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
-                  className={`w-full px-3 py-2 text-sm rounded-lg border transition focus:outline-none focus:ring-1 focus:ring-primary-orange focus:border-transparent resize-none ${
-                    formErrors.address 
-                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
-                      : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 text-sm rounded-lg border transition focus:outline-none focus:ring-1 focus:ring-primary-orange focus:border-transparent resize-none ${formErrors.address
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                    : 'border-gray-300'
+                    }`}
                   placeholder="To'liq manzilni kiriting (shahar, ko'cha, uy raqami)"
                   rows="3"
                 ></textarea>
@@ -725,7 +721,7 @@ const CartSidebar = ({
       {/* Error Modal */}
       {showErrorModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4">
-          <div 
+          <div
             className="bg-white rounded-xl p-6 md:p-8 max-w-sm w-full shadow-2xl text-center transform transition-all duration-300"
             style={{
               animation: 'modalSlideIn 0.3s ease-out'

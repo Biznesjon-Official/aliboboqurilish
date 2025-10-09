@@ -3,8 +3,8 @@ const NotificationService = require('../services/NotificationService');
 const { addActivity } = require('../routes/recentActivitiesRoutes');
 
 // Performance constants
-const MAX_LIMIT = 1000; // Maximum items per page
-const DEFAULT_LIMIT = 100; // Default items per page
+const MAX_LIMIT = 10000; // Maximum items per page
+const DEFAULT_LIMIT = 10000; // Default items per page
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 
 // Simple in-memory cache for frequently accessed data
@@ -59,6 +59,8 @@ const getProducts = async (req, res) => {
     // Validate and sanitize pagination parameters
     const requestedLimit = parseInt(req.query.limit) || DEFAULT_LIMIT;
     const limit = Math.min(MAX_LIMIT, Math.max(1, requestedLimit));
+    
+
 
     // Build optimized query object
     // Include legacy documents that may be missing `status` or `isDeleted`
@@ -491,6 +493,8 @@ const getProducts = async (req, res) => {
       setCache(cacheKey, response);
     }
 
+
+    
     res.json(response);
 
   } catch (error) {

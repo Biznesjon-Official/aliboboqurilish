@@ -109,7 +109,7 @@ const ProductsGrid = ({
     isFetching,
     error,
     refetch
-  } = useProducts(mappedCategory, searchQuery || '', 1, 1000); // Load up to 1000 products at once
+  } = useProducts(mappedCategory, searchQuery || '', 1, 10000); // Load up to 10000 products at once
 
   // Current page state for pagination
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
@@ -131,9 +131,12 @@ const ProductsGrid = ({
     // Use full products data if available
     if (allProductsData && allProductsData.products && allProductsData.products.length > 0) {
       products = [...allProductsData.products];
+
+
     } else if (fastData && fastData.products && fastData.products.length > 0) {
       // Fallback to fast data for immediate display
       products = [...fastData.products];
+
     }
     
     return products;
@@ -299,6 +302,8 @@ const ProductsGrid = ({
   const PRODUCTS_PER_PAGE = 100;
   const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
   
+
+  
   const paginatedProducts = useMemo(() => {
     const startIndex = currentPageIndex * PRODUCTS_PER_PAGE;
     const endIndex = startIndex + PRODUCTS_PER_PAGE;
@@ -312,14 +317,18 @@ const ProductsGrid = ({
     setIsPageChanging(true);
     setCurrentPageIndex(newPageIndex);
     
-    // Scroll to products section for better UX
-    const productsEl = document.getElementById('products');
-    if (productsEl) {
-      productsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      // Fallback to top if products section not found
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    // Scroll to products grid for better UX
+    setTimeout(() => {
+      const productsGrid = document.getElementById('products-grid');
+      if (productsGrid) {
+        const rect = productsGrid.getBoundingClientRect();
+        const scrollTop = window.pageYOffset + rect.top - 100; // 100px offset from top
+        window.scrollTo({ top: scrollTop, behavior: 'smooth' });
+      } else {
+        // Fallback to top of page
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 150);
     
     // Reset debounce after a short delay
     setTimeout(() => {
@@ -566,10 +575,12 @@ const ProductsGrid = ({
       {shouldShowContent ? (
         <>
           {/* Modern Product Grid with enhanced design */}
-          <ModernProductGrid
-            products={paginatedProducts}
-            onAddToCart={addToCart}
-          />
+          <div id="products-grid">
+            <ModernProductGrid
+              products={paginatedProducts}
+              onAddToCart={addToCart}
+            />
+          </div>
 
           {/* No infinite scroll sentinel needed */}
 
