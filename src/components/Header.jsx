@@ -5,12 +5,9 @@ import CartSidebar from './CartSidebar';
 import { 
   SearchFAIcon, 
   CartFAIcon, 
-  BoxFAIcon, 
-  PhoneFAIcon, 
-  UsersFAIcon, 
-  ExclamationTriangleFAIcon,
-  GraduationCapFAIcon 
+  ExclamationTriangleFAIcon
 } from './FontAwesome';
+import MobileBottomNavigation from './MobileBottomNavigation';
 
 const Header = ({
   onSuccessfulLogin,
@@ -274,11 +271,11 @@ const Header = ({
 
       {/* Mobile Header - Logo and Search - Hide when cart is open */}
       <header className={`bg-primary-dark shadow-lg lg:hidden transition-transform duration-300 ${isCartOpen ? '-translate-y-full' : 'translate-y-0'}`} style={{ minHeight: '64px' }}>
-        <div className="container mx-auto px-4 py-2">
-          <div className="flex items-center justify-between gap-3" style={{ minHeight: '48px' }}>
+        <div className="container mx-auto mobile-header py-2">
+          <div className="flex items-center justify-between gap-2" style={{ minHeight: '48px' }}>
             {/* Mobile Logo */}
             <div
-              className="flex items-center space-x-2 cursor-pointer select-none min-w-fit"
+              className="flex items-center space-x-1.5 cursor-pointer select-none mobile-logo-container"
               onDoubleClick={handleLogoInteraction}
               onTouchEnd={handleLogoInteraction}
               title="Admin panel uchun 2 marta bosing"
@@ -290,9 +287,9 @@ const Header = ({
                 loading="eager"
                 decoding="sync"
                 fetchpriority="high"
-                width="48"
-                height="48"
-                className="w-12 h-12 object-cover rounded-lg"
+                width="40"
+                height="40"
+                className="w-10 h-10 object-cover rounded-lg"
               />
               <img
                 src="/alibobo.png"
@@ -300,14 +297,14 @@ const Header = ({
                 loading="eager"
                 decoding="sync"
                 fetchpriority="high"
-                width="192"
-                height="48"
-                className="h-12 w-32 object-cover"
+                width="120"
+                height="30"
+                className="h-8 w-20 object-cover alibobo-text"
               />
             </div>
 
             {/* Mobile Search */}
-            <form onSubmit={handleSearch} className="flex-none w-36 ">
+            <form onSubmit={handleSearch} className="mobile-search-form mobile-search-container">
               <div className="relative">
                 <input
                   type="text"
@@ -322,23 +319,23 @@ const Header = ({
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setTimeout(() => setIsFocused(false), 150)}
                   placeholder="Qidiruv"
-                  className="w-full px-3 py-1.5 pr-8 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-primary-orange focus:ring-1 focus:ring-primary-orange transition duration-300 text-sm"
+                  className="w-full mobile-search-input bg-white border border-gray-300 rounded-md transition duration-300"
                 />
                 <button
                   type="submit"
                   aria-label="Qidirish"
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-primary-orange transition duration-300 p-2"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-primary-orange transition duration-300 p-1"
                 >
                   <SearchFAIcon className="text-xs" />
                 </button>
                 {/* Close-match typeahead suggestions (mobile) */}
                 {isFocused && debouncedQuery.trim().length >= 2 && suggestions.length > 0 && (
-                  <ul className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-md z-50 max-h-80 overflow-auto">
+                  <ul className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 mobile-suggestions overflow-auto">
                     {suggestions.map((name) => (
                       <li key={name}>
                         <button
                           type="button"
-                          className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                          className="w-full text-left px-2 py-1.5 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                           onMouseDown={(e) => {
                             e.preventDefault();
                             setSearchQuery(name);
@@ -346,7 +343,7 @@ const Header = ({
                             setIsFocused(false);
                           }}
                         >
-                          <span className="text-sm text-gray-800">{name}</span>
+                          <span className="text-xs text-gray-800 truncate block">{name}</span>
                         </button>
                       </li>
                     ))}
@@ -358,118 +355,15 @@ const Header = ({
         </div>
       </header>
 
-      {/* Mobile Bottom Navigation - always visible */}
-      <nav className={"fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white border-t border-gray-200 shadow-lg"} style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}>
-        <ul className="flex items-center justify-around py-4">
-          {/* 1. Akademiya */}
-          <li className="flex-1">
-            <button
-              onClick={() => {
-                // Close cart if open
-                if (isCartOpen) {
-                  onToggleCart();
-                }
-                // Scroll to top and show both products and craftsmen
-                window.scrollTo({
-                  top: 0,
-                  behavior: 'smooth'
-                });
-              }}
-              className="flex flex-col items-center px-1 text-gray-700 hover:text-primary-orange transition duration-200 w-full"
-            >
-              <GraduationCapFAIcon className="text-[18px]" />
-              <span className="text-[11px] sm:text-xs font-medium">Akademiya</span>
-            </button>
-          </li>
-
-          {/* 2. Mahsulotlar */}
-          <li className="flex-1">
-            <button
-              onClick={() => {
-                // Close cart if open
-                if (isCartOpen) {
-                  onToggleCart();
-                }
-                // Clear search and category to show all products
-                setSearchQuery('');
-                if (onSearch) {
-                  onSearch('');
-                }
-                if (onCategorySelect) {
-                  onCategorySelect('');
-                }
-                // Scroll to products section if available
-                const productsSection = document.getElementById('products');
-                if (productsSection) {
-                  productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                } else {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-              }}
-              className="flex flex-col items-center px-1 text-gray-700 hover:text-primary-orange transition duration-200 w-full"
-            >
-              <BoxFAIcon className="text-[18px]" />
-              <span className="text-[11px] sm:text-xs font-medium">Mahsulotlar</span>
-            </button>
-          </li>
-
-          {/* 3. Aloqa */}
-          <li className="flex-1">
-            <a
-              href="tel:+998919771111"
-              onClick={() => {
-                // Close cart if open
-                if (isCartOpen) {
-                  onToggleCart();
-                }
-              }}
-              className="flex flex-col items-center px-1 text-gray-700 hover:text-primary-orange transition duration-200 w-full"
-            >
-              <PhoneFAIcon className="text-[18px]" />
-              <span className="text-[11px] sm:text-xs font-medium">Aloqa</span>
-            </a>
-          </li>
-
-          {/* 4. Savatcha */}
-          <li className="flex-1">
-            <button
-              onClick={toggleCart}
-              className="flex flex-col items-center px-1 text-gray-700 hover:text-primary-orange transition duration-200 w-full relative"
-            >
-              <CartFAIcon className="text-[18px]" />
-              <span className="text-[11px] sm:text-xs font-medium">Savatcha</span>
-              {getTotalItems() > 0 && (
-                <span className="absolute -top-1 right-2 z-10 bg-red-600 text-white text-[9px] font-bold leading-none min-w-[14px] h-[14px] flex items-center justify-center rounded-full px-[4px] shadow-sm select-none pointer-events-none">
-                  {getTotalItems()}
-                </span>
-              )}
-            </button>
-          </li>
-
-          {/* 5. Ustalar */}
-          <li className="flex-1">
-            <button
-              onClick={() => {
-                // Close cart if open
-                if (isCartOpen) {
-                  onToggleCart();
-                }
-                const craftsmenSection = document.getElementById('craftsmen');
-                if (craftsmenSection) {
-                  craftsmenSection.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                  });
-                }
-              }}
-              className="flex flex-col items-center px-1 text-gray-700 hover:text-primary-orange transition duration-200 w-full"
-            >
-              <UsersFAIcon className="text-[18px]" />
-              <span className="text-[11px] sm:text-xs font-medium">Ustalar</span>
-            </button>
-          </li>
-        </ul>
-      </nav>
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNavigation
+        cart={cart}
+        isCartOpen={isCartOpen}
+        onToggleCart={onToggleCart}
+        onSearch={onSearch}
+        onCategorySelect={onCategorySelect}
+        getTotalItems={getTotalItems}
+      />
 
       {/* Login Modal */}
       {showLoginModal && (
@@ -570,6 +464,10 @@ const Header = ({
         onRemoveFromCart={onRemoveFromCart}
         onUpdateQuantity={onUpdateQuantity}
         onCheckout={onCheckout}
+        onToggleCart={onToggleCart}
+        onSearch={onSearch}
+        onCategorySelect={onCategorySelect}
+        getTotalItems={getTotalItems}
       />
 
       {/* Catalog Modal - Commented out as Catalog component is not defined */}

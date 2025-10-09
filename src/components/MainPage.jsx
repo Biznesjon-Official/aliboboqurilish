@@ -364,7 +364,7 @@ const MainPage = ({ onSuccessfulLogin, initialSection }) => {
   return (
     <>
       {/* Main content */}
-      <div>
+      <div className="page-transition">
         <Header
           onSuccessfulLogin={onSuccessfulLogin}
           cart={cart}

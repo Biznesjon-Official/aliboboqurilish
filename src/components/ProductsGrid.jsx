@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useInfiniteProducts } from '../hooks/useProductQueries';
+import { useProducts } from '../hooks/useProductQueries';
 import { useDebounce } from '../hooks/useDebounce';
 import { useFastProducts } from '../hooks/useFastProducts';
 import { queryClient } from '../lib/queryClient';
@@ -46,9 +46,6 @@ const ProductsGrid = ({
   // Infinite pagination handled by backend; we no longer slice locally
 
   const selectRef = useRef(null);
-
-  // Sentinel for automatic infinite scroll (IntersectionObserver)
-  const loadMoreRef = useRef(null);
 
   // Category mapping function - frontend to backend
   const getCategoryApiValue = (frontendCategory) => {
@@ -105,17 +102,14 @@ const ProductsGrid = ({
   // Show products immediately if available
   const hasInitialProducts = fastData?.products?.length > 0;
 
-  // Use ultra-fast products hook for better performance
+  // Use regular products hook to load all products at once
   const {
-    data,
+    data: allProductsData,
     isLoading,
     isFetching,
     error,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
     refetch
-  } = useInfiniteProducts(debouncedCategory, searchQuery || '', 8); // Reduced to 8 for much faster initial load
+  } = useProducts(mappedCategory, searchQuery || '', 1, 1000); // Load up to 1000 products at once
 
   // Current page state for pagination
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
@@ -128,71 +122,22 @@ const ProductsGrid = ({
 
   // No category loading state needed
 
-  // Start infinite query after fast query completes
-  useEffect(() => {
-    if (fastData && !isLoading && !data) {
-      // Fast query completed, start infinite query in background
-      const timer = setTimeout(() => {
-        // This will trigger the infinite query to start
-        if (hasNextPage && !isFetchingNextPage) {
-          fetchNextPage().catch(() => {
-            // Ignore errors silently
-          });
-        }
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [fastData, isLoading, data, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  // No infinite scroll - all products loaded at once
 
-  // Aggressive prefetching for faster loading
-  useEffect(() => {
-    // Always prefetch next page immediately when first page loads
-    if (data && data.pages && data.pages.length === 1 && hasNextPage && !isFetchingNextPage) {
-      const timer = setTimeout(() => {
-        fetchNextPage().catch(() => {
-          // Ignore errors silently
-        });
-      }, 100); // Very fast prefetch
-      return () => clearTimeout(timer);
-    }
-  }, [data, hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  // Load more pages gradually when category is selected
-  useEffect(() => {
-    if (debouncedCategory && debouncedCategory !== '' && debouncedCategory !== 'all') {
-      // Load additional pages faster
-      if (hasNextPage && !isFetchingNextPage) {
-        const timer = setTimeout(() => {
-          fetchNextPage().catch(() => {
-            // Ignore errors silently
-          });
-        }, 150); // Faster than before
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [debouncedCategory, hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  // Get all products from all pages for local filtering - IMMEDIATE DISPLAY
+  // Get all products - combine fast data with full data
   const fetchedProducts = useMemo(() => {
     let products = [];
     
-    // PRIORITY: Use fast products for immediate display if available
-    if (fastData && fastData.products && fastData.products.length > 0) {
+    // Use full products data if available
+    if (allProductsData && allProductsData.products && allProductsData.products.length > 0) {
+      products = [...allProductsData.products];
+    } else if (fastData && fastData.products && fastData.products.length > 0) {
+      // Fallback to fast data for immediate display
       products = [...fastData.products];
     }
     
-    // Merge with infinite query data if available
-    if (data && data.pages) {
-      const infiniteProducts = data.pages.flatMap(p => Array.isArray(p?.products) ? p.products : []);
-      // Merge and deduplicate by _id
-      const allProducts = [...products, ...infiniteProducts];
-      products = allProducts.filter((product, index, self) => 
-        index === self.findIndex(p => p._id === product._id)
-      );
-    }
-    
     return products;
-  }, [data, fastData]);
+  }, [allProductsData, fastData]);
 
   // IMMEDIATE RENDER: Show content as soon as we have any products
   const shouldShowContent = fetchedProducts.length > 0;
@@ -211,65 +156,7 @@ const ProductsGrid = ({
 
   // No need for error handling of initial load state
 
-  // Aggressive prefetching on scroll
-  useEffect(() => {
-    if (!hasNextPage || isFetchingNextPage) return;
-
-    const handleScroll = () => {
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      const scrollHeight = document.documentElement.scrollHeight;
-      const clientHeight = window.innerHeight;
-      
-      // Trigger prefetch when user scrolls to 60% of the page (more aggressive)
-      const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
-      
-      if (scrollPercentage > 0.6 && hasNextPage && !isFetchingNextPage) {
-        console.log('🔄 Fetching next page via scroll...', { scrollPercentage, hasNextPage, isFetchingNextPage });
-        fetchNextPage();
-      }
-    };
-
-    // Throttle scroll events for better performance
-    let ticking = false;
-    const throttledScroll = () => {
-      if (!ticking) {
-        requestAnimationFrame(() => {
-          handleScroll();
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('scroll', throttledScroll, { passive: true });
-    return () => window.removeEventListener('scroll', throttledScroll);
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  // Automatic infinite scroll using IntersectionObserver (backup)
-  useEffect(() => {
-    if (!hasNextPage) return; // nothing to observe
-    const el = loadMoreRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (first.isIntersecting && hasNextPage && !isFetchingNextPage) {
-          console.log('🔄 Fetching next page via intersection...', { hasNextPage, isFetchingNextPage });
-          // Trigger next page fetch when sentinel comes into view
-          fetchNextPage();
-        }
-      },
-      {
-        root: null,
-        rootMargin: '800px', // Super aggressive prefetching
-        threshold: 0.1,
-      }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  // No scroll-based loading - all products loaded at once
 
 
   // Initial loading state - ensure loading is true on first render
@@ -315,14 +202,10 @@ const ProductsGrid = ({
       return productSlug === selectedSlug;
     });
     
-    // If no products found but we're still loading more pages, return empty array
-    // This prevents "Mahsulot topilmadi" from showing while loading
-    if (filtered.length === 0 && hasNextPage && debouncedCategory) {
-      return [];
-    }
+    // No infinite loading - show results immediately
     
     return filtered;
-  }, [fetchedProducts, debouncedCategory, hasNextPage]);
+  }, [fetchedProducts, debouncedCategory]);
 
   // Enhanced search - search in multiple fields (like Craftsmen component)
   const searchResults = useMemo(() => {
@@ -688,8 +571,7 @@ const ProductsGrid = ({
             onAddToCart={addToCart}
           />
 
-          {/* Infinite Scroll Sentinel - hidden for pagination */}
-          <div ref={loadMoreRef} className="h-1 w-full" aria-hidden="true"></div>
+          {/* No infinite scroll sentinel needed */}
 
           {/* Pagination - always show when there are multiple pages */}
           {totalPages > 1 && (

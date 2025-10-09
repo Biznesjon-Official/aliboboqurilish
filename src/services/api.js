@@ -1,5 +1,8 @@
-// API base URL - force production API
-const API_BASE_URL = 'https://aliboboqurilish.uz/api';
+// API base URL - use environment variable or default based on NODE_ENV
+const API_BASE_URL = process.env.REACT_APP_API_BASE || 
+  (process.env.NODE_ENV === 'production' 
+    ? 'https://aliboboqurilish.uz/api' 
+    : 'http://localhost:5000/api');
 
 // Generic API call function
 const apiCall = async (endpoint, options = {}) => {

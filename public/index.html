@@ -1,30 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <link rel="canonical" href="https://aliboboqurilish.uz/" />
-    <meta
-      name="description"
-      content="Alibobo - Professional Ustalar va Qurilish Materiallar"
-    />
-    <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/alibobo-logo.png" />
-    <!-- Favicon links: use square icons to avoid stretching -->
-    <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/logo.png" />
-    <link rel="icon" type="image/png" sizes="48x48" href="%PUBLIC_URL%/logo.png" />
-    <link rel="shortcut icon" href="%PUBLIC_URL%/alibobo-logo.png" />
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json?v=20250924" />
-    <!-- Social sharing images -->
-    <meta property="og:image" content="%PUBLIC_URL%/alibobo-logo.png" />
-    <meta property="og:image:type" content="image/png" />
-    <meta name="twitter:image" content="%PUBLIC_URL%/alibobo-logo.png" />
-    <!--
+
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, shrink-to-fit=no" />
+  <meta name="theme-color" content="#000000" />
+  <link rel="canonical" href="https://aliboboqurilish.uz/" />
+
+  <!-- Prevent duplicate content -->
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+
+  <!-- Alternate language versions -->
+  <link rel="alternate" hreflang="uz" href="https://aliboboqurilish.uz/" />
+  <link rel="alternate" hreflang="x-default" href="https://aliboboqurilish.uz/" />
+  <!-- SEO Meta Tags -->
+  <meta name="description"
+    content="Alibobo - O'zbekistondagi eng yaxshi qurilish materiallari va professional ustalar. Elektrika, santexnika, dekor va boshqa qurilish ehtiyojlari uchun ishonchli hamkor." />
+  <meta name="keywords"
+    content="qurilish materiallar, ustalar, elektrika, santexnika, dekor, yevro remont, xoz mag, Alibobo, O'zbekiston" />
+  <meta name="author" content="Alibobo" />
+  <meta name="robots"
+    content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1, noarchive" />
+
+  <!-- Open Graph Meta Tags -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Alibobo - Professional Ustalar va Qurilish Materiallar" />
+  <meta property="og:description"
+    content="O'zbekistondagi eng yaxshi qurilish materiallari va professional ustalar. Elektrika, santexnika, dekor va boshqa qurilish ehtiyojlari uchun ishonchli hamkor." />
+  <meta property="og:url" content="https://aliboboqurilish.uz/" />
+  <meta property="og:site_name" content="Alibobo" />
+  <meta property="og:locale" content="uz_UZ" />
+  <meta property="og:image" content="https://aliboboqurilish.uz/alibobo-logo.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Alibobo - Professional Ustalar va Qurilish Materiallar" />
+
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Alibobo - Professional Ustalar va Qurilish Materiallar" />
+  <meta name="twitter:description"
+    content="O'zbekistondagi eng yaxshi qurilish materiallari va professional ustalar." />
+  <meta name="twitter:image" content="https://aliboboqurilish.uz/alibobo-logo.png" />
+  <meta name="twitter:image:alt" content="Alibobo Logo" />
+
+  <!-- Favicon and Icons -->
+  <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/alibobo-logo.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/logo.png" />
+  <link rel="icon" type="image/png" sizes="48x48" href="%PUBLIC_URL%/logo.png" />
+  <link rel="shortcut icon" href="%PUBLIC_URL%/alibobo-logo.png" />
+
+  <!-- Manifest -->
+  <link rel="manifest" href="%PUBLIC_URL%/manifest.json?v=20250924" />
+  <!--
       Notice the use of %PUBLIC_URL% in the tags above.
       It will be replaced with the URL of the `public` folder during the build.
       Only files inside the `public` folder can be referenced from the HTML.
@@ -33,55 +62,185 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
-    <link rel="preconnect" href="https://aliboboqurilish.uz" crossorigin>
-    <link rel="dns-prefetch" href="https://aliboboqurilish.uz">
-    <!-- Dev backend preconnect (ignored in prod) -->
-    <link rel="preconnect" href="http://localhost:5000">
-    <link rel="dns-prefetch" href="http://localhost:5000">
-    <!-- Preload critical images for LCP optimization -->
-    <link rel="preload" as="image" href="%PUBLIC_URL%/alibobo.png" fetchpriority="high" />
-    <link rel="preload" as="image" href="%PUBLIC_URL%/logo.png" fetchpriority="high" />
-    <link rel="preload" as="image" href="%PUBLIC_URL%/alibobo-logo.png" fetchpriority="high" />
+  <link rel="preconnect" href="https://aliboboqurilish.uz" crossorigin>
+  <link rel="dns-prefetch" href="https://aliboboqurilish.uz">
+  <!-- Dev backend preconnect (ignored in prod) -->
+  <link rel="preconnect" href="http://localhost:5000">
+  <link rel="dns-prefetch" href="http://localhost:5000">
+  <!-- Preload critical images for LCP optimization -->
+  <link rel="preload" as="image" href="%PUBLIC_URL%/alibobo.png" fetchpriority="high" />
+  <link rel="preload" as="image" href="%PUBLIC_URL%/logo.png" fetchpriority="high" />
+  <link rel="preload" as="image" href="%PUBLIC_URL%/alibobo-logo.png" fetchpriority="high" />
+
+  <!-- Preconnect to image domains -->
+  <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+  <link rel="dns-prefetch" href="https://images.unsplash.com">
+  <title>Alibobo - Professional Ustalar va Qurilish Materiallar</title>
+  
+  <!-- Prevent zoom with JavaScript -->
+  <script>
+    // Prevent zoom on mobile devices
+    document.addEventListener('gesturestart', function (e) {
+      e.preventDefault();
+    });
     
-    <!-- Preconnect to image domains -->
-    <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
-    <link rel="dns-prefetch" href="https://images.unsplash.com">
-    <title>Alibobo - Professional Ustalar va Qurilish Materiallar</title>
-    <script type="application/ld+json">
+    document.addEventListener('gesturechange', function (e) {
+      e.preventDefault();
+    });
+    
+    document.addEventListener('gestureend', function (e) {
+      e.preventDefault();
+    });
+    
+    // Prevent double-tap zoom
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function (event) {
+      const now = (new Date()).getTime();
+      if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, false);
+    
+    // Prevent pinch zoom
+    document.addEventListener('touchmove', function (event) {
+      if (event.scale !== 1) { 
+        event.preventDefault(); 
+      }
+    }, { passive: false });
+  </script>
+  <!-- Structured Data -->
+  <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "Organization",
-        "url": "https://aliboboqurilish.uz/",
         "name": "Alibobo",
-        "logo": "%PUBLIC_URL%/alibobo-logo.png"
+        "alternateName": "Ali Bobo Qurilish",
+        "url": "https://aliboboqurilish.uz/",
+        "logo": "https://aliboboqurilish.uz/alibobo-logo.png",
+        "description": "O'zbekistondagi eng yaxshi qurilish materiallari va professional ustalar",
+        "address": {
+          "@type": "PostalAddress",
+          "addressCountry": "UZ",
+          "addressLocality": "Toshkent"
+        },
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer service",
+          "availableLanguage": ["uz", "ru"]
+        },
+        "sameAs": [
+          "https://www.instagram.com/alibobo_qurilishmollari/",
+          "https://www.youtube.com/@aliboboqurilish"
+        ],
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://aliboboqurilish.uz/search?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
       }
     </script>
-    
-    <!-- Critical CSS inline for LCP -->
-    <style>
-      /* Critical above-the-fold styles */
-      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-      /* Header fixed height to prevent CLS */
-      header { min-height: 80px; }
-      @media (max-width: 1024px) { header { min-height: 64px; } }
-      /* Logo optimization */
-      .logo { height: 56px; width: 144px; object-fit: contain; aspect-ratio: 144/56; }
-      /* Product grid layout */
-      .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
-      .product-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); min-height: 320px; }
-      .product-image { width: 100%; height: 200px; object-fit: cover; aspect-ratio: 1/1; }
-      /* Skeleton animation */
-      .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
-      @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-      /* Prevent layout shifts */
-      img { max-width: 100%; height: auto; }
-      .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
-    </style>
-  </head>
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
-    <!--
+
+  <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Alibobo",
+        "url": "https://aliboboqurilish.uz/",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://aliboboqurilish.uz/search?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      }
+    </script>
+
+  <!-- Critical CSS inline for LCP -->
+  <style>
+    /* Critical above-the-fold styles */
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* Header fixed height to prevent CLS */
+    header {
+      min-height: 80px;
+    }
+
+    @media (max-width: 1024px) {
+      header {
+        min-height: 64px;
+      }
+    }
+
+    /* Logo optimization */
+    .logo {
+      height: 56px;
+      width: 144px;
+      object-fit: contain;
+      aspect-ratio: 144/56;
+    }
+
+    /* Product grid layout */
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .product-card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      min-height: 320px;
+    }
+
+    .product-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      aspect-ratio: 1/1;
+    }
+
+    /* Skeleton animation */
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+    }
+
+    @keyframes loading {
+      0% {
+        background-position: 200% 0;
+      }
+
+      100% {
+        background-position: -200% 0;
+      }
+    }
+
+    /* Prevent layout shifts */
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+  </style>
+</head>
+
+<body>
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <div id="root"></div>
+  <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.
 
@@ -91,5 +250,6 @@
       To begin the development, run `npm start` or `yarn start`.
       To create a production bundle, use `npm run build` or `yarn build`.
     -->
-  </body>
+</body>
+
 </html>

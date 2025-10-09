@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CartFAIcon, 
   TimesFAIcon, 
@@ -15,8 +15,16 @@ import {
 } from './FontAwesome';
 import { queryClient } from '../lib/queryClient';
 import { useCreateOrder } from '../hooks/useOrderQueries';
+import OptimizedImage from './OptimizedImage';
 
-const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity, onCheckout }) => {
+const CartSidebar = ({ 
+  isOpen, 
+  onClose, 
+  cart, 
+  onRemoveFromCart, 
+  onUpdateQuantity, 
+  onCheckout
+}) => {
   // React Query mutation for order creation
   const createOrderMutation = useCreateOrder();
   
@@ -101,38 +109,102 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
     }
   };
 
-  // Format phone number as user types
+  // Simple phone formatter without cursor position issues
   const formatPhoneNumber = (value) => {
-    // Remove all non-digits
+    // Extract only digits
     const digits = value.replace(/\D/g, '');
     
-    // Start with +998
-    if (digits.length === 0) return '';
-    if (digits.length <= 3) return '+998';
+    // Always start with +998
+    if (digits.length <= 3) {
+      return '+998';
+    }
+    
+    // Get phone digits after country code (max 9 digits)
+    const phoneDigits = digits.slice(3, 12);
     
     // Format as +998 (XX) XXX-XX-XX
-    const formatted = '+998';
-    if (digits.length > 3) {
-      const part1 = digits.slice(3, 5);
-      const part2 = digits.slice(5, 8);
-      const part3 = digits.slice(8, 10);
-      const part4 = digits.slice(10, 12);
-      
-      let result = formatted;
-      if (part1) result += ` (${part1}`;
-      if (part2) result += `) ${part2}`;
-      if (part3) result += `-${part3}`;
-      if (part4) result += `-${part4}`;
-      
-      return result;
+    let formatted = '+998';
+    
+    if (phoneDigits.length > 0) {
+      formatted += ` (${phoneDigits.slice(0, 2)}`;
+      if (phoneDigits.length >= 2) {
+        formatted += `) ${phoneDigits.slice(2, 5)}`;
+        if (phoneDigits.length >= 5) {
+          formatted += `-${phoneDigits.slice(5, 7)}`;
+          if (phoneDigits.length >= 7) {
+            formatted += `-${phoneDigits.slice(7, 9)}`;
+          }
+        }
+      }
     }
     
     return formatted;
   };
 
+  // Calculate cursor position after formatting
+  const getCursorPosition = (oldValue, newValue, oldCursor, isAdding = false) => {
+    // If adding a character, place cursor after the new digit
+    if (isAdding) {
+      // Count digits before cursor in old value
+      const digitsBeforeCursor = oldValue.slice(0, oldCursor).replace(/\D/g, '').length;
+      
+      // Find position after the same number of digits in new value
+      let digitCount = 0;
+      for (let i = 0; i < newValue.length; i++) {
+        if (/\d/.test(newValue[i])) {
+          digitCount++;
+          if (digitCount === digitsBeforeCursor + 1) {
+            return i + 1;
+          }
+        }
+      }
+      
+      return newValue.length;
+    } else {
+      // For deletion, maintain relative position
+      const digitsBeforeCursor = oldValue.slice(0, oldCursor).replace(/\D/g, '').length;
+      
+      let digitCount = 0;
+      for (let i = 0; i < newValue.length; i++) {
+        if (/\d/.test(newValue[i])) {
+          digitCount++;
+          if (digitCount === digitsBeforeCursor) {
+            return i + 1;
+          }
+        }
+      }
+      
+      return Math.min(oldCursor, newValue.length);
+    }
+  };
+
   const handlePhoneChange = (e) => {
-    const formatted = formatPhoneNumber(e.target.value);
+    const input = e.target;
+    const cursorPosition = input.selectionStart;
+    const oldValue = customerData.phone;
+    const newValue = e.target.value;
+    
+    // Allow complete deletion
+    if (newValue === '' || newValue.length < 4) {
+      handleInputChange('phone', '');
+      return;
+    }
+    
+    // Determine if user is adding or removing characters
+    const oldDigits = oldValue.replace(/\D/g, '');
+    const newDigits = newValue.replace(/\D/g, '');
+    const isAdding = newDigits.length > oldDigits.length;
+    
+    const formatted = formatPhoneNumber(newValue);
     handleInputChange('phone', formatted);
+    
+    // Set cursor position after formatting
+    setTimeout(() => {
+      if (input && document.activeElement === input) {
+        const newCursorPos = getCursorPosition(oldValue, formatted, cursorPosition, isAdding);
+        input.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
   };
 
   const handleCheckout = async (e) => {
@@ -331,7 +403,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
 
       {/* Shopping Cart Sidebar */}
       <div
-        className={`fixed inset-y-0 right-0 w-full sm:w-96 md:w-[28rem] lg:w-[32rem] bg-white shadow-2xl transform transition-transform duration-300 z-[70] flex flex-col ${
+        className={`fixed inset-y-0 right-0 w-full sm:w-96 md:w-[30rem] lg:w-[36rem] xl:w-[40rem] bg-white shadow-2xl transform transition-transform duration-300 z-[70] flex flex-col ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -357,49 +429,85 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
               <p>Mahsulot yoki xizmat qo'shing</p>
             </div>
           ) : (
-            <div className="p-4 pb-28 space-y-4">
+            <div className="p-4 pb-2 space-y-2">
               {cart.map((item) => {
                 const price = parseInt(item.price?.toString().replace(/[^\d]/g, '') || '0');
                 const totalPrice = (price * item.quantity).toLocaleString();
                 
                 return (
-                  <div key={item.id} className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 bg-white rounded-lg shadow-sm border">
-                    <img
-                      src={item.image || '/api/placeholder/80/80'}
-                      alt={item.name}
-                      className="w-20 h-20 object-cover rounded-lg"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-primary-dark mb-1 text-sm sm:text-base line-clamp-2 leading-tight">{item.name}</h4>
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
-                        Mahsulot
-                      </span>
-                      <p className="text-xs sm:text-sm text-gray-500 mt-2 truncate">{item.price} / {item.unit || 'dona'}</p>
-                      <div className="flex items-center space-x-2 mt-3">
-                        <button
-                          onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                          className="w-8 h-8 bg-gray-100 rounded-md flex items-center justify-center hover:bg-gray-200 transition"
-                        >
-                          <MinusFAIcon className="text-xs" />
-                        </button>
-                        <span className="w-10 text-center text-md font-semibold">{item.quantity}</span>
-                        <button
-                          onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                          className="w-8 h-8 bg-gray-100 rounded-md flex items-center justify-center hover:bg-gray-200 transition"
-                        >
-                          <PlusFAIcon className="text-xs" />
-                        </button>
+                  <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-2">
+                    {/* Top Row: Image, Name, Price */}
+                    <div className="flex items-start gap-3 mb-2">
+                      {/* Product Image */}
+                      <div 
+                        className="flex-shrink-0 bg-gray-50 rounded-lg overflow-hidden p-2 border border-gray-200"
+                        style={{ width: '70px', height: '70px' }}
+                      >
+                        <OptimizedImage
+                          src={item.image || item.finalImage}
+                          alt={item.name}
+                          className="w-full h-full"
+                          objectFit="contain"
+                          placeholder="skeleton"
+                          fallbackSrc="/assets/default-product.svg"
+                          style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                        />
+                      </div>
+                      
+                      {/* Product Info */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
+                          {item.name}
+                        </h4>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+                            Mahsulot
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          {item.price} / {item.unit || 'dona'}
+                        </p>
+                      </div>
+                      
+                      {/* Price */}
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-lg font-bold text-primary-orange">
+                          {totalPrice} so'm
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm sm:text-lg font-bold text-primary-dark">{totalPrice} so'm</p>
+                    
+                    {/* Bottom Row: Quantity Controls and Delete */}
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                      {/* Quantity Controls */}
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-gray-600 font-medium">Miqdor:</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                            className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors"
+                          >
+                            <MinusFAIcon className="text-xs text-gray-600" />
+                          </button>
+                          <span className="w-8 text-center text-sm font-semibold text-gray-900">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                            className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors"
+                          >
+                            <PlusFAIcon className="text-xs text-gray-600" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* Delete Button */}
                       <button
                         onClick={() => onRemoveFromCart(item.id)}
-                        className="text-red-500 hover:text-red-700 text-xs sm:text-sm font-medium mt-2 sm:mt-6"
+                        className="flex items-center gap-1 text-red-500 hover:text-red-700 text-sm font-medium transition-colors px-2 py-1 rounded-lg hover:bg-red-50"
                       >
-                        <TrashFAIcon className="mr-1" /> 
-                        <span className="hidden sm:inline">O'chirish</span>
-                        <span className="sm:hidden">O'chir</span>
+                        <TrashFAIcon className="text-xs" />
+                        <span>O'chirish</span>
                       </button>
                     </div>
                   </div>
@@ -411,7 +519,7 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
 
         {/* Cart Footer */}
         {cart.length > 0 && (
-          <div className="sticky z-10 border-t p-4 pt-3 space-y-3 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.06)]" style={{ bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+          <div className="border-t p-4 pt-3 space-y-3 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.06)] mt-auto">
             <div className="flex justify-between items-center">
               <span className="font-semibold text-primary-dark">Jami:</span>
               <span className="text-2xl font-bold text-primary-orange">
@@ -429,6 +537,8 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
             </button>
           </div>
         )}
+
+
       </div>
 
       {/* Checkout Modal */}
@@ -478,12 +588,36 @@ const CartSidebar = ({ isOpen, onClose, cart, onRemoveFromCart, onUpdateQuantity
                   type="tel"
                   value={customerData.phone}
                   onChange={handlePhoneChange}
+                  onKeyDown={(e) => {
+                    const input = e.target;
+                    const cursorPosition = input.selectionStart;
+                    const value = input.value;
+                    
+                    // Handle backspace
+                    if (e.key === 'Backspace') {
+                      // Prevent deletion of +998 prefix
+                      if (cursorPosition <= 4 && value.startsWith('+998')) {
+                        e.preventDefault();
+                        return;
+                      }
+                    }
+                    
+                    // Only allow digits and control keys
+                    if (!/[\d]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Home', 'End'].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onFocus={(e) => {
+                    if (!customerData.phone || customerData.phone === '') {
+                      handleInputChange('phone', '+998');
+                    }
+                  }}
                   className={`w-full px-3 py-2 text-sm rounded-lg border transition focus:outline-none focus:ring-1 focus:ring-primary-orange focus:border-transparent ${
                     formErrors.phone 
                       ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
                       : 'border-gray-300'
                   }`}
-                  placeholder="+998"
+                  placeholder="+998 (__) ___-__-__"
                 />
                 {formErrors.phone && (
                   <p className="text-red-500 text-xs mt-1 flex items-center">

@@ -2,11 +2,12 @@ import React, { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProduct } from '../hooks/useProductQueries';
 import { getCategoryDisplayName } from '../utils/categoryMapping';
-// Removed MobileBottomNav for simpler code
 import ProductVariantSelector from './ProductVariantSelector';
 import { ProductsGridSkeleton } from './LoadingSkeleton';
 import { CartFAIcon, TimesFAIcon, PlusFAIcon, MinusFAIcon } from './FontAwesome';
 import OptimizedImage from './OptimizedImage';
+import MobileBottomNavigation from './MobileBottomNavigation';
+import CartSidebar from './CartSidebar';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -26,6 +27,67 @@ const ProductDetailPage = () => {
   // Local add-to-cart confirmation modal
   const [showAddedModal, setShowAddedModal] = useState(false);
   const [justAddedProduct, setJustAddedProduct] = useState(null);
+  
+  // Cart state for mobile navigation
+  const [cart, setCart] = useState([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Load cart from localStorage on mount
+  React.useEffect(() => {
+    try {
+      const savedCart = localStorage.getItem('cartItems');
+      if (savedCart) {
+        const parsedCart = JSON.parse(savedCart);
+        if (Array.isArray(parsedCart)) {
+          setCart(parsedCart);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading cart:', error);
+    }
+  }, []);
+
+  // Cart helper functions
+  const getTotalItems = useCallback(() => {
+    return cart.reduce((total, item) => total + (item.quantity || 1), 0);
+  }, [cart]);
+
+  const handleToggleCart = useCallback(() => {
+    setIsCartOpen(prev => !prev);
+  }, []);
+
+  const handleRemoveFromCart = useCallback((itemId) => {
+    setCart(prevCart => {
+      const newCart = prevCart.filter(item => (item.cartId || item._id || item.id) !== itemId);
+      localStorage.setItem('cartItems', JSON.stringify(newCart));
+      return newCart;
+    });
+  }, []);
+
+  const handleUpdateQuantity = useCallback((itemId, newQuantity) => {
+    if (newQuantity <= 0) {
+      handleRemoveFromCart(itemId);
+      return;
+    }
+    
+    setCart(prevCart => {
+      const newCart = prevCart.map(item => {
+        const currentId = item.cartId || item._id || item.id;
+        if (currentId === itemId) {
+          return { ...item, quantity: newQuantity };
+        }
+        return item;
+      });
+      localStorage.setItem('cartItems', JSON.stringify(newCart));
+      return newCart;
+    });
+  }, [handleRemoveFromCart]);
+
+  const handleCheckout = useCallback(() => {
+    // Simple checkout - could be enhanced
+    alert('Buyurtma berish funksiyasi hozircha ishlab chiqilmoqda');
+    setIsCartOpen(false);
+  }, []);
 
   // Fetch product data with React Query caching
   const { data, isLoading, isFetching, isError, isSuccess, error, fetchStatus } = useProduct(id);
@@ -39,12 +101,11 @@ const ProductDetailPage = () => {
       const pid = (id || '').toString();
       if (pid) sessionStorage.setItem('scrollToProductId', pid);
     } catch (e) {}
-    // Prefer browser history back (keeps native scroll position), fallback to '/' restore
-    if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/', { state: { restoreProductId: id } });
-    }
+    // Force navigate to home with state to prevent layout issues on iOS
+    navigate('/', { 
+      state: { restoreProductId: id },
+      replace: false 
+    });
   }, [navigate, id]);
 
   // Handle add to cart (align with modal)
@@ -76,32 +137,37 @@ const ProductDetailPage = () => {
         : (product?.id || product?._id)
     };
 
-    // Dispatch a global event (legacy)
-    window.dispatchEvent(new CustomEvent('addToCart', { detail: productToAdd }));
-    // Also persist to localStorage so cart survives route and is visible on home later
-    try {
-      const saved = localStorage.getItem('cartItems');
-      let parsed;
-      try { parsed = JSON.parse(saved); } catch { parsed = []; }
-      const arr = Array.isArray(parsed) ? parsed : [];
+    // Update local cart state
+    setCart(prevCart => {
       const idKey = productToAdd.cartId || productToAdd._id || productToAdd.id;
       let found = false;
-      const next = arr.map((it) => {
-        const itKey = it.cartId || it._id || it.id;
-        if (itKey === idKey) {
+      const newCart = prevCart.map((item) => {
+        const itemKey = item.cartId || item._id || item.id;
+        if (itemKey === idKey) {
           found = true;
-          return { ...it, quantity: (it.quantity || 1) + (productToAdd.quantity || 1) };
+          return { ...item, quantity: (item.quantity || 1) + (productToAdd.quantity || 1) };
         }
-        return it;
+        return item;
       });
-      if (!found) next.push({ ...productToAdd, id: idKey, quantity: productToAdd.quantity || 1 });
-      localStorage.setItem('cartItems', JSON.stringify(next));
-    } catch (_) {}
+      
+      if (!found) {
+        newCart.push({ ...productToAdd, id: idKey, quantity: productToAdd.quantity || 1 });
+      }
+      
+      // Save to localStorage
+      localStorage.setItem('cartItems', JSON.stringify(newCart));
+      return newCart;
+    });
+
+    // Dispatch a global event (legacy)
+    window.dispatchEvent(new CustomEvent('addToCart', { detail: productToAdd }));
+    
     // Also store a one-shot pending add to cart for Home to consume
     try {
       sessionStorage.setItem('pendingAddToCart', JSON.stringify(productToAdd));
     } catch (_) {}
-    // DO NOT auto-navigate; show confirmation modal instead
+    
+    // Show confirmation modal
     setJustAddedProduct(productToAdd);
     setShowAddedModal(true);
   }, [product, quantity, selectedVariants, selectedColor, selectedSize, variantPrice, variantStock, variantImage]);
@@ -547,7 +613,25 @@ const ProductDetailPage = () => {
         </div>
       </div>
 
-      {/* Removed MobileBottomNav for simpler code */}
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNavigation
+        cart={cart}
+        isCartOpen={isCartOpen}
+        onToggleCart={handleToggleCart}
+        getTotalItems={getTotalItems}
+      />
+
+      {/* Cart Sidebar */}
+      <CartSidebar
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        cart={cart}
+        onRemoveFromCart={handleRemoveFromCart}
+        onUpdateQuantity={handleUpdateQuantity}
+        onCheckout={handleCheckout}
+        onToggleCart={handleToggleCart}
+        getTotalItems={getTotalItems}
+      />
 
       {/* Add-to-cart toast (top-right) */}
       {showAddedModal && (

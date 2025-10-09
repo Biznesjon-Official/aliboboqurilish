@@ -7,6 +7,14 @@ const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
 
+// Test route to verify upload routes are working
+router.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Upload routes are working!', 
+    timestamp: new Date().toISOString() 
+  });
+});
+
 // Ensure upload directories exist
 const ensureUploadDirs = async () => {
   const dirs = [
