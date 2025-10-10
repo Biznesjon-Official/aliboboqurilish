@@ -255,9 +255,44 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
 
   // Create new notification
   const createNotification = useCallback(async (notificationData) => {
-    // Notifications disabled
-    return;
-  }, []);
+    try {
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const response = await fetch(`${base}/notifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(notificationData),
+      });
+
+      if (response.ok) {
+        const newNotification = await response.json();
+        
+        // Add to local state immediately for better UX
+        const config = getNotificationConfig(newNotification);
+        const transformedNotification = {
+          id: newNotification._id,
+          title: newNotification.title,
+          message: newNotification.message,
+          time: formatTimeAgo(newNotification.createdAt),
+          read: false,
+          type: newNotification.entityType || newNotification.type,
+          timestamp: new Date(newNotification.createdAt).getTime(),
+          entityType: newNotification.entityType,
+          entityId: newNotification.entityId,
+          action: newNotification.action,
+          ...config
+        };
+        
+        setNotifications(prev => [transformedNotification, ...prev]);
+        setUnreadCount(prev => prev + 1);
+        
+        return newNotification;
+      }
+    } catch (err) {
+      console.error('Error creating notification:', err);
+    }
+  }, [formatTimeAgo]);
 
   // Delete notification
   const deleteNotification = useCallback(async (notificationId) => {
@@ -403,8 +438,31 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
 
   // Set up auto-refresh with cleanup and smarter interval handling
   useEffect(() => {
-    // Notifications disabled
-    return () => {};
+    // Initial fetch on mount
+    fetchNotifications();
+    
+    if (autoRefresh && refreshInterval > 0) {
+      // Clear any existing timer
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+      }
+      
+      // Set up new timer with adaptive interval based on unread count
+      const adaptiveInterval = unreadCount > 0 ? Math.min(refreshInterval, 15000) : refreshInterval;
+      
+      refreshTimerRef.current = setInterval(() => {
+        if (isMountedRef.current) {
+          fetchNotifications();
+        }
+      }, adaptiveInterval);
+    }
+    
+    return () => {
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
   }, [autoRefresh, fetchNotifications, refreshInterval, unreadCount]);
 
   return {

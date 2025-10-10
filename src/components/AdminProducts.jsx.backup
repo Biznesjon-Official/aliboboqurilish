@@ -36,11 +36,12 @@ import '../styles/select-styles.css';
 
 const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const navigate = useNavigate();
-  
+
   // Real notification system for notification bell
   const {
     notifications: realNotifications,
     setNotifications: setRealNotifications,
+    unreadCount,
     markAllAsRead,
     markAsRead,
     deleteNotification,
@@ -48,9 +49,6 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     notifyProductAdded,
     notifyProductDeleted
   } = useRealNotifications(true, 30000);
-
-  // Calculate unread count from real notifications
-  const unreadCount = realNotifications.filter(notification => !notification.read).length;
 
   // Demo notification system for modals (keep existing modal functionality)
   const {
@@ -98,8 +96,6 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-
-
 
   // Delete notification states
   const [showDeleteNotification, setShowDeleteNotification] = useState(false);
@@ -445,6 +441,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   }, [isModalOpen, isViewModalOpen, alertModal?.show, confirmModal?.show, promptModal?.show]);
 
   const openAddModal = () => {
+    console.log('🔥 openAddModal called!');
     setSelectedProduct(null);
     setFormData({
       name: '',
@@ -461,6 +458,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     });
     setSelectedImages([]); // Changed from selectedImage to selectedImages
     setIsModalOpen(true);
+    console.log('🔥 Modal should be open now, isModalOpen:', true);
   };
 
   const openEditModal = (product) => {
@@ -830,18 +828,22 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     return { text: 'Kam', class: 'bg-red-100 text-red-800' };
   };
   const handleSearchChange = (value) => {
+    // console.log('🔍 Search input o\'zgartirildi:', value);
     setSearchTerm(value);
   };
 
   const handleFilterChange = (value) => {
+    // console.log('🔄 Filter changed to:', value);
     setFilterCategory(value);
   };
 
   const clearSearchAndFilter = () => {
+    // console.log('🧹 Qidiruv va filter tozalandi');
     setSearchTerm('');
     setFilterCategory('');
     setCurrentPage(1);
     if (debounceTimeoutRef.current) {
+      // console.log('🧹 Clear: timeout tozalandi');
       clearTimeout(debounceTimeoutRef.current);
     }
   };
@@ -882,6 +884,9 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   useEffect(() => {
     setProducts(queriedProducts);
     const p = productsData?.pagination;
+    console.log('📄 Pagination data:', p);
+    console.log('📊 Total products:', productsData?.totalCount);
+    console.log('📊 Products array length:', queriedProducts?.length);
 
     // Calculate total pages based on total count
     const totalProductCount = p?.totalCount || productsData?.totalCount || 0;
@@ -898,7 +903,10 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     setTotalPages(finalTotalPages);
     setTotalCount(finalTotalCount);
 
-
+    console.log('📄 Calculated total pages:', calculatedTotalPages);
+    console.log('📄 Final total pages:', finalTotalPages);
+    console.log('📄 Final total count:', finalTotalCount);
+    console.log('📄 Items per page:', ITEMS_PER_PAGE);
   }, [productsData]);
 
   const loading = isLoading;
@@ -948,7 +956,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
           <div className="flex items-center gap-2 sm:gap-3">
             <AdminNotificationBell
               notifications={realNotifications}
-              unreadCount={unreadCount}
+              unreadCount={unreadCount || 0}
               markAllAsRead={markAllAsRead}
               markAsRead={markAsRead}
               deleteNotification={deleteNotification}
@@ -1255,57 +1263,102 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       </main >
 
       {/* Add/Edit Modal */}
-      {isModalOpen && (
-        <div
-          className="modal-backdrop"
-          style={{ 
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 99999,
-            padding: '1rem'
-          }}
-          onClick={closeModal}
-        >
+      {console.log('🔥 Rendering modal check, isModalOpen:', isModalOpen)}
+      {
+        isModalOpen && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(255, 0, 0, 0.9)',
+              zIndex: 999999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            onClick={closeModal}
+          >
             <div
-              className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: 'white',
+                border: '10px solid blue',
+                borderRadius: '10px',
+                width: '500px',
+                height: '400px',
+                zIndex: 999999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                fontWeight: 'bold'
+              }}
             >
+              <div style={{ textAlign: 'center' }}>
+                <h2>TEST MODAL</h2>
+                <p>Bu ko'rinishi kerak!</p>
+                <button
+                  onClick={closeModal}
+                  style={{
+                    backgroundColor: 'red',
+                    color: 'white',
+                    padding: '10px 20px',
+                    border: 'none',
+                    borderRadius: '5px',
+                    marginTop: '20px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Yopish
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* View Modal */}
+      {
+        isViewModalOpen && selectedProduct && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
               <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
                 <div className="flex items-center justify-between">
                   <h3 className="text-2xl font-semibold text-gray-900">
-                    {selectedProduct ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot qo\'shish'}
+                    Mahsulot ma'lumotlari
                   </h3>
                   <button
-                    onClick={closeModal}
+                    onClick={() => setIsViewModalOpen(false)}
                     className="text-gray-400 hover:text-gray-600 transition-colors"
                   >
                     <TimesFAIcon className="text-xl" />
                   </button>
                 </div>
               </div>
+              <div className="p-6">
+                <p>Mahsulot: {selectedProduct?.name}</p>
+              </div>
+            </div>
+          </div>
+        )
+      }
+      <button
+        onClick={closeModal}
+        className="text-gray-400 hover:text-gray-600 transition-colors"
+      >
+        <TimesFAIcon className="text-xl" />
+      </button>
+    </div>
+              </div >
 
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Mahsulot nomi *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent"
-                      placeholder="Mahsulot nomini kiriting"
-                      required
-                    />
-                  </div>
+
+  placeholder="Mahsulot nomini kiriting"
+required
+  />
+                  </div >
 
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
@@ -1360,7 +1413,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                       />
                     )}
                   </div>
-                </div>
+                </div >
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
@@ -1392,7 +1445,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                   />
                 </div>
 
-                {/* Variant System Toggle */}
+{/* Variant System Toggle */ }
                 <div className="space-y-4">
                   <div className="flex items-center">
                     <input
@@ -1456,186 +1509,186 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                     </button>
                   </div>
                 </div>
-              </form>
-            </div>
-          </div>
+              </form >
+            </div >
+          </div >
         )
       }
 
-      {/* View Modal */}
-      {
-        isViewModalOpen && selectedProduct && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay overflow-hidden p-4"
-            onClick={() => setIsViewModalOpen(false)}
-          >
-            <div
-              className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
+{/* View Modal */ }
+{
+  isViewModalOpen && selectedProduct && (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay overflow-hidden p-4"
+      onClick={() => setIsViewModalOpen(false)}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
+          <div className="flex items-center justify-between">
+            <h3 className="text-2xl font-semibold text-gray-900">Mahsulot ma'lumotlari</h3>
+            <button
+              onClick={() => setIsViewModalOpen(false)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
             >
-              <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-2xl font-semibold text-gray-900">Mahsulot ma'lumotlari</h3>
-                  <button
-                    onClick={() => setIsViewModalOpen(false)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <TimesFAIcon className="text-xl" />
-                  </button>
-                </div>
+              <TimesFAIcon className="text-xl" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Product Images */}
+          {((selectedProduct.images && selectedProduct.images.length > 0) || selectedProduct.image) && (
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">Mahsulot rasmlari</label>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {selectedProduct.images && selectedProduct.images.length > 0 ? (
+                  selectedProduct.images.map((image, index) => (
+                    <div key={index} className="relative group">
+                      <OptimizedImage
+                        src={image}
+                        alt={`${selectedProduct.name} - ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"
+                        fallbackSrc={null}
+                        placeholder="skeleton"
+                      />
+                      <div className="absolute -top-2 -left-2 bg-primary-orange text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                        {index + 1}
+                      </div>
+                    </div>
+                  ))
+                ) : selectedProduct.image && (
+                  <div className="relative group">
+                    <OptimizedImage
+                      src={selectedProduct.image}
+                      alt={selectedProduct.name}
+                      className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"
+                      fallbackSrc={null}
+                      placeholder="skeleton"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Product Information Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <label className="block text-sm font-medium text-gray-500 mb-2">Mahsulot nomi</label>
+                <p className="text-lg font-semibold text-gray-900">{selectedProduct.name}</p>
               </div>
 
-              <div className="p-6 space-y-6">
-                {/* Product Images */}
-                {((selectedProduct.images && selectedProduct.images.length > 0) || selectedProduct.image) && (
-                  <div className="space-y-3">
-                    <label className="block text-sm font-medium text-gray-700">Mahsulot rasmlari</label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {selectedProduct.images && selectedProduct.images.length > 0 ? (
-                        selectedProduct.images.map((image, index) => (
-                          <div key={index} className="relative group">
-                            <OptimizedImage
-                              src={image}
-                              alt={`${selectedProduct.name} - ${index + 1}`}
-                              className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"
-                              fallbackSrc={null}
-                              placeholder="skeleton"
-                            />
-                            <div className="absolute -top-2 -left-2 bg-primary-orange text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
-                              {index + 1}
-                            </div>
-                          </div>
-                        ))
-                      ) : selectedProduct.image && (
-                        <div className="relative group">
-                          <OptimizedImage
-                            src={selectedProduct.image}
-                            alt={selectedProduct.name}
-                            className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"
-                            fallbackSrc={null}
-                            placeholder="skeleton"
-                          />
-                        </div>
-                      )}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <label className="block text-sm font-medium text-gray-500 mb-2">Kategoriya</label>
+                <p className="text-gray-900 capitalize">{selectedProduct.category}</p>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <label className="block text-sm font-medium text-gray-500 mb-2">Narx</label>
+                <div className="flex items-center space-x-3">
+                  <p className="text-xl font-bold text-primary-dark">{formatCurrency(selectedProduct.price)}</p>
+                  {selectedProduct.oldPrice && selectedProduct.oldPrice > selectedProduct.price && (
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm text-gray-400 line-through decoration-red-500 decoration-2">{formatCurrency(selectedProduct.oldPrice)}</p>
+                      <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                        -{Math.round(((selectedProduct.oldPrice - selectedProduct.price) / selectedProduct.oldPrice) * 100)}%
+                      </span>
                     </div>
-                  </div>
-                )}
-
-                {/* Product Information Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-500 mb-2">Mahsulot nomi</label>
-                      <p className="text-lg font-semibold text-gray-900">{selectedProduct.name}</p>
-                    </div>
-
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-500 mb-2">Kategoriya</label>
-                      <p className="text-gray-900 capitalize">{selectedProduct.category}</p>
-                    </div>
-
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-500 mb-2">Narx</label>
-                      <div className="flex items-center space-x-3">
-                        <p className="text-xl font-bold text-primary-dark">{formatCurrency(selectedProduct.price)}</p>
-                        {selectedProduct.oldPrice && selectedProduct.oldPrice > selectedProduct.price && (
-                          <div className="flex items-center space-x-2">
-                            <p className="text-sm text-gray-400 line-through decoration-red-500 decoration-2">{formatCurrency(selectedProduct.oldPrice)}</p>
-                            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
-                              -{Math.round(((selectedProduct.oldPrice - selectedProduct.price) / selectedProduct.oldPrice) * 100)}%
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-500 mb-2">Zaxira</label>
-                      <div className="flex items-center justify-between">
-                        <p className="text-gray-900 font-medium">{selectedProduct.stock} {selectedProduct.unit}</p>
-                        <span className={`text-xs px-3 py-1 rounded-full font-medium ${getStockStatus(selectedProduct.stock).class}`}>
-                          {getStockStatus(selectedProduct.stock).text}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-500 mb-2">O'lchov birligi</label>
-                      <p className="text-gray-900">{selectedProduct.unit}</p>
-                    </div>
-
-                    {selectedProduct.badge && (
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <label className="block text-sm font-medium text-gray-500 mb-2">Badge</label>
-                        <span className="bg-primary-orange text-white text-sm px-3 py-1 rounded-full font-medium">
-                          {selectedProduct.badge}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {selectedProduct.description && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <label className="block text-sm font-medium text-gray-500 mb-2">Tavsif</label>
-                    <p className="text-gray-900 leading-relaxed">{selectedProduct.description}</p>
-                  </div>
-                )}
-
-                {/* Additional Information */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-blue-50 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-blue-600">{selectedProduct.stock}</div>
-                    <div className="text-sm text-blue-600 font-medium">Zaxirada</div>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-green-600">{formatCurrency(selectedProduct.price)}</div>
-                    <div className="text-sm text-green-600 font-medium">Joriy narx</div>
-                  </div>
-                  <div className="bg-purple-50 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-purple-600 capitalize">{selectedProduct.category}</div>
-                    <div className="text-sm text-purple-600 font-medium">Kategoriya</div>
-                  </div>
-                </div>
-
-                <div className="sticky bottom-0 bg-white pt-6 border-t border-gray-200 z-10">
-                  <div className="flex items-center justify-end space-x-4">
-                    <button
-                      onClick={() => setIsViewModalOpen(false)}
-                      className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-200 font-medium"
-                    >
-                      Yopish
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsViewModalOpen(false);
-                        openEditModal(selectedProduct);
-                      }}
-                      className="px-6 py-3 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 transition duration-200 font-medium"
-                    >
-                      <EditFAIcon className="mr-2" />Tahrirlash
-                    </button>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
+
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <label className="block text-sm font-medium text-gray-500 mb-2">Zaxira</label>
+                <div className="flex items-center justify-between">
+                  <p className="text-gray-900 font-medium">{selectedProduct.stock} {selectedProduct.unit}</p>
+                  <span className={`text-xs px-3 py-1 rounded-full font-medium ${getStockStatus(selectedProduct.stock).class}`}>
+                    {getStockStatus(selectedProduct.stock).text}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <label className="block text-sm font-medium text-gray-500 mb-2">O'lchov birligi</label>
+                <p className="text-gray-900">{selectedProduct.unit}</p>
+              </div>
+
+              {selectedProduct.badge && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <label className="block text-sm font-medium text-gray-500 mb-2">Badge</label>
+                  <span className="bg-primary-orange text-white text-sm px-3 py-1 rounded-full font-medium">
+                    {selectedProduct.badge}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
-        )
-      }
 
-      {/* AdminNotificationModals - matching index.html exactly */}
-      <AdminNotificationModals
-        alertModal={alertModal}
-        confirmModal={confirmModal}
-        promptModal={promptModal}
-        closeAlert={closeAlert}
-        onConfirmResponse={handleConfirmResponse}
-        onPromptResponse={handlePromptResponse}
-      />
+          {selectedProduct.description && (
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <label className="block text-sm font-medium text-gray-500 mb-2">Tavsif</label>
+              <p className="text-gray-900 leading-relaxed">{selectedProduct.description}</p>
+            </div>
+          )}
 
-      {/* Old alert modal removed - now using AdminNotificationModals */}
+          {/* Additional Information */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-blue-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-blue-600">{selectedProduct.stock}</div>
+              <div className="text-sm text-blue-600 font-medium">Zaxirada</div>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-green-600">{formatCurrency(selectedProduct.price)}</div>
+              <div className="text-sm text-green-600 font-medium">Joriy narx</div>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-purple-600 capitalize">{selectedProduct.category}</div>
+              <div className="text-sm text-purple-600 font-medium">Kategoriya</div>
+            </div>
+          </div>
+
+          <div className="sticky bottom-0 bg-white pt-6 border-t border-gray-200 z-10">
+            <div className="flex items-center justify-end space-x-4">
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-200 font-medium"
+              >
+                Yopish
+              </button>
+              <button
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  openEditModal(selectedProduct);
+                }}
+                className="px-6 py-3 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 transition duration-200 font-medium"
+              >
+                <EditFAIcon className="mr-2" />Tahrirlash
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+{/* AdminNotificationModals - matching index.html exactly */ }
+<AdminNotificationModals
+  alertModal={alertModal}
+  confirmModal={confirmModal}
+  promptModal={promptModal}
+  closeAlert={closeAlert}
+  onConfirmResponse={handleConfirmResponse}
+  onPromptResponse={handlePromptResponse}
+/>
+
+{/* Old alert modal removed - now using AdminNotificationModals */ }
     </div >
   );
 };

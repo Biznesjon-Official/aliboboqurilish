@@ -1,5 +1,5 @@
 /*
- Optimize header logos from public/logo.png to smaller sizes to reduce LCP cost.
+ Optimize header logos from public/alibobo-logo.png to smaller sizes to reduce LCP cost.
  Usage: npm run assets:optimize
 */
 const fs = require('fs');
@@ -8,11 +8,11 @@ let sharp;
 try {
   sharp = require('sharp');
 } catch (e) {
-  console.warn('⚠️  Sharp not installed. Falling back to copying logo.png to logo-32.png and logo-48.png.');
+  console.warn('⚠️  Sharp not installed. Falling back to copying alibobo-logo.png to logo-32.png and logo-48.png.');
   try {
     const publicDir = require('path').resolve(__dirname, '..', 'public');
     const fs = require('fs');
-    const src = require('path').join(publicDir, 'logo.png');
+    const src = require('path').join(publicDir, 'alibobo-logo.png');
     if (fs.existsSync(src)) {
       for (const name of ['logo-32.png', 'logo-48.png']) {
         const dest = require('path').join(publicDir, name);
@@ -20,7 +20,7 @@ try {
         console.log(`✅ Fallback: copied ${require('path').basename(src)} → ${name}`);
       }
     } else {
-      console.warn('⚠️  Fallback skipped: public/logo.png not found');
+      console.warn('⚠️  Fallback skipped: public/alibobo-logo.png not found');
     }
   } catch (err) {
     console.warn('⚠️  Fallback copy failed:', err.message);
@@ -31,9 +31,9 @@ try {
 (async () => {
   try {
     const publicDir = path.resolve(__dirname, '..', 'public');
-    const src = path.join(publicDir, 'logo.png');
+    const src = path.join(publicDir, 'alibobo-logo.png');
     if (!fs.existsSync(src)) {
-      console.error('❌ Source PNG not found at public/logo.png');
+      console.error('❌ Source PNG not found at public/alibobo-logo.png');
       process.exit(1);
     }
 

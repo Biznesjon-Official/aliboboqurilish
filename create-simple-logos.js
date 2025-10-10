@@ -100,7 +100,7 @@ try {
     fs.writeFileSync('public/alibobo-white.png', lightBgText.toBuffer('image/png'));
 
     console.log('✅ Logos created successfully:');
-    console.log('  - public/logo.png (for dark backgrounds)');
+    console.log('  - public/logo.png (navbar only - for dark backgrounds)');
     console.log('  - public/white-mode-logo.png (for light backgrounds)');
     console.log('  - public/alibobo.png (text logo for dark backgrounds)');
     console.log('  - public/alibobo-white.png (text logo for light backgrounds)');

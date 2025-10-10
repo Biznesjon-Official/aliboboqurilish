@@ -370,11 +370,8 @@ if (enableClustering && cluster.isPrimary) {
     maxAge: process.env.NODE_ENV === 'development' ? '0' : '7d', // No cache in development, 7 days in production
     etag: true, // Generate ETags for caching
     setHeaders: (res, path, stat) => {
-      // Add CORS headers for image requests - use same origins as main CORS
-      const origin = req.get('Origin');
-      if (allowedOrigins.includes(origin) || !origin) {
-        res.setHeader('Access-Control-Allow-Origin', origin || '*');
-      }
+      // Add CORS headers for image requests - allow all origins for static files
+      res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -510,9 +507,8 @@ if (enableClustering && cluster.isPrimary) {
   if (process.env.ENABLE_BASE64_ROUTES === 'true') {
     app.use('/api/base64', require('./routes/base64Routes'));
   }
-  if (process.env.ENABLE_NOTIFICATIONS_ROUTES === 'true') {
-    app.use('/api/notifications', require('./routes/notificationsRoutes'));
-  }
+  // Notification routes - always enabled for admin panel
+  app.use('/api/notifications', require('./routes/notificationRoutes'));
   // Always enable upload routes for image uploads
   app.use('/api/upload', require('./routes/uploadRoutes'));
   

@@ -6,8 +6,8 @@
 const mongoose = require('mongoose');
 
 // Default timeout values (in milliseconds)
-const DEFAULT_QUERY_TIMEOUT = 15000;  // 15 seconds (increased for slow MongoDB Atlas)
-const SLOW_QUERY_THRESHOLD = 3000;    // 3 seconds
+const DEFAULT_QUERY_TIMEOUT = process.env.NODE_ENV === 'development' ? 5000 : 15000;  // 5s dev, 15s prod
+const SLOW_QUERY_THRESHOLD = process.env.NODE_ENV === 'development' ? 1000 : 3000;    // 1s dev, 3s prod
 
 // Avoid repeated prototype wrapping across requests (which leads to deep wrapper chains)
 let QUERY_PATCHED = false;

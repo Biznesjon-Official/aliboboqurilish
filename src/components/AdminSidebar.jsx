@@ -40,24 +40,30 @@ const AdminSidebar = ({ active = 'dashboard', counts = defaultCounts, onLogout, 
   const navigate = useNavigate();
   
   const handleSectionChange = (key) => {
-    // Yangi navigatsiya logikasi
-    switch(key) {
-      case 'dashboard':
-        navigate('/admin');
-        break;
-      case 'craftsmen':
-        navigate('/admin/craftsmen');
-        break;
-      case 'products':
-        navigate('/admin/products');
-        break;
-      case 'orders':
-        navigate('/admin/orders');
-        break;
-      default:
-        navigate('/admin');
-    }
-    // Mobil sidebar yopish
+    // Add smooth transition delay for better UX
+    const navigateWithTransition = () => {
+      switch(key) {
+        case 'dashboard':
+          navigate('/admin');
+          break;
+        case 'craftsmen':
+          navigate('/admin/craftsmen');
+          break;
+        case 'products':
+          navigate('/admin/products');
+          break;
+        case 'orders':
+          navigate('/admin/orders');
+          break;
+        default:
+          navigate('/admin');
+      }
+    };
+    
+    // Add slight delay for smooth visual feedback
+    setTimeout(navigateWithTransition, 100);
+    
+    // Close mobile sidebar
     if (onMobileToggle) onMobileToggle();
   };
 
@@ -71,8 +77,11 @@ const AdminSidebar = ({ active = 'dashboard', counts = defaultCounts, onLogout, 
       {/* Mobile Overlay */}
       {isMobileOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden sidebar-mobile-overlay"
           onClick={onMobileToggle}
+          style={{
+            animation: 'fadeIn 0.3s ease-out'
+          }}
         ></div>
       )}
       

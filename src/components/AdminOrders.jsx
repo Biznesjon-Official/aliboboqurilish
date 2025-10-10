@@ -1,26 +1,20 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { 
-  SearchFAIcon, 
-  TimesFAIcon, 
-  PlusFAIcon, 
-  EyeFAIcon, 
-  EditFAIcon, 
-  TrashFAIcon, 
-  ChevronLeftFAIcon, 
-  ChevronRightFAIcon, 
-  SpinnerFAIcon, 
-  RotateLeftFAIcon,
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import {
+  SearchFAIcon,
+  TimesFAIcon,
+  EyeFAIcon,
+  TrashFAIcon,
+  ChevronLeftFAIcon,
+  ChevronRightFAIcon,
+  SpinnerFAIcon,
   CartFAIcon,
   BarsFAIcon
 } from './FontAwesome';
 
 import AdminNotificationBell from './AdminNotificationBell';
 import AdminNotificationModals from './AdminNotificationModals';
-// Removed LoadingSpinner - using inline spinner
 import useNotifications from '../hooks/useNotifications';
 import useRealNotifications from '../hooks/useRealNotifications';
-import { useOrders, useUpdateOrderStatus, useCancelOrder, useDeleteOrder, useOrderCache } from '../hooks/useOrderQueries';
-import { queryClient } from '../lib/queryClient';
 
 const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileToggle }) => {
   // Real notification system for notification bell
@@ -34,9 +28,9 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     deleteAllNotifications,
     notifyOrderReceived,
     notifyOrderDeleted
-} = useRealNotifications(true, 30000);
+  } = useRealNotifications(true, 30000);
 
-  // Demo notification system for modals (keep existing modal functionality)
+  // Demo notification system for modals
   const {
     notifications: demoNotifications,
     alertModal,
@@ -52,12 +46,6 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     addNotification
   } = useNotifications();
 
-  // React Query hooks for order operations
-  const updateOrderStatusMutation = useUpdateOrderStatus();
-  const cancelOrderMutation = useCancelOrder();
-  const deleteOrderMutation = useDeleteOrder();
-  const orderCache = useOrderCache();
-
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -70,14 +58,10 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
   const [previousOrderCount, setPreviousOrderCount] = useState(0);
   const previousOrderIdsRef = useRef(new Set());
 
-  // Modal states - simplified with new notification system
+  // Modal states
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  
-  // Selection mode states
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedOrders, setSelectedOrders] = useState(new Set());
-  
+
   // Status change notification states
   const [showStatusNotification, setShowStatusNotification] = useState(false);
   const [statusNotificationMessage, setStatusNotificationMessage] = useState('');
@@ -105,9 +89,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     cancelled: { text: 'Bekor qilingan', class: 'bg-red-100 text-red-800' }
   };
 
-  // Allowed transitions to match backend constraints in ordersController.updateOrderStatus
-  // - Cancelled orders cannot change to any other status
-  // - Completed orders cannot transition to cancelled
+  // Allowed transitions to match backend constraints
   const getAllowedStatusOptions = (currentStatus) => {
     if (currentStatus === 'cancelled') {
       return statusOptions.filter((o) => o.value === 'cancelled');
@@ -115,211 +97,196 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     if (currentStatus === 'completed') {
       return statusOptions.filter((o) => o.value && o.value !== 'cancelled');
     }
-    // Default: show all except the blank placeholder
     return statusOptions.filter((o) => o.value);
   };
 
-  const paymentMap = {
-    cash: { text: 'Naqd', class: 'bg-green-100 text-green-800' },
-    card: { text: 'Plastik karta', class: 'bg-blue-100 text-blue-800' },
-    online: { text: 'Onlayn', class: 'bg-purple-100 text-purple-800' }
-  };
-
-  // No mock data - only real API data
-
-  // Original fetch approach with mock data fallback
+  // Load orders function - memoized to prevent recreating on every render
   const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: '1000', // Load all orders for client-side filtering
+        page: '1',
+        limit: '1000',
       });
-      
-      const base = 'https://aliboboqurilish.uz/api'; // Force production API
-      
+
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+
       let sortedOrders = [];
       let totalCount = 0;
-      
+
       try {
         const url = `${base}/orders?${params.toString()}`;
-        console.log('🔍 Fetching orders from:', url);
-        
+
+
         const response = await fetch(url, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(5000) // 5 second timeout
+          signal: AbortSignal.timeout(5000)
         });
         const data = await response.json();
-        
-        console.log('📦 API Response Status:', response.ok, response.status);
-        console.log('📦 API Response Data:', data);
-        console.log('📦 Orders Array:', data?.orders);
-        console.log('📦 Data Keys:', Object.keys(data || {}));
-        
+
+
+
         if (response.ok) {
-          // Sort orders by creation date (newest first)
           const apiOrders = data.orders || [];
-          
+
           sortedOrders = apiOrders.sort((a, b) => {
             const dateA = new Date(a.createdAt || a.orderDate);
             const dateB = new Date(b.createdAt || b.orderDate);
-            return dateB - dateA; // Newest first
+            return dateB - dateA;
           });
-          totalCount = data.totalCount || apiOrders.length;
+          totalCount = data.pagination?.totalCount || apiOrders.length;
         } else {
           throw new Error(data.message || 'API error');
         }
       } catch (apiError) {
-        console.log('❌ API timeout or network error');
-        // No fallback data - show empty list
+
         sortedOrders = [];
         totalCount = 0;
       }
-      
+
       setOrders(sortedOrders);
-      setTotalCount(totalCount);
-      if (onCountChange) onCountChange(totalCount);
-      console.log('✅ Loaded orders:', sortedOrders?.length || 0);
-      
+      setTotalCount(prevCount => {
+        if (prevCount !== totalCount && onCountChange) {
+          onCountChange(totalCount);
+        }
+        return totalCount;
+      });
+
+
     } catch (error) {
       console.error('❌ Error loading orders:', error);
-      // No fallback data - show empty list
       setOrders([]);
-      setTotalCount(0);
-      if (onCountChange) onCountChange(0);
-      console.log('✅ No orders available');
+      setTotalCount(prevCount => {
+        if (prevCount !== 0 && onCountChange) {
+          onCountChange(0);
+        }
+        return 0;
+      });
     } finally {
       setLoading(false);
     }
-  }, []); // Empty dependency array for useCallback
+  }, []); // Empty dependency array since this function doesn't depend on any props or state
 
-  // Load orders on component mount only - simple approach
+  // Load orders on component mount - optimized to prevent remounting
+  const mountedRef = useRef(true);
+  const intervalRef = useRef(null);
+
   useEffect(() => {
-    console.log('🚀 AdminOrders mounted - loading orders once...');
-    loadOrders();
-    
-    // Optional: Set up interval for periodic refresh (every 30 seconds)
-    const interval = setInterval(() => {
-      console.log('🔄 Refreshing orders...');
-      loadOrders();
-    }, 30000);
-    
-    return () => {
-      console.log('🧹 AdminOrders unmounted - cleaning up interval');
-      clearInterval(interval);
-    };
-  }, []); // Empty dependency array - run only once on mount
 
-  // Disabled auto refresh to prevent infinite loops
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     loadOrders();
-  //   }, 120000); // 2 minutes instead of 30 seconds
-  //   
-  //   return () => clearInterval(interval);
-  // }, [loadOrders]);
-  
+
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    loadOrders();
+
+    // Set up interval for periodic refresh
+    intervalRef.current = setInterval(() => {
+      if (mountedRef.current) {
+
+        loadOrders();
+      }
+    }, 30000);
+
+    return () => {
+
+      mountedRef.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, []); // Keep empty dependency array
+
   // Client-side filtering
   const filteredOrders = useMemo(() => {
     let filtered = [...orders];
-    
-    // Filter by status
+
     if (filterStatus) {
       filtered = filtered.filter(order => order.status === filterStatus);
     }
-    
-    // Filter by search term
+
     if (searchTerm.trim()) {
       const search = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(order => 
+      filtered = filtered.filter(order =>
         order.customerName?.toLowerCase().includes(search) ||
         order.customerPhone?.includes(search) ||
         order._id?.toLowerCase().includes(search) ||
         order.notes?.toLowerCase().includes(search)
       );
     }
-    
+
     return filtered;
   }, [orders, filterStatus, searchTerm]);
-  
+
   // Pagination logic
   const paginatedOrders = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return filteredOrders.slice(startIndex, endIndex);
   }, [filteredOrders, currentPage, itemsPerPage]);
-  
+
   // Update total pages when filtered orders change
   useEffect(() => {
     const pages = Math.ceil(filteredOrders.length / itemsPerPage);
     setTotalPages(pages);
-    
-    // Reset to page 1 if current page exceeds total pages
+
     if (currentPage > pages && pages > 0) {
       setCurrentPage(1);
     }
   }, [filteredOrders.length, itemsPerPage, currentPage]);
 
-  // Detect new orders and notify admin
+  // Detect new orders and notify admin - optimized
   useEffect(() => {
     if (orders.length > 0) {
-      console.log(`📊 Order count check: current=${orders.length}, previous=${previousOrderCount}`);
-      
-      // Get current order IDs
+
+
       const currentOrderIds = new Set(orders.map(order => order._id));
-      
-      // If we have previous IDs, check for new orders
+
       if (previousOrderIdsRef.current.size > 0) {
         const newOrderIds = [...currentOrderIds].filter(id => !previousOrderIdsRef.current.has(id));
-        
+
         if (newOrderIds.length > 0) {
-          console.log(`🔔 Yangi buyurtma(lar) aniqlandi: ${newOrderIds.length} ta`);
-          
-          // Find the actual new order objects (these should be the newest ones)
+
+
           const newOrders = orders.filter(order => newOrderIds.includes(order._id));
-          
-          // Notify for each new order immediately
+
           newOrders.forEach((order) => {
             if (order && order._id) {
-              console.log(`📱 Yangi buyurtma uchun bildirishnoma yuborilmoqda:`, {
-                id: order._id,
-                customer: order.customerName,
-                amount: order.totalAmount,
-                time: order.createdAt
-              });
-              
-              // Send notification immediately (don't wait for async)
-              notifyOrderReceived(order)
-                .then(() => {
-                  console.log(`✅ Buyurtma bildirishnomasi muvaffaqiyatli yuborildi: ${order._id}`);
-                })
-                .catch((error) => {
-                  console.error(`❌ Buyurtma bildirishnomasi yuborishda xato: ${order._id}`, error);
-                });
+              // Use setTimeout to prevent blocking
+              setTimeout(() => {
+                notifyOrderReceived(order)
+                  .then(() => {
+                    // Order notification sent successfully
+                  })
+                  .catch((error) => {
+                    console.error(`❌ Buyurtma bildirishnomasi yuborishda xato: ${order._id}`, error);
+                  });
+              }, 0);
             }
           });
         }
       } else {
-        // First load - just set the reference without notifications
-        console.log('🗒 Dastlabki yuklash - bildirishnomalar yuborilmaydi');
+        // Initial load - no notifications sent
       }
-      
-      // Update the previous IDs and count
+
       previousOrderIdsRef.current = currentOrderIds;
       setPreviousOrderCount(orders.length);
     }
-  }, [orders, notifyOrderReceived]); // Watch the entire orders array for changes
+  }, [orders.length]); // Only depend on orders length, not the entire orders array
 
-  // Prevent body scrolling when any modal is open
+  // Prevent body scrolling when any modal is open - optimized
   useEffect(() => {
-    if (isViewModalOpen || alertModal?.show || confirmModal?.show || promptModal?.show) {
+    const hasOpenModal = isViewModalOpen || alertModal?.show || confirmModal?.show || promptModal?.show;
+
+    if (hasOpenModal) {
       document.body.classList.add('modal-open');
     } else {
       document.body.classList.remove('modal-open');
     }
 
-    // Cleanup function to remove class when component unmounts
     return () => {
       document.body.classList.remove('modal-open');
     };
@@ -330,170 +297,19 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     setIsViewModalOpen(true);
   };
 
-  // Selection functions
-  const toggleSelectionMode = () => {
-    setSelectionMode(!selectionMode);
-    setSelectedOrders(new Set());
-  };
-
-  const selectAll = () => {
-    const orderIds = paginatedOrders.map(order => order._id);
-    setSelectedOrders(new Set(orderIds));
-  };
-
   const handleOrderClick = (order) => {
-    if (selectionMode) {
-      // In selection mode, toggle selection
-      const newSelected = new Set(selectedOrders);
-      if (newSelected.has(order._id)) {
-        newSelected.delete(order._id);
-      } else {
-        newSelected.add(order._id);
-      }
-      setSelectedOrders(newSelected);
-    } else {
-      // Normal mode: open view modal
-      openViewModal(order);
-    }
-  };
-
-  const handleDeleteSelected = async () => {
-    if (selectedOrders.size === 0) {
-      return;
-    }
-    
-    const orderCount = selectedOrders.size;
-    const message = `${orderCount} ta buyurtmani o'chirmoqchimisiz?`;
-    
-    showConfirm(
-      'Buyurtmalarni o\'chirish',
-      message,
-      async () => {
-        try {
-          // Get current order IDs to avoid stale data
-          const currentOrderIds = Array.from(selectedOrders);
-          let deletedCount = 0;
-          let errorCount = 0;
-          
-          // Delete orders one by one with visual feedback
-          for (const orderId of currentOrderIds) {
-            try {
-              // Check if order still exists in current state before attempting deletion
-              const orderExists = orders.find(order => order._id === orderId);
-              if (!orderExists) {
-                console.warn(`Order ${orderId} not found in current state, skipping`);
-                continue;
-              }
-              
-              // Update UI to show this order is being deleted
-              setOrders(prevOrders => 
-                prevOrders.map(order => 
-                  order._id === orderId 
-                    ? { ...order, isDeleting: true }
-                    : order
-                )
-              );
-              
-              const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
-              const response = await fetch(`${base}/orders/${orderId}`, {
-                method: 'DELETE',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-              });
-              
-              if (!response.ok) {
-                const errorData = await response.json();
-                // If order was already deleted (404), count as success
-                if (response.status === 404) {
-                  console.warn(`Order ${orderId} was already deleted`);
-                  // Remove from UI as it's already gone
-                  setOrders(prevOrders => prevOrders.filter(order => order._id !== orderId));
-                  deletedCount++;
-                } else {
-                  throw new Error(errorData.message || 'Buyurtmani o\'chirishda xatolik');
-                }
-              } else {
-                // Successful deletion
-                setOrders(prevOrders => prevOrders.filter(order => order._id !== orderId));
-                deletedCount++;
-              }
-              
-              // Small delay to show visual feedback
-              await new Promise(resolve => setTimeout(resolve, 300));
-              
-            } catch (error) {
-              console.error(`Error deleting order ${orderId}:`, error);
-              errorCount++;
-              
-              // Remove loading state on error
-              setOrders(prevOrders => 
-                prevOrders.map(order => 
-                  order._id === orderId 
-                    ? { ...order, isDeleting: false }
-                    : order
-                )
-              );
-              
-              // Continue with next order instead of stopping the entire process
-              continue;
-            }
-          }
-          
-          // Update count based on actually deleted orders
-          setTotalCount(prevCount => {
-            const newCount = prevCount - deletedCount;
-            onCountChange(newCount);
-            return newCount;
-          });
-          
-          setSelectedOrders(new Set());
-          setSelectionMode(false);
-          
-          // Show summary notification
-          if (deletedCount > 0 && errorCount === 0) {
-            safeNotifySuccess(
-              'Muvaffaqiyat', 
-              `${deletedCount} ta buyurtma muvaffaqiyatli o'chirildi`
-            );
-          } else if (deletedCount > 0 && errorCount > 0) {
-            safeNotifyWarning(
-              'Qisman muvaffaqiyat', 
-              `${deletedCount} ta buyurtma o'chirildi, ${errorCount} ta xatolik yuz berdi`
-            );
-          } else if (errorCount > 0) {
-            safeNotifyError(
-              'Xatolik', 
-              `Buyurtmalarni o'chirishda ${errorCount} ta xatolik yuz berdi`
-            );
-          }
-          
-          // Reload orders to ensure consistency
-          loadOrders();
-        } catch (error) {
-          console.error('Error in bulk deletion process:', error);
-          safeNotifyError('Xatolik', 'Buyurtmalarni o\'chirishda xatolik yuz berdi');
-        }
-      },
-      () => {
-        // Bulk deletion cancelled - no action needed
-      },
-      'danger'
-    );
+    openViewModal(order);
   };
 
   const openDeleteConfirm = (order) => {
-    // Show customer name instead of order number
     const customerName = order.customerName || 'Noma\'lum mijoz';
-    
-    // Show confirmation modal before deletion
+
     showConfirm(
       'Buyurtmani o\'chirish',
       `"${customerName}" buyurtmasini o\'chirishni xohlaysizmi?`,
       () => deleteOrder(order._id),
       () => {
-        // Cancel callback - just close modal without any action
-        console.log('Order deletion cancelled for:', customerName);
+
       },
       'danger'
     );
@@ -506,48 +322,50 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
 
   const deleteOrder = async (id) => {
     try {
-      // Get order info for notification before removing
       const deletedOrder = orders.find(o => o._id === id);
-      
-      // Use React Query mutation for automatic cache invalidation
-      await deleteOrderMutation.mutateAsync(id);
-      
-      // Update local state for immediate UI feedback
+
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const response = await fetch(`${base}/orders/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Buyurtmani o\'chirishda xatolik');
+      }
+
       setOrders(prevOrders => prevOrders.filter(order => order._id !== id));
-      
-      // Update count
+
       setTotalCount(prevCount => {
         const newCount = prevCount - 1;
-        onCountChange(newCount); // Dashboard update
+        onCountChange(newCount);
         return newCount;
       });
-      
-      // Notification with order details
+
       setTimeout(() => {
         const orderIndex = orders.findIndex(o => o._id === id);
         const orderNumber = String(orderIndex + 1).padStart(4, '0');
         safeNotifySuccess("Buyurtma o'chirildi", `Buyurtma #${orderNumber} muvaffaqiyatli o'chirildi`);
-        
-        // Add real notification for notification bell
+
         if (deletedOrder) {
           notifyOrderDeleted(deletedOrder);
         }
-        
-        // Keep demo notification for modals
+
         addNotification({
           title: "Buyurtma o'chirildi",
           message: `Buyurtma #${orderNumber} - ${formatCurrency(deletedOrder?.totalAmount || 0)}`,
           type: 'order'
         });
       }, 0);
-      
-      // Auto-pagination adjustment
+
       const remainingOrders = orders.filter(order => order._id !== id).length;
       if (remainingOrders === 0 && currentPage > 1) {
         setCurrentPage(currentPage - 1);
       }
 
-      // Reload orders to get updated list
       loadOrders();
     } catch (error) {
       console.error("Order o'chirishda xatolik:", error);
@@ -559,52 +377,56 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      // Show loading state immediately
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order._id === orderId 
+      setOrders(prevOrders =>
+        prevOrders.map(order =>
+          order._id === orderId
             ? { ...order, status: newStatus, isUpdating: true }
             : order
         )
       );
 
-      // Use React Query mutation for automatic cache invalidation
-      const result = await updateOrderStatusMutation.mutateAsync({ id: orderId, status: newStatus });
-      
-      // Update the order in the local state
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order._id === orderId 
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const response = await fetch(`${base}/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Status yangilashda xatolik');
+      }
+
+      setOrders(prevOrders =>
+        prevOrders.map(order =>
+          order._id === orderId
             ? { ...order, status: newStatus, isUpdating: false }
             : order
         )
       );
 
-      // Also update selectedOrder if it's currently being viewed in modal
       if (selectedOrder && selectedOrder._id === orderId) {
         setSelectedOrder(prev => ({ ...prev, status: newStatus }));
       }
 
       setTimeout(() => {
         safeNotifySuccess('Status yangilandi', 'Buyurtma statusi muvaffaqiyatli yangilandi');
-        
-        // Show status change notification
+
         setStatusNotificationMessage(`Status "${statusMap[newStatus]?.text}" ga o'zgartirildi`);
         setShowStatusNotification(true);
-        
-        // Hide notification after 3 seconds
+
         setTimeout(() => {
           setShowStatusNotification(false);
         }, 3000);
       }, 0);
 
-      // Reload orders to get updated list
       loadOrders();
     } catch (error) {
-      // Revert the change if failed
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order._id === orderId 
+      setOrders(prevOrders =>
+        prevOrders.map(order =>
+          order._id === orderId
             ? { ...order, isUpdating: false }
             : order
         )
@@ -624,15 +446,13 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
 
   const formatPhoneNumber = (phone) => {
     if (!phone) return '';
-    // Remove any non-digit characters
     const cleaned = phone.replace(/\D/g, '');
-    // Format as +998 (XX) XXX-XX-XX
     if (cleaned.length === 12 && cleaned.startsWith('998')) {
       const code = cleaned.substring(3, 5);
       const number = cleaned.substring(5);
       return `+998 (${code}) ${number.substring(0, 3)}-${number.substring(3, 5)}-${number.substring(5)}`;
     }
-    return phone; // Return original if not in expected format
+    return phone;
   };
 
   const formatDate = (date) => {
@@ -655,7 +475,6 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     return `${day}.${month}.${year} ${hours}:${minutes}`;
   };
 
-  // Simple pagination like the original
   const changePage = (direction) => {
     setCurrentPage(prev => {
       const newPage = direction === 'next' ? prev + 1 : prev - 1;
@@ -663,7 +482,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     });
   };
 
-  // Original table-based rendering replaced with card-based layout
+  // Orders layout rendering
   const renderOrdersLayout = useMemo(() => {
     if (loading && !orders.length) {
       return (
@@ -692,10 +511,9 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     }
 
     const OrderCard = ({ order, orderNumber }) => (
-      <div 
-        className={`bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer ${
-          selectionMode && selectedOrders.has(order._id) ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-        } ${order.isDeleting ? 'opacity-50 pointer-events-none bg-red-50' : ''}`}
+      <div
+        className={`bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer ${order.isDeleting ? 'opacity-50 pointer-events-none bg-red-50' : ''
+          }`}
         onClick={() => !order.isDeleting && handleOrderClick(order)}
       >
         <div className="p-3 sm:p-4">
@@ -703,17 +521,6 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
           <div className="sm:hidden">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center space-x-2">
-                {selectionMode && (
-                  <div className="flex items-center justify-center flex-shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={selectedOrders.has(order._id)}
-                      onChange={() => handleOrderClick(order)}
-                      className="w-4 h-4 text-orange-500 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 touch-manipulation"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                )}
                 <div className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   {order.isDeleting ? (
                     <SpinnerFAIcon className="text-red-600 text-xs" />
@@ -730,24 +537,22 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
                   <span className="text-xs text-gray-500 block">{formatDate(order.createdAt || order.orderDate)}</span>
                 </div>
               </div>
-              {!selectionMode && (
-                <div className="flex gap-1 flex-shrink-0">
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); openViewModal(order); }}
-                    className="w-6 h-6 bg-gray-50 hover:bg-green-50 text-gray-600 hover:text-green-600 rounded-md transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-green-200"
-                    title="Ko'rish"
-                  >
-                    <EyeFAIcon className="text-xs" />
-                  </button>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); openDeleteConfirm(order); }}
-                    className="w-6 h-6 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-md transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-red-200"
-                    title="O'chirish"
-                  >
-                    <TrashFAIcon className="text-xs" />
-                  </button>
-                </div>
-              )}
+              <div className="flex gap-1 flex-shrink-0">
+                <button
+                  onClick={(e) => { e.stopPropagation(); openViewModal(order); }}
+                  className="w-6 h-6 bg-gray-50 hover:bg-green-50 text-gray-600 hover:text-green-600 rounded-md transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-green-200"
+                  title="Ko'rish"
+                >
+                  <EyeFAIcon className="text-xs" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); openDeleteConfirm(order); }}
+                  className="w-6 h-6 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-md transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-red-200"
+                  title="O'chirish"
+                >
+                  <TrashFAIcon className="text-xs" />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -755,28 +560,26 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
                 <p className="font-medium text-gray-900 text-sm truncate">{order.customerName}</p>
                 <p className="text-xs text-blue-600 font-medium truncate">{formatPhoneNumber(order.customerPhone)}</p>
               </div>
-              
+
               <div className="flex items-center justify-between">
-                {!selectionMode && (
-                  <div className="flex-shrink-0">
-                    <select
-                      value={order.status}
-                      onChange={(e) => { e.stopPropagation(); updateOrderStatus(order._id, e.target.value); }}
-                      disabled={order.isUpdating || order.status === 'cancelled'}
-                      title={order.status === 'cancelled' ? "Bekor qilingan buyurtma holatini o'zgartirib bo'lmaydi" : 'Holatni o\'zgartirish'}
-                      className={`px-2 py-1 rounded text-xs font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mobile-friendly-options ${statusMap[order.status]?.class} ${(order.isUpdating || order.status === 'cancelled') ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {order.isUpdating ? (
-                        <option value={order.status}>Yuklanmoqda...</option>
-                      ) : (
-                        getAllowedStatusOptions(order.status).map(option => (
-                          <option key={option.value} value={option.value}>{statusMap[option.value]?.text}</option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-                )}
+                <div className="flex-shrink-0">
+                  <select
+                    value={order.status}
+                    onChange={(e) => { e.stopPropagation(); updateOrderStatus(order._id, e.target.value); }}
+                    disabled={order.isUpdating || order.status === 'cancelled'}
+                    title={order.status === 'cancelled' ? "Bekor qilingan buyurtma holatini o'zgartirib bo'lmaydi" : 'Holatni o\'zgartirish'}
+                    className={`px-2 py-1 rounded text-xs font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mobile-friendly-options ${statusMap[order.status]?.class} ${(order.isUpdating || order.status === 'cancelled') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {order.isUpdating ? (
+                      <option value={order.status}>Yuklanmoqda...</option>
+                    ) : (
+                      getAllowedStatusOptions(order.status).map(option => (
+                        <option key={option.value} value={option.value}>{statusMap[option.value]?.text}</option>
+                      ))
+                    )}
+                  </select>
+                </div>
                 <div className="text-right flex-shrink-0">
                   <div className="text-sm font-bold text-orange-600">{formatCurrency(order.totalAmount)}</div>
                   <div className="text-xs text-gray-500">{(order.items && order.items.length) || 0} mahsulot</div>
@@ -787,18 +590,6 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
 
           {/* Desktop Layout */}
           <div className="hidden sm:flex items-center gap-4">
-            {selectionMode && (
-              <div className="flex items-center justify-center flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={selectedOrders.has(order._id)}
-                  onChange={() => handleOrderClick(order)}
-                  className="w-4 h-4 text-orange-500 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 touch-manipulation"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-            )}
-            
             {/* Left: Order Icon & Info */}
             <div className="flex items-center space-x-3 flex-shrink-0">
               <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
@@ -841,51 +632,47 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
             </div>
 
             {/* Status */}
-            {!selectionMode && (
-              <div className="flex-shrink-0">
-                <select
-                  value={order.status}
-                  onChange={(e) => { e.stopPropagation(); updateOrderStatus(order._id, e.target.value); }}
-                  disabled={order.isUpdating || order.status === 'cancelled'}
-                  title={order.status === 'cancelled' ? "Bekor qilingan buyurtma holatini o'zgartirib bo'lmaydi" : 'Holatni o\'zgartirish'}
-                  className={`px-3 py-2 rounded text-sm font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${statusMap[order.status]?.class} ${(order.isUpdating || order.status === 'cancelled') ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {order.isUpdating ? (
-                    <option value={order.status}>Yuklanmoqda...</option>
-                  ) : (
-                    getAllowedStatusOptions(order.status).map(option => (
-                      <option key={option.value} value={option.value}>{statusMap[option.value]?.text}</option>
-                    ))
-                  )}
-                </select>
-              </div>
-            )}
+            <div className="flex-shrink-0">
+              <select
+                value={order.status}
+                onChange={(e) => { e.stopPropagation(); updateOrderStatus(order._id, e.target.value); }}
+                disabled={order.isUpdating || order.status === 'cancelled'}
+                title={order.status === 'cancelled' ? "Bekor qilingan buyurtma holatini o'zgartirib bo'lmaydi" : 'Holatni o\'zgartirish'}
+                className={`px-3 py-2 rounded text-sm font-medium cursor-pointer border-0 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${statusMap[order.status]?.class} ${(order.isUpdating || order.status === 'cancelled') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {order.isUpdating ? (
+                  <option value={order.status}>Yuklanmoqda...</option>
+                ) : (
+                  getAllowedStatusOptions(order.status).map(option => (
+                    <option key={option.value} value={option.value}>{statusMap[option.value]?.text}</option>
+                  ))
+                )}
+              </select>
+            </div>
 
             {/* Amount */}
             <div className="flex-shrink-0 text-right">
               <div className="text-lg font-bold text-orange-600">{formatCurrency(order.totalAmount)}</div>
             </div>
 
-            {/* Action Buttons - Icon Only */}
-            {!selectionMode && (
-              <div className="flex gap-1 flex-shrink-0">
-                <button 
-                  onClick={(e) => { e.stopPropagation(); openViewModal(order); }}
-                  className="w-8 h-8 bg-gray-50 hover:bg-green-50 text-gray-600 hover:text-green-600 rounded-lg transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-green-200"
-                  title="Ko'rish"
-                >
-                  <EyeFAIcon className="text-xs" />
-                </button>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); openDeleteConfirm(order); }}
-                  className="w-8 h-8 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-lg transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-red-200"
-                  title="O'chirish"
-                >
-                  <TrashFAIcon className="text-xs" />
-                </button>
-              </div>
-            )}
+            {/* Action Buttons */}
+            <div className="flex gap-1 flex-shrink-0">
+              <button
+                onClick={(e) => { e.stopPropagation(); openViewModal(order); }}
+                className="w-8 h-8 bg-gray-50 hover:bg-green-50 text-gray-600 hover:text-green-600 rounded-lg transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-green-200"
+                title="Ko'rish"
+              >
+                <EyeFAIcon className="text-xs" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); openDeleteConfirm(order); }}
+                className="w-8 h-8 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-lg transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-red-200"
+                title="O'chirish"
+              >
+                <TrashFAIcon className="text-xs" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -894,20 +681,19 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     return (
       <div className="space-y-2">
         {paginatedOrders.map((order, index) => (
-          <OrderCard 
-            key={order._id} 
-            order={order} 
-            orderNumber={String(totalCount - (currentPage - 1) * itemsPerPage - index).padStart(4, '0')} 
+          <OrderCard
+            key={order._id}
+            order={order}
+            orderNumber={String(totalCount - (currentPage - 1) * itemsPerPage - index).padStart(4, '0')}
           />
         ))}
       </div>
     );
-  }, [orders, loading, filteredOrders, paginatedOrders, totalCount, currentPage, itemsPerPage, statusMap, statusOptions, formatDate, formatPhoneNumber, formatCurrency, updateOrderStatus, openViewModal, openDeleteConfirm, searchTerm, filterStatus]);
-  // The main render with original styling
+  }, [orders, loading, filteredOrders, paginatedOrders, totalCount, currentPage, itemsPerPage, statusMap, formatDate, formatPhoneNumber, formatCurrency, updateOrderStatus, openViewModal, openDeleteConfirm, searchTerm, filterStatus]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <style>{`
-        /* Mobile-friendly dropdown options */
         @media (max-width: 640px) {
           .mobile-friendly-options option {
             padding: 12px 8px;
@@ -917,11 +703,11 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
           }
           
           .mobile-friendly-options {
-            font-size: 16px; /* Prevents zoom on iOS */
+            font-size: 16px;
           }
         }
       `}</style>
-      
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="px-3 sm:px-6 py-3 sm:py-4">
@@ -933,15 +719,15 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
               >
                 <BarsFAIcon className="text-xl" />
               </button>
-              
+
               <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center">
                 <CartFAIcon className="text-white text-xs sm:text-sm" />
               </div>
               <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Buyurtmalar</h1>
             </div>
             <div className="flex items-center">
-              <AdminNotificationBell 
-                notifications={realNotifications} 
+              <AdminNotificationBell
+                notifications={realNotifications}
                 unreadCount={unreadCount}
                 markAsRead={markAsRead}
                 markAllAsRead={markAllAsRead}
@@ -970,18 +756,14 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
                     className="pl-9 pr-20 py-2 w-full border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
                   />
                   <button
-                    onClick={() => {
-                      // Simple search - no debouncing needed
-                    }}
+                    onClick={() => { }}
                     className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-r-lg transition-colors duration-200"
                   >
                     Qidirish
                   </button>
                   {searchTerm && (
                     <button
-                      onClick={() => {
-                        setSearchTerm('');
-                      }}
+                      onClick={() => setSearchTerm('')}
                       className="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors duration-200 ml-2"
                     >
                       Tozalash
@@ -1005,46 +787,15 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
             </div>
           </div>
 
-          {/* Orders Count and Selection Controls */}
+          {/* Orders Count */}
           <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-xs sm:text-sm text-gray-600">
-              {searchTerm || filterStatus ? 
-                `Qidiruv natijalari: ${filteredOrders.length} ta buyurtma` : 
+              {searchTerm || filterStatus ?
+                `Qidiruv natijalari: ${filteredOrders.length} ta buyurtma` :
                 `Jami ${totalCount} ta buyurtma`
               }
             </p>
-            
-            {/* Selection controls */}
-            {paginatedOrders.length > 0 && (
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={toggleSelectionMode}
-                  className="text-sm text-orange-500 hover:text-orange-600 transition-colors px-3 py-1.5 rounded-lg border border-orange-500 hover:bg-orange-50 font-medium"
-                >
-                  {selectionMode ? 'Bekor qilish' : 'Tanlash'}
-                </button>
-              </div>
-            )}
           </div>
-          
-          {/* Selection action buttons */}
-          {selectionMode && paginatedOrders.length > 0 && (
-            <div className="flex gap-2 mb-4 justify-end">
-              <button
-                onClick={selectAll}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm touch-manipulation min-w-[120px]"
-              >
-                Hammasini tanlash
-              </button>
-              <button
-                onClick={handleDeleteSelected}
-                disabled={selectedOrders.size === 0}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium text-sm touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]"
-              >
-                {selectedOrders.size > 0 ? `O'chirish (${selectedOrders.size})` : "O'chirish"}
-              </button>
-            </div>
-          )}
 
           {/* Orders List */}
           {renderOrdersLayout}
@@ -1080,206 +831,109 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         </div>
       </main>
 
-      {/* Existing modals */}
+      {/* Modals */}
       <AdminNotificationModals
         alertModal={alertModal}
         confirmModal={confirmModal}
         promptModal={promptModal}
         closeAlert={closeAlert}
-        onConfirmResponse={handleConfirmResponse}
-        onPromptResponse={handlePromptResponse}
+        handleConfirmResponse={handleConfirmResponse}
+        handlePromptResponse={handlePromptResponse}
       />
-      
-      {/* Order View Modal */}
+
+      {/* View Order Modal */}
       {isViewModalOpen && selectedOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              {/* Modal Header */}
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Buyurtma ma'lumotlari</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Buyurtma tafsilotlari</h2>
                 <button
                   onClick={closeViewModal}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                  className="text-gray-400 hover:text-gray-600"
                 >
-                  ×
+                  <TimesFAIcon className="text-xl" />
                 </button>
               </div>
-              
-              {/* Order Info */}
+
               <div className="space-y-4">
-                {/* Order ID & Date */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Buyurtma raqami</label>
-                    <p className="text-lg font-mono bg-gray-100 p-2 rounded">
-                      #{String(orders.findIndex(o => o._id === selectedOrder._id) + 1).padStart(4, '0')}
-                    </p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Mijoz ismi</label>
+                    <p className="text-sm text-gray-900">{selectedOrder.customerName}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Sana</label>
-                    <p className="text-lg bg-gray-100 p-2 rounded">
-                      {formatDateTime(selectedOrder.createdAt || selectedOrder.orderDate)}
-                    </p>
-                  </div>
-                </div>
-                
-                {/* Customer Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mijoz nomi</label>
-                    <p className="text-lg bg-gray-100 p-2 rounded">
-                      {selectedOrder.customerName}
-                    </p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Telefon raqami</label>
+                    <p className="text-sm text-gray-900">{formatPhoneNumber(selectedOrder.customerPhone)}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Telefon raqam</label>
-                    <p className="text-lg bg-gray-100 p-2 rounded">
-                      {formatPhoneNumber(selectedOrder.customerPhone)}
-                    </p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Manzil</label>
+                    <p className="text-sm text-gray-900">{selectedOrder.customerAddress || 'Ko\'rsatilmagan'}</p>
                   </div>
-                </div>
-                
-                {/* Customer Address & Status */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedOrder.customerAddress ? (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Manzil</label>
-                      <p className="text-lg bg-gray-100 p-2 rounded">
-                        {selectedOrder.customerAddress}
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                      <div className="bg-gray-100 p-2 rounded">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          statusMap[selectedOrder.status]?.class || 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {statusMap[selectedOrder.status]?.text || 'Noma\'lum'}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  {selectedOrder.customerEmail && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                      <p className="text-lg bg-gray-100 p-2 rounded">
-                        {selectedOrder.customerEmail}
-                      </p>
-                    </div>
-                  )}
-                  {selectedOrder.customerAddress && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                      <div className="bg-gray-100 p-2 rounded">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          statusMap[selectedOrder.status]?.class || 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {statusMap[selectedOrder.status]?.text || 'Noma\'lum'}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Total Amount */}
-                <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Umumiy summa</label>
-                    <p className="text-xl font-bold text-orange-600 bg-gray-100 p-2 rounded">
-                      {formatCurrency(selectedOrder.totalAmount)}
-                    </p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Buyurtma sanasi</label>
+                    <p className="text-sm text-gray-900">{formatDateTime(selectedOrder.createdAt || selectedOrder.orderDate)}</p>
                   </div>
                 </div>
-                
-                {/* Order Items */}
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Buyurtma mahsulotlari</label>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    {selectedOrder.items && selectedOrder.items.length > 0 ? (
-                      <div className="space-y-3">
-                        {selectedOrder.items.map((item, index) => (
-                          <div key={index} className="flex justify-between items-center p-3 bg-white rounded border">
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-900">{item.name}</p>
-                              <p className="text-sm text-gray-600">Miqdor: {item.quantity}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-bold text-orange-600">{formatCurrency(item.price)}</p>
-                              <p className="text-sm text-gray-600">
-                                Jami: {formatCurrency(item.price * item.quantity)}
-                              </p>
-                            </div>
-                          </div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mahsulotlar</label>
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mahsulot</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Miqdor</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Narx</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Jami</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {selectedOrder.items && selectedOrder.items.map((item, index) => (
+                          <tr key={index}>
+                            <td className="px-4 py-2 text-sm text-gray-900">{item.name}</td>
+                            <td className="px-4 py-2 text-sm text-gray-900">{item.quantity}</td>
+                            <td className="px-4 py-2 text-sm text-gray-900">{formatCurrency(item.price)}</td>
+                            <td className="px-4 py-2 text-sm text-gray-900">{formatCurrency(item.price * item.quantity)}</td>
+                          </tr>
                         ))}
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 text-center py-4">Mahsulotlar ma'lumoti yo'q</p>
-                    )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-                
-                {/* Notes */}
+
+                <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+                  <span className="text-lg font-medium text-gray-900">Jami summa:</span>
+                  <span className="text-xl font-bold text-orange-600">{formatCurrency(selectedOrder.totalAmount)}</span>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Holat</label>
+                  <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${statusMap[selectedOrder.status]?.class}`}>
+                    {statusMap[selectedOrder.status]?.text}
+                  </span>
+                </div>
+
                 {selectedOrder.notes && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Izohlar</label>
-                    <p className="text-lg bg-gray-100 p-3 rounded">
-                      {selectedOrder.notes}
-                    </p>
+                    <p className="text-sm text-gray-900">{selectedOrder.notes}</p>
                   </div>
                 )}
               </div>
-              
-              {/* Modal Footer */}
-              <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
-                <button
-                  onClick={closeViewModal}
-                  className="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg transition-colors duration-200"
-                >
-                  Yopish
-                </button>
-                <button
-                  onClick={() => {
-                    closeViewModal();
-                    openDeleteConfirm(selectedOrder);
-                  }}
-                  className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors duration-200"
-                >
-                  O'chirish
-                </button>
-              </div>
             </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Status Change Notification */}
-      {showStatusNotification && (
-        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 notification-enter max-w-sm">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium">{statusNotificationMessage}</p>
-            </div>
-            <button 
-              onClick={() => setShowStatusNotification(false)}
-              className="ml-4 text-white hover:text-gray-200 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
           </div>
         </div>
       )}
 
+      {/* Status Change Notification */}
+      {showStatusNotification && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+          {statusNotificationMessage}
+        </div>
+      )}
     </div>
   );
 };
 
-export default AdminOrders; 
+export default React.memo(AdminOrders);

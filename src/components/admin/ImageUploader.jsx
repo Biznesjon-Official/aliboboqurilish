@@ -17,12 +17,7 @@ const ImageUploader = ({
   const fileInputRef = useRef(null);
 
   // Debug: rasmlar massivini console ga chiqarish
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🖼️ ImageUploader: images array:', images);
-      console.log('🖼️ ImageUploader: images length:', images?.length || 0);
-    }
-  }, [images]);
+
 
 
 

@@ -15,10 +15,10 @@ try {
 (async () => {
   try {
     const publicDir = path.resolve(__dirname, '..', 'public');
-    const candidates = ['logo.png', 'logo-32.png', 'alibobo.png'];
+    const candidates = ['alibobo-logo.png', 'alibobo.png', 'logo.png'];
     const src = candidates.map((f) => path.join(publicDir, f)).find((p) => fs.existsSync(p));
     if (!src) {
-      console.error('❌ No source PNG found in /public (looked for logo.png, logo-32.png, alibobo.png)');
+      console.error('❌ No source PNG found in /public (looked for alibobo-logo.png, alibobo.png, logo.png)');
       process.exit(1);
     }
 

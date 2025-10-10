@@ -170,7 +170,8 @@ const AdminRoutes = ({
                 message={`${activeSection.charAt(0).toUpperCase() + activeSection.slice(1)} sahifasi yuklanmoqda...`}
               />
             }>
-              <Routes>
+              <div className="page-transition-container">
+                <Routes>
               <Route 
                 path="/" 
                 element={
@@ -229,12 +230,219 @@ const AdminRoutes = ({
                   <Base64ConversionPage />
                 } 
               />
-            </Routes>
-          </Suspense>
-        </ErrorBoundary>
+                </Routes>
+              </div>
+            </Suspense>
+          </ErrorBoundary>
         </div>
       </div>
       <AdminBottomNav counts={counts} />
+      
+      {/* Smooth Navigation Transitions */}
+      <style>{`
+        /* Page transition container */
+        .page-transition-container {
+          position: relative;
+          width: 100%;
+          height: 100%;
+        }
+        
+        /* Smooth fade-in animation for page content */
+        .page-transition-container > div {
+          animation: fadeInSlide 0.4s ease-out forwards;
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        
+        @keyframes fadeInSlide {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        /* Smooth transitions for sidebar items */
+        .sidebar-item {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .sidebar-item::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+          transition: left 0.5s;
+        }
+        
+        .sidebar-item:hover::before {
+          left: 100%;
+        }
+        
+        .sidebar-item:hover {
+          transform: translateX(4px);
+          box-shadow: 0 4px 12px rgba(246, 134, 34, 0.2);
+        }
+        
+        .sidebar-item.active {
+          transform: translateX(0);
+          box-shadow: 0 4px 20px rgba(246, 134, 34, 0.3);
+        }
+        
+        /* Smooth mobile sidebar transitions */
+        .sidebar-mobile-overlay {
+          transition: opacity 0.3s ease-in-out;
+        }
+        
+        /* Loading animation improvements */
+        .admin-loading-skeleton {
+          animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.7;
+          }
+        }
+        
+        /* Smooth scroll behavior */
+        html {
+          scroll-behavior: smooth;
+        }
+        
+        /* Card hover effects */
+        .admin-card {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .admin-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Button transitions */
+        .admin-button {
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .admin-button:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .admin-button:active {
+          transform: translateY(0);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Modal transitions */
+        .modal-overlay {
+          animation: fadeIn 0.3s ease-out;
+        }
+        
+        .modal-content {
+          animation: slideInUp 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes slideInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        
+        /* Notification animations */
+        .notification-enter {
+          animation: slideInFromRight 0.4s ease-out;
+        }
+        
+        .notification-exit {
+          animation: slideOutToRight 0.3s ease-in;
+        }
+        
+        @keyframes slideInFromRight {
+          from {
+            opacity: 0;
+            transform: translateX(100%);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        @keyframes slideOutToRight {
+          from {
+            opacity: 1;
+            transform: translateX(0);
+          }
+          to {
+            opacity: 0;
+            transform: translateX(100%);
+          }
+        }
+        
+        /* Table row hover effects */
+        .table-row {
+          transition: all 0.2s ease-in-out;
+        }
+        
+        .table-row:hover {
+          background-color: rgba(246, 134, 34, 0.05);
+          transform: scale(1.01);
+        }
+        
+        /* Form input focus effects */
+        .form-input {
+          transition: all 0.3s ease-in-out;
+        }
+        
+        .form-input:focus {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(246, 134, 34, 0.2);
+        }
+        
+        /* Loading spinner improvements */
+        .loading-spinner {
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        
+        /* Reduce motion for users who prefer it */
+        @media (prefers-reduced-motion: reduce) {
+          *,
+          *::before,
+          *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+          }
+        }
+      `}</style>
     </>
   );
 };

@@ -6,8 +6,8 @@ const LCPOptimizer = () => {
     // Preload critical images that are likely to be LCP elements
     const criticalImages = [
       '/alibobo.png', // Main logo in header
-      '/logo.png', // Small logo
-      '/alibobo-logo.png'
+      '/logo.png', // Navbar logo only
+      '/alibobo-logo.png' // Main brand logo
     ];
 
     criticalImages.forEach(src => {

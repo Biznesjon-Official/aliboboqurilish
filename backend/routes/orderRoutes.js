@@ -1,13 +1,17 @@
 const express = require('express');
 const router = express.Router();
+const { getOrders, createOrder, updateOrderStatus, deleteOrder } = require('../controllers/orderController');
 
-// Simple orders routes
-router.get('/', (req, res) => {
-  res.json({ orders: [], message: 'Orders endpoint' });
-});
+// Get all orders with pagination and filtering
+router.get('/', getOrders);
 
-router.post('/', (req, res) => {
-  res.json({ success: true, message: 'Order created' });
-});
+// Create new order
+router.post('/', createOrder);
+
+// Update order status
+router.put('/:id/status', updateOrderStatus);
+
+// Delete order
+router.delete('/:id', deleteOrder);
 
 module.exports = router;
