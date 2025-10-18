@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <link rel="icon" href="%PUBLIC_URL%/favicon.ico?v=2" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, shrink-to-fit=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, minimum-scale=1, user-scalable=yes, shrink-to-fit=no, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
   <link rel="canonical" href="https://aliboboqurilish.uz/" />
 
@@ -77,37 +77,32 @@
   <link rel="dns-prefetch" href="https://images.unsplash.com">
   <title>Alibobo - Professional Ustalar va Qurilish Materiallar</title>
   
-  <!-- Prevent zoom with JavaScript -->
+  <!-- Android scroll optimization -->
   <script>
-    // Prevent zoom on mobile devices
-    document.addEventListener('gesturestart', function (e) {
-      e.preventDefault();
-    });
-    
-    document.addEventListener('gesturechange', function (e) {
-      e.preventDefault();
-    });
-    
-    document.addEventListener('gestureend', function (e) {
-      e.preventDefault();
-    });
-    
-    // Prevent double-tap zoom
-    let lastTouchEnd = 0;
-    document.addEventListener('touchend', function (event) {
-      const now = (new Date()).getTime();
-      if (now - lastTouchEnd <= 300) {
-        event.preventDefault();
+    // Android scroll optimization
+    document.addEventListener('DOMContentLoaded', function() {
+      // Enable smooth scrolling for Android
+      if (navigator.userAgent.includes('Android')) {
+        document.documentElement.style.webkitOverflowScrolling = 'touch';
+        document.documentElement.style.overflowY = 'auto';
+        document.body.style.webkitOverflowScrolling = 'touch';
+        document.body.style.overflowY = 'auto';
+        document.body.style.touchAction = 'pan-y';
       }
-      lastTouchEnd = now;
-    }, false);
-    
-    // Prevent pinch zoom
-    document.addEventListener('touchmove', function (event) {
-      if (event.scale !== 1) { 
-        event.preventDefault(); 
-      }
-    }, { passive: false });
+      
+      // Prevent zoom only on specific elements, not globally
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', function (event) {
+        // Only prevent zoom on buttons and inputs
+        if (event.target.tagName === 'BUTTON' || event.target.tagName === 'INPUT') {
+          const now = (new Date()).getTime();
+          if (now - lastTouchEnd <= 300) {
+            event.preventDefault();
+          }
+          lastTouchEnd = now;
+        }
+      }, false);
+    });
   </script>
   <!-- Structured Data -->
   <script type="application/ld+json">

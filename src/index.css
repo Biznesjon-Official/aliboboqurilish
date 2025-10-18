@@ -42,12 +42,23 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Prevent iOS bounce scroll on body */
+/* Mobile scroll optimization for all devices */
 @media (max-width: 1024px) {
   html, body {
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
+    /* Android specific fixes */
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  
+  /* Android Chrome specific */
+  body {
+    position: relative !important;
+    min-height: 100vh;
+    width: 100%;
   }
 }
 
@@ -486,6 +497,23 @@ code {
   user-select: none;
 }
 
+/* Android specific scroll fixes */
+@supports (-webkit-appearance: none) {
+  @media (max-width: 1024px) {
+    html, body {
+      overflow-y: scroll !important;
+      -webkit-overflow-scrolling: touch !important;
+      overscroll-behavior: auto !important;
+    }
+    
+    body {
+      position: relative !important;
+      height: auto !important;
+      min-height: 100vh !important;
+    }
+  }
+}
+
 /* Admin Panel Grid Layouts */
 .desktop-grid {
   @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
@@ -515,6 +543,16 @@ body.modal-open {
     overflow: auto !important;
     -webkit-overflow-scrolling: touch;
     touch-action: manipulation;
+    /* Android specific modal fixes */
+    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+  }
+  
+  /* Ensure modal content is scrollable on Android */
+  .modal-overlay {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
 }
 
