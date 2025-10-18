@@ -365,7 +365,7 @@ const MainPage = ({ onSuccessfulLogin, initialSection }) => {
   return (
     <>
       {/* Main content */}
-      <div className="page-transition">
+      <div className="page-transition mobile-scroll-container">
         <Header
           onSuccessfulLogin={onSuccessfulLogin}
           cart={cart}

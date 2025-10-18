@@ -22,12 +22,32 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-size: 14px;
   line-height: 1.5;
+  /* Mobile scroll optimization */
+  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 /* Mobile responsive typography */
 @media (min-width: 640px) {
   body {
     font-size: 16px;
+  }
+}
+
+/* Mobile touch scroll optimization */
+html {
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
+  scroll-behavior: smooth;
+}
+
+/* Prevent iOS bounce scroll on body */
+@media (max-width: 1024px) {
+  html, body {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
 }
 
@@ -451,6 +471,21 @@ code {
   display: none;
 }
 
+/* Mobile scroll optimization classes */
+.mobile-scroll-container {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+}
+
+.mobile-touch-optimized {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* Admin Panel Grid Layouts */
 .desktop-grid {
   @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
@@ -464,14 +499,23 @@ code {
   @apply transform -translate-y-1;
 }
 
-/* Modal body scroll lock */
+/* Modal body scroll lock - improved for mobile */
 body.modal-open {
   @apply overflow-hidden;
-  position: fixed !important;
-  width: 100% !important;
-  height: 100% !important;
-  top: 0 !important;
-  left: 0 !important;
+}
+
+/* Mobile-specific modal handling */
+@media (max-width: 1024px) {
+  body.modal-open {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    top: auto !important;
+    left: auto !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+    touch-action: manipulation;
+  }
 }
 
 /* Hide sidebar when modal is open */
