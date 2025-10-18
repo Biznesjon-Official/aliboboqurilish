@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Cache</title>
+</head>
+<body>
+    <h1>Clear Frontend Cache</h1>
+    <button onclick="clearCache()">Clear All Cache</button>
+    <div id="result"></div>
+
+    <script>
+        function clearCache() {
+            // Clear localStorage
+            localStorage.clear();
+            
+            // Clear sessionStorage
+            sessionStorage.clear();
+            
+            // Clear React Query cache if available
+            if (window.queryClient) {
+                window.queryClient.clear();
+            }
+            
+            document.getElementById('result').innerHTML = 'Cache cleared! Please refresh the main page.';
+        }
+    </script>
+</body>
+</html>
