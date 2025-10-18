@@ -71,9 +71,10 @@ const getProducts = async (req, res) => {
       ]
     }; // Active or missing status, not-deleted or missing flag by default
 
-    // Category filter - use exact match for better index usage
+    // Category filter - use case-insensitive regex for better matching
     if (req.query.category && req.query.category.trim() !== '') {
-      query.category = req.query.category.trim();
+      const categoryValue = req.query.category.trim();
+      query.category = { $regex: new RegExp(`^${categoryValue}$`, 'i') };
     }
 
     // Price range filter

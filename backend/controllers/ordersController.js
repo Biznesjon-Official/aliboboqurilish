@@ -2,6 +2,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const NotificationService = require('../services/NotificationService');
 const socketService = require('../services/SocketService'); // Real-time updates
+const telegramService = require('../services/TelegramService'); // Telegram notifications
 const { addActivity } = require('../routes/recentActivitiesRoutes');
 const mongoose = require('mongoose');
 
@@ -427,6 +428,13 @@ const createOrder = async (req, res) => {
       // Don't fail the request if notification fails
     }
 
+    // Step 5.5: Send Telegram notification
+    try {
+      await telegramService.sendOrderNotification(result);
+    } catch (telegramError) {
+      console.error('Failed to send Telegram notification:', telegramError);
+      // Don't fail the request if Telegram notification fails
+    }
     
     // Invalidate cache after successful order creation
     invalidateCache();
@@ -625,6 +633,13 @@ const updateOrderStatus = async (req, res) => {
       await NotificationService.createOrderNotification('updated', result, 'Admin');
     } catch (notificationError) {
       console.error('Failed to create order status update notification:', notificationError);
+    }
+
+    // Send Telegram status update notification
+    try {
+      await telegramService.sendOrderStatusUpdate(result, result.status);
+    } catch (telegramError) {
+      console.error('Failed to send Telegram status update:', telegramError);
     }
     
     // Invalidate cache

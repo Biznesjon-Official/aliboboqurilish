@@ -542,7 +542,21 @@ const CartSidebar = ({
 
       {/* Checkout Modal */}
       {showCheckoutModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+        <div 
+          className="modal-overlay fixed inset-0 bg-black bg-opacity-50 p-4" 
+          style={{ 
+            zIndex: 9999999,
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100vh'
+          }}
+        >
           <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
             {/* Modal Header */}
             <div className="text-center mb-4">

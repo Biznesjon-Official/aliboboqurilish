@@ -20,6 +20,7 @@ const cluster = require('cluster');
 const os = require('os');
 const http = require('http'); // For Socket.IO integration
 const socketService = require('./services/SocketService'); // Real-time updates
+const telegramService = require('./services/TelegramService'); // Telegram notifications
 const { primeProductsFastCache } = require('./controllers/productControllerOptimized');
 
 // Use clustering to take advantage of multi-core systems (disabled in development for faster startup)
@@ -499,10 +500,12 @@ if (enableClustering && cluster.isPrimary) {
   // API routes
   app.use('/api', require('./routes/healthRoutes'));
   app.use('/api/products', require('./routes/productRoutes'));
+  app.use('/api/filters', require('./routes/filterRoutes'));
   app.use('/api/craftsmen', require('./routes/craftsmenRoutes'));
   app.use('/api/orders', require('./routes/orderRoutes'));
   app.use('/api/statistics', require('./routes/statisticsRoutes'));
   app.use('/api/recent-activities', require('./routes/recentActivitiesRoutes').router);
+  app.use('/api/promotions', require('./routes/promotionRoutes'));
   
   if (process.env.ENABLE_BASE64_ROUTES === 'true') {
     app.use('/api/base64', require('./routes/base64Routes'));

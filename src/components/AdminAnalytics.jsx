@@ -498,7 +498,7 @@ const AdminAnalytics = ({ onMobileToggle, notifications, setNotifications }) => 
       
       {/* Modals */}
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style={{ zIndex: 999999 }}>
           {/* ... existing modal code ... */}
         </div>
       )}

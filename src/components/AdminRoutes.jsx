@@ -64,6 +64,11 @@ const AdminAnalytics = lazy(() => loadComponentWithRetry(() => import(
   './AdminAnalytics'
 )));
 
+const AdminPromotions = lazy(() => loadComponentWithRetry(() => import(
+  /* webpackChunkName: "admin-promotions" */
+  './admin/AdminPromotions'
+)));
+
 const ErrorFallback = ({ error, resetErrorBoundary }) => {
   const navigate = useNavigate();
   
@@ -228,6 +233,12 @@ const AdminRoutes = ({
                 path="/base64-conversion" 
                 element={
                   <Base64ConversionPage />
+                } 
+              />
+              <Route 
+                path="/promotions" 
+                element={
+                  <AdminPromotions />
                 } 
               />
                 </Routes>

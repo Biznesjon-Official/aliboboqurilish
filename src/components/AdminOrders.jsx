@@ -62,9 +62,25 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
+  // Table scroll ref
+  const tableScrollRef = useRef(null);
+
   // Status change notification states
   const [showStatusNotification, setShowStatusNotification] = useState(false);
   const [statusNotificationMessage, setStatusNotificationMessage] = useState('');
+
+  // Table scroll functions
+  const scrollLeft = () => {
+    if (tableScrollRef.current) {
+      tableScrollRef.current.scrollBy({ left: -200, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRight = () => {
+    if (tableScrollRef.current) {
+      tableScrollRef.current.scrollBy({ left: 200, behavior: 'smooth' });
+    }
+  };
 
   // Check mobile responsiveness
   useEffect(() => {
@@ -740,7 +756,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
       </header>
 
       {/* Main Content */}
-      <main className="p-4 sm:p-6">
+      <main className="p-4 sm:p-6 pb-20">
         <div className="max-w-7xl mx-auto">
           {/* Controls */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6">
@@ -843,8 +859,28 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
 
       {/* View Order Modal */}
       {isViewModalOpen && selectedOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div
+          className="modal-overlay fixed inset-0 bg-black bg-opacity-50 p-4"
+          style={{
+            zIndex: 9999999,
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100vh'
+          }}
+        >
+          <div
+            className="bg-white rounded-lg max-w-2xl w-full overflow-y-auto"
+            style={{
+              maxHeight: 'calc(100vh - 2rem)',
+              margin: 'auto'
+            }}
+          >
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900">Buyurtma tafsilotlari</h2>
@@ -857,69 +893,108 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
               </div>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mijoz ismi</label>
-                    <p className="text-sm text-gray-900">{selectedOrder.customerName}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-2 rounded-lg">
+                    <label className="block text-xs font-bold text-orange-600 mb-1">Mijoz ismi</label>
+                    <p className="text-xs font-bold text-gray-900">{selectedOrder.customerName}</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Telefon raqami</label>
-                    <p className="text-sm text-gray-900">{formatPhoneNumber(selectedOrder.customerPhone)}</p>
+                  <div className="bg-gray-50 p-2 rounded-lg">
+                    <label className="block text-xs font-bold text-orange-600 mb-1">Telefon raqami</label>
+                    <p className="text-xs font-bold text-gray-900">{formatPhoneNumber(selectedOrder.customerPhone)}</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Manzil</label>
-                    <p className="text-sm text-gray-900">{selectedOrder.customerAddress || 'Ko\'rsatilmagan'}</p>
+                  <div className="bg-gray-50 p-2 rounded-lg">
+                    <label className="block text-xs font-bold text-orange-600 mb-1">Manzil</label>
+                    <p className="text-xs font-bold text-gray-900">{selectedOrder.customerAddress || 'Ko\'rsatilmagan'}</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Buyurtma sanasi</label>
-                    <p className="text-sm text-gray-900">{formatDateTime(selectedOrder.createdAt || selectedOrder.orderDate)}</p>
+                  <div className="bg-gray-50 p-2 rounded-lg">
+                    <label className="block text-xs font-bold text-orange-600 mb-1">Buyurtma sanasi</label>
+                    <p className="text-xs font-bold text-gray-900">{formatDateTime(selectedOrder.createdAt || selectedOrder.orderDate)}</p>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Mahsulotlar</label>
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
+                  <label className="block text-sm font-bold text-orange-600 mb-3">Mahsulotlar</label>
+                  <div className="border border-gray-200 rounded-lg overflow-x-auto" ref={tableScrollRef}>
+                    <table className="w-full divide-y divide-gray-200" style={{ minWidth: '500px' }}>
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mahsulot</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Miqdor</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Narx</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Jami</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style={{ minWidth: '200px' }}>Mahsulot</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style={{ minWidth: '80px' }}>Miqdor</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style={{ minWidth: '100px' }}>Narx</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style={{ minWidth: '120px' }}>Jami</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {selectedOrder.items && selectedOrder.items.map((item, index) => (
-                          <tr key={index}>
-                            <td className="px-4 py-2 text-sm text-gray-900">{item.name}</td>
-                            <td className="px-4 py-2 text-sm text-gray-900">{item.quantity}</td>
-                            <td className="px-4 py-2 text-sm text-gray-900">{formatCurrency(item.price)}</td>
-                            <td className="px-4 py-2 text-sm text-gray-900">{formatCurrency(item.price * item.quantity)}</td>
+                          <tr key={index} className="hover:bg-gray-50">
+                            <td className="px-3 py-2 text-xs font-bold text-gray-900 whitespace-nowrap" style={{ minWidth: '200px' }}>{item.name}</td>
+                            <td className="px-3 py-2 text-xs font-bold text-gray-900 whitespace-nowrap" style={{ minWidth: '80px' }}>{item.quantity}</td>
+                            <td className="px-3 py-2 text-xs font-bold text-gray-900 whitespace-nowrap" style={{ minWidth: '100px' }}>{formatCurrency(item.price)}</td>
+                            <td className="px-3 py-2 text-xs font-bold text-gray-900 whitespace-nowrap" style={{ minWidth: '120px' }}>{formatCurrency(item.price * item.quantity)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Horizontal scroll buttons */}
+                  <div className="flex justify-center mt-2 space-x-2">
+                    <button
+                      onClick={scrollLeft}
+                      className="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-xs font-bold"
+                      title="Chapga scroll qilish"
+                    >
+                      <ChevronLeftFAIcon className="text-sm" />
+                    </button>
+                    <button
+                      onClick={scrollRight}
+                      className="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-xs font-bold"
+                      title="O'ngga scroll qilish"
+                    >
+                      <ChevronRightFAIcon className="text-sm" />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                  <span className="text-lg font-medium text-gray-900">Jami summa:</span>
-                  <span className="text-xl font-bold text-orange-600">{formatCurrency(selectedOrder.totalAmount)}</span>
+                <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-gray-900">Jami summa:</span>
+                    <span className="text-sm font-bold text-orange-600">{formatCurrency(selectedOrder.totalAmount)}</span>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Holat</label>
-                  <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${statusMap[selectedOrder.status]?.class}`}>
+                <div className="bg-gray-50 p-2 rounded-lg">
+                  <label className="block text-xs font-bold text-orange-600 mb-2">Holat</label>
+                  <button
+                    onClick={() => {
+                      const newStatus = selectedOrder.status === 'pending' ? 'processing' :
+                        selectedOrder.status === 'processing' ? 'completed' : 'pending';
+                      // Status o'zgartirish funksiyasi
+                      console.log('Status o\'zgartirish:', newStatus);
+                    }}
+                    className={`inline-flex px-3 py-1 rounded-full text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity ${statusMap[selectedOrder.status]?.class}`}
+                    title="Statusni o'zgartirish uchun bosing"
+                  >
                     {statusMap[selectedOrder.status]?.text}
-                  </span>
+                  </button>
                 </div>
 
                 {selectedOrder.notes && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Izohlar</label>
-                    <p className="text-sm text-gray-900">{selectedOrder.notes}</p>
+                  <div className="bg-blue-50 p-2 rounded-lg">
+                    <label className="block text-xs font-bold text-orange-600 mb-1">Izohlar</label>
+                    <p className="text-xs font-bold text-blue-900">{selectedOrder.notes}</p>
                   </div>
                 )}
+
+                {/* Yopish tugmasi */}
+                <div className="flex justify-end pt-4">
+                  <button
+                    onClick={closeViewModal}
+                    className="px-6 py-2 bg-gray-500 text-white text-sm font-bold rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    Yopish
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -928,7 +1003,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
 
       {/* Status Change Notification */}
       {showStatusNotification && (
-        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg" style={{ zIndex: 999999 }}>
           {statusNotificationMessage}
         </div>
       )}

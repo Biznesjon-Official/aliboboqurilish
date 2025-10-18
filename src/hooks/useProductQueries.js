@@ -36,6 +36,8 @@ const fetchProducts = async ({ category = '', search = '', page = 1, limit = 200
   const primaryUrl = useFastEndpoint ? fastPath : normalPath;
   const fallbackUrl = useFastEndpoint ? normalPath : fastPath;
 
+
+
   let response = await fetch(primaryUrl, {
     signal,
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -81,7 +83,7 @@ const fetchProduct = async (id, signal) => {
 export const useProducts = (category, search, page = 1, limit = 20) => {
   return useQuery({
     queryKey: queryKeys.products.list(category, search, page, limit),
-    queryFn: ({ signal }) => fetchProducts({ category, search, page, limit, signal, useFastEndpoint: false }),
+    queryFn: ({ signal }) => fetchProducts({ category, search, page, limit, signal, useFastEndpoint: true }),
     keepPreviousData: true, // Keep previous page data to avoid UI flicker
     staleTime: 30 * 1000, // 30 seconds - faster updates
     cacheTime: 2 * 60 * 1000, // 2 minutes cache time

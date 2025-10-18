@@ -44,8 +44,8 @@ const ImageUploader = ({
         const formData = new FormData();
         formData.append('image', file);
 
-        // Upload to server
-        const response = await fetch('/api/upload/image', {
+        // Upload to server - direct backend URL for reliability
+        const response = await fetch('http://localhost:5000/api/upload/image', {
           method: 'POST',
           body: formData,
         });

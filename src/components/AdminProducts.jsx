@@ -23,7 +23,7 @@ import AdminNotificationModals from './AdminNotificationModals';
 import LoadingCard from './LoadingCard';
 import ProductLoader from './ProductLoader';
 import ProductCardSkeleton from './ProductCardSkeleton';
-import ClearLoader from './ClearLoader';
+import SimpleSpinner from './SimpleSpinner';
 import useNotifications from '../hooks/useNotifications';
 import useRealNotifications from '../hooks/useRealNotifications';
 import ProductVariants from './admin/ProductVariants';
@@ -36,7 +36,7 @@ import '../styles/select-styles.css';
 
 const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const navigate = useNavigate();
-  
+
   // Real notification system for notification bell
   const {
     notifications: realNotifications,
@@ -88,7 +88,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 20; // Reduced for faster initial load (aligns with homepage)
+  const ITEMS_PER_PAGE = 100; // Increased to 100 per page for categories
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [sortField, setSortField] = useState('createdAt');
@@ -130,6 +130,20 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const { data: productsData, isLoading, isFetching, isFetched, isSuccess, isError, error } =
     useProductsFast(debouncedCategory, debouncedSearch, currentPage, ITEMS_PER_PAGE);
 
+  // Debug: Log filter values
+  useEffect(() => {
+    console.log('🔍 Filter Debug:', {
+      filterCategory,
+      debouncedCategory,
+      searchTerm,
+      debouncedSearch,
+      currentPage,
+      ITEMS_PER_PAGE,
+      productsData: productsData?.products?.length || 0,
+      totalCount: productsData?.pagination?.totalCount || 0
+    });
+  }, [filterCategory, debouncedCategory, searchTerm, debouncedSearch, currentPage, productsData]);
+
   // Image slideshow state (per product)
   const imageIndexRef = useRef(new Map()); // productId -> current image index
   const [, setImageStateVersion] = useState(0); // bump to trigger rerender
@@ -141,12 +155,26 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 
   // Main categories (asosiy kategoriyalar) - only the 5 main categories
   const mainCategories = [
-    'Xoz-Mag',
-    'Yevro-Remont',
-    'Elektrika',
-    'Dekor-mahsulotlar',
-    'Santexnika'
+    'xoz-mag',
+    'yevro-remont',
+    'elektrika',
+    'dekorativ-mahsulotlar',
+    'santexnika'
   ];
+
+  // Category display names mapping
+  const categoryDisplayNames = {
+    'xoz-mag': 'Xoz-Mag',
+    'yevro-remont': 'Yevro-Remont',
+    'elektrika': 'Elektrika',
+    'dekorativ-mahsulotlar': 'Dekorativ-mahsulotlar',
+    'santexnika': 'Santexnika'
+  };
+
+  // Get display name for category
+  const getCategoryDisplayName = (categoryName) => {
+    return categoryDisplayNames[categoryName] || categoryName;
+  };
 
   // Load categories from API with fallback to main categories
   const loadCategories = useCallback(async () => {
@@ -154,19 +182,35 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       const response = await fetch('http://localhost:5000/api/products/categories/list');
       if (response.ok) {
         const categoriesData = await response.json();
-        // Normalize API response to an array of category strings.
-        // It may be: ["Elektrika", ...] OR { categories: [{ _id: 'Elektrika', count: 12}, ...] }
-        const extract = (data) => {
-          if (Array.isArray(data)) return data;
-          if (data && Array.isArray(data.categories)) {
-            return data.categories
-              .map((c) => (typeof c === 'string' ? c : (c?._id || c?.name)))
-              .filter(Boolean);
-          }
-          return [];
-        };
-        const categoryArray = extract(categoriesData);
-        setCategories(['Barcha kategoriyalar', ...categoryArray]);
+        console.log('📊 Categories API Response:', categoriesData);
+        // Extract categories with counts
+        if (categoriesData && Array.isArray(categoriesData.categories)) {
+          const categoryArray = categoriesData.categories.map((c) => ({
+            name: c._id,
+            count: c.count,
+            avgPrice: c.avgPrice,
+            minPrice: c.minPrice,
+            maxPrice: c.maxPrice
+          }));
+          console.log('📊 Processed Categories:', categoryArray);
+          setCategories([
+            { name: 'Barcha kategoriyalar', count: categoryArray.reduce((sum, c) => sum + c.count, 0) },
+            ...categoryArray
+          ]);
+        } else {
+          // Fallback to simple array
+          const extract = (data) => {
+            if (Array.isArray(data)) return data;
+            if (data && Array.isArray(data.categories)) {
+              return data.categories
+                .map((c) => (typeof c === 'string' ? c : (c?._id || c?.name)))
+                .filter(Boolean);
+            }
+            return [];
+          };
+          const categoryArray = extract(categoriesData);
+          setCategories(['Barcha kategoriyalar', ...categoryArray]);
+        }
       } else {
         console.log('⚠️ API failed, using main categories as fallback');
         setCategories(['Barcha kategoriyalar', ...mainCategories]);
@@ -181,6 +225,8 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 
   // Load categories on mount so selects are populated
   useEffect(() => {
+    // Clear React Query cache for fresh data
+    queryClient.clear();
     loadCategories();
   }, [loadCategories]);
 
@@ -196,7 +242,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       if (typeof c === 'string') {
         if (c !== 'Barcha kategoriyalar') set.add(c);
       } else {
-        const val = c?._id || c?.name;
+        const val = c?.name || c?._id;
         if (val && val !== 'Barcha kategoriyalar') set.add(val);
       }
     });
@@ -443,6 +489,23 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       document.body.classList.remove('modal-open');
     };
   }, [isModalOpen, isViewModalOpen, alertModal?.show, confirmModal?.show, promptModal?.show]);
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleEscapeKey = (event) => {
+      if (event.key === 'Escape' && isModalOpen) {
+        closeModal();
+      }
+    };
+
+    if (isModalOpen) {
+      document.addEventListener('keydown', handleEscapeKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [isModalOpen]);
 
   const openAddModal = () => {
     setSelectedProduct(null);
@@ -834,7 +897,11 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   };
 
   const handleFilterChange = (value) => {
+    console.log('🔄 Filter changed to:', value);
     setFilterCategory(value);
+    // Immediately clear cache and reset page
+    queryClient.invalidateQueries({ queryKey: ['products-fast'] });
+    setCurrentPage(1);
   };
 
   const clearSearchAndFilter = () => {
@@ -1014,12 +1081,22 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                 }}
                 className="custom-select flex-1"
               >
-                <option value="">Barcha kategoriyalar</option>
-                {mergedCategories.map(category => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
+                {categories.map(category => {
+                  if (typeof category === 'string') {
+                    return (
+                      <option key={category} value={category === 'Barcha kategoriyalar' ? '' : category}>
+                        {category}
+                      </option>
+                    );
+                  } else {
+                    const displayName = getCategoryDisplayName(category.name);
+                    return (
+                      <option key={category.name} value={category.name === 'Barcha kategoriyalar' ? '' : category.name}>
+                        {category.name === 'Barcha kategoriyalar' ? category.name : `${displayName} (${category.count})`}
+                      </option>
+                    );
+                  }
+                })}
               </select>
 
               {/* Add Product Button */}
@@ -1050,13 +1127,10 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         {/* Products Grid */}
         <div className="mb-6">
           {showSkeleton ? (
-            <div className="flex justify-center py-12">
-              <ClearLoader
-                message="Admin mahsulotlar yuklanmoqda..."
-                size="large"
-                type="construction"
-              />
-            </div>
+            <SimpleSpinner
+              message="Mahsulotlar yuklanmoqda..."
+              size="large"
+            />
           ) : showEmpty ? (
             <div className="col-span-full text-center py-12">
               <div className="text-gray-500">Mahsulot topilmadi</div>
@@ -1244,10 +1318,11 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
           totalCount > 0 && (
             <div className="text-center text-xs sm:text-sm text-gray-600 mt-3 sm:mt-4 px-2">
               <span className="hidden sm:inline">
-                {totalCount} ta mahsulotdan {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} tasi ko'rsatilmoqda
+                {filterCategory ? `"${getCategoryDisplayName(filterCategory)}" kategoriyasida` : 'Barcha kategoriyalarda'} {totalCount} ta mahsulotdan {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} tasi ko'rsatilmoqda
               </span>
               <span className="sm:hidden">
                 {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} / {totalCount}
+                {filterCategory && <div className="text-xs text-gray-500 mt-1">"{getCategoryDisplayName(filterCategory)}"</div>}
               </span>
             </div>
           )
@@ -1257,220 +1332,239 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       {/* Add/Edit Modal */}
       {isModalOpen && (
         <div
-          className="modal-backdrop"
-          style={{ 
+          className="modal-overlay fixed inset-0 bg-black bg-opacity-50 p-4"
+          style={{
+            zIndex: 9999999,
             position: 'fixed',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 99999,
-            padding: '1rem'
+            minHeight: '100vh'
           }}
           onClick={closeModal}
         >
-            <div
-              className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-2xl font-semibold text-gray-900">
-                    {selectedProduct ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot qo\'shish'}
-                  </h3>
-                  <button
-                    onClick={closeModal}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <TimesFAIcon className="text-xl" />
-                  </button>
-                </div>
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full overflow-y-auto"
+            style={{
+              maxHeight: 'calc(100vh - 2rem)',
+              margin: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-semibold text-gray-900">
+                  {selectedProduct ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot qo\'shish'}
+                </h3>
+                <button
+                  onClick={closeModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <TimesFAIcon className="text-xl" />
+                </button>
               </div>
+            </div>
 
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Mahsulot nomi *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent"
-                      placeholder="Mahsulot nomini kiriting"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Kategoriya *
-                    </label>
-                    <select
-                      value={formData.category}
-                      onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                      className="custom-select custom-select-modal"
-                      required
-                    >
-                      <option value="">Kategoriya tanlang</option>
-                      {mergedCategories.map(category => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      O'lchov birligi
-                    </label>
-                    <select
-                      value={formData.unit === 'boshqa' ? 'boshqa' : (unitOptions.find(opt => opt.value === formData.unit) ? formData.unit : 'boshqa')}
-                      onChange={e => {
-                        if (e.target.value === 'boshqa') {
-                          setFormData(prev => ({ ...prev, unit: '' }));
-                        } else {
-                          setFormData(prev => ({ ...prev, unit: e.target.value }));
-                        }
-                      }}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent"
-                    >
-                      {unitOptions.map(option => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                      <option value="boshqa">Boshqa</option>
-                    </select>
-                    {(formData.unit === '' || !unitOptions.find(opt => opt.value === formData.unit)) && (
-                      <input
-                        type="text"
-                        value={formData.unit}
-                        onChange={e => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent mt-2"
-                        placeholder="Masalan: qop, quti, to'plam"
-                      />
-                    )}
-                  </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Mahsulot nomi *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent"
+                    placeholder="Mahsulot nomini kiriting"
+                    required
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    Badge (Chegirma badge yo'q)
+                    Kategoriya *
                   </label>
                   <select
-                    value={formData.badge}
-                    onChange={e => setFormData(prev => ({ ...prev, badge: e.target.value }))}
-                    className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent w-auto inline-block max-w-full"
+                    value={formData.category}
+                    onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                    className="custom-select custom-select-modal"
+                    required
                   >
-                    {badgeOptions.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
+                    <option value="">Kategoriya tanlang</option>
+                    {mergedCategories.map(category => (
+                      <option key={category} value={category}>
+                        {getCategoryDisplayName(category)}
                       </option>
                     ))}
                   </select>
                 </div>
 
+
+
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    Tavsif
+                    O'lchov birligi
                   </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    rows="4"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent resize-none"
-                    placeholder="Mahsulot haqida batafsil ma'lumot"
-                  />
-                </div>
-
-                {/* Variant System Toggle */}
-                <div className="space-y-4">
-                  <div className="flex items-center">
+                  <select
+                    value={formData.unit === 'boshqa' ? 'boshqa' : (unitOptions.find(opt => opt.value === formData.unit) ? formData.unit : 'boshqa')}
+                    onChange={e => {
+                      if (e.target.value === 'boshqa') {
+                        setFormData(prev => ({ ...prev, unit: '' }));
+                      } else {
+                        setFormData(prev => ({ ...prev, unit: e.target.value }));
+                      }
+                    }}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent"
+                  >
+                    {unitOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                    <option value="boshqa">Boshqa</option>
+                  </select>
+                  {(formData.unit === '' || !unitOptions.find(opt => opt.value === formData.unit)) && (
                     <input
-                      type="checkbox"
-                      id="hasVariants"
-                      checked={formData.hasVariants}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        hasVariants: e.target.checked,
-                        variants: e.target.checked ? prev.variants : []
-                      }))}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      type="text"
+                      value={formData.unit}
+                      onChange={e => setFormData(prev => ({ ...prev, unit: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent mt-2"
+                      placeholder="Masalan: qop, quti, to'plam"
                     />
-                    <label htmlFor="hasVariants" className="ml-2 block text-sm font-medium text-gray-700">
-                      Bu mahsulotda variantlar bor (rang, o'lcham, xotira va h.k.)
-                    </label>
-                  </div>
-
-                  {formData.hasVariants ? (
-                    <div className="mt-4">
-                      <VariantManager
-                        variants={formData.variants}
-                        onVariantsChange={(variants) => setFormData(prev => ({ ...prev, variants }))}
-                      />
-                    </div>
-                  ) : (
-                    <div className="mt-4">
-                      <SimpleProductForm
-                        price={formData.price}
-                        oldPrice={formData.oldPrice}
-                        stock={formData.stock}
-                        images={formData.images}
-                        onPriceChange={(price) => setFormData(prev => ({ ...prev, price }))}
-                        onOldPriceChange={(oldPrice) => setFormData(prev => ({ ...prev, oldPrice }))}
-                        onStockChange={(stock) => setFormData(prev => ({ ...prev, stock }))}
-                        onImagesChange={(images) => setFormData(prev => ({ ...prev, images }))}
-                      />
-                    </div>
                   )}
                 </div>
+              </div>
 
-                <div className="sticky bottom-0 bg-white pt-6 border-t border-gray-200">
-                  <div className="flex items-center justify-end space-x-4">
-                    <button
-                      type="button"
-                      onClick={closeModal}
-                      className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-200 font-medium"
-                    >
-                      Bekor qilish
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="px-6 py-3 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 transition duration-200 disabled:opacity-50 font-medium min-w-[120px]"
-                    >
-                      {isSubmitting ? (
-                        <span><SpinnerFAIcon className="mr-2" />Saqlanmoqda...</span>
-                      ) : (
-                        <span>{selectedProduct ? 'Yangilash' : 'Qo\'shish'}</span>
-                      )}
-                    </button>
-                  </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Badge (Chegirma badge yo'q)
+                </label>
+                <select
+                  value={formData.badge}
+                  onChange={e => setFormData(prev => ({ ...prev, badge: e.target.value }))}
+                  className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent w-auto inline-block max-w-full"
+                >
+                  {badgeOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Tavsif
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  rows="4"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent resize-none"
+                  placeholder="Mahsulot haqida batafsil ma'lumot"
+                />
+              </div>
+
+              {/* Variant System Toggle */}
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="hasVariants"
+                    checked={formData.hasVariants}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      hasVariants: e.target.checked,
+                      variants: e.target.checked ? prev.variants : []
+                    }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="hasVariants" className="ml-2 block text-sm font-medium text-gray-700">
+                    Bu mahsulotda variantlar bor (rang, o'lcham, xotira va h.k.)
+                  </label>
                 </div>
-              </form>
-            </div>
+
+                {formData.hasVariants ? (
+                  <div className="mt-4">
+                    <VariantManager
+                      variants={formData.variants}
+                      onVariantsChange={(variants) => setFormData(prev => ({ ...prev, variants }))}
+                    />
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <SimpleProductForm
+                      price={formData.price}
+                      oldPrice={formData.oldPrice}
+                      stock={formData.stock}
+                      images={formData.images}
+                      onPriceChange={(price) => setFormData(prev => ({ ...prev, price }))}
+                      onOldPriceChange={(oldPrice) => setFormData(prev => ({ ...prev, oldPrice }))}
+                      onStockChange={(stock) => setFormData(prev => ({ ...prev, stock }))}
+                      onImagesChange={(images) => setFormData(prev => ({ ...prev, images }))}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="sticky bottom-0 bg-white pt-6 border-t border-gray-200">
+                <div className="flex items-center justify-end space-x-4">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-200 font-medium"
+                  >
+                    Bekor qilish
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-6 py-3 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 transition duration-200 disabled:opacity-50 font-medium min-w-[120px]"
+                  >
+                    {isSubmitting ? (
+                      <span><SpinnerFAIcon className="mr-2" />Saqlanmoqda...</span>
+                    ) : (
+                      <span>{selectedProduct ? 'Yangilash' : 'Qo\'shish'}</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
-        )
+        </div>
+      )
       }
 
       {/* View Modal */}
       {
         isViewModalOpen && selectedProduct && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay overflow-hidden p-4"
+            className="modal-overlay fixed inset-0 bg-black bg-opacity-50 p-4"
+            style={{
+              zIndex: 9999999,
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '100vh'
+            }}
             onClick={() => setIsViewModalOpen(false)}
           >
             <div
-              className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
+              className="bg-white rounded-lg shadow-xl max-w-4xl w-full overflow-y-auto"
+              style={{
+                maxHeight: 'calc(100vh - 2rem)',
+                margin: 'auto'
+              }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">

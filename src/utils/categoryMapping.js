@@ -6,7 +6,7 @@ export const CATEGORY_MAPPING = {
   "xoz-mag": "Xoz-Mag",
   "yevro-remont": "Yevro-Remont",
   "elektrika": "Elektrika",
-  "dekor-mahsulotlar": "Dekor-Mahsulotlar",
+  "dekor": "Dekor-Mahsulotlar",
   "santexnika": "Santexnika",
   
 
@@ -16,7 +16,7 @@ export const CATEGORY_MAPPING = {
   "mag": "Xoz-Mag",
   "yevro": "Yevro-Remont",
   "remont": "Yevro-Remont",
-  "dekor": "Dekor-Mahsulotlar",
+  "dekorativ": "Dekor-Mahsulotlar",
    "santexnik" : "Santexnika",
 };
 

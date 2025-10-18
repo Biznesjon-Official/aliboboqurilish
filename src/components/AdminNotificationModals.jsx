@@ -111,7 +111,21 @@ const AdminNotificationModals = ({
       
       {/* Confirm Modal */}
       {confirmModal?.show && (
-        <div className="fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4 animate-fadeIn">
+        <div 
+          className="modal-overlay fixed inset-0 bg-black bg-opacity-50 p-4 animate-fadeIn" 
+          style={{ 
+            zIndex: 9999999,
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100vh'
+          }}
+        >
           <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-gray-100 animate-slideIn">
             <div className="p-6 text-center">
               <div className="mb-4">

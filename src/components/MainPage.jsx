@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Header from './Header';
+import PromotionsSection from './PromotionsSection';
 import ProductsGrid from './ProductsGrid';
 import Craftsmen from './Craftsmen';
 import Services from './Services';
@@ -380,6 +381,7 @@ const MainPage = ({ onSuccessfulLogin, initialSection }) => {
           activeSection={activeSection}
           setActiveSection={setActiveSection}
         />
+        <PromotionsSection />
         <div id="products">
           <ProductsGrid
             cart={cart}

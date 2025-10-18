@@ -489,7 +489,8 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
       {/* Master Details Modal - Mobile Responsive */}
       {isModalOpen && selectedCraftsman && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4"
+          style={{ zIndex: 999999 }}
           onClick={closeModal}
         >
           <div 
@@ -622,7 +623,7 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
 
       {/* Desktop Call Modal - exactly like ustalar-qismi */}
       {showCallModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 999999 }}>
           <div className="bg-white rounded-lg max-w-md w-full mx-4 p-6">
             <div className="text-center">
               {/* Warning Icon */}
@@ -692,7 +693,7 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
       
       {/* Image Lightbox - exactly like ustalar-qismi */}
       {isLightboxOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center" style={{ zIndex: 999999 }}>
           <div className="relative max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center">
             {/* Close button */}
             <button 

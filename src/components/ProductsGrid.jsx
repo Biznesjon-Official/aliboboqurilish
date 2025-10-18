@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useProducts } from '../hooks/useProductQueries';
+import { useProducts, useFastProducts as useFastProductsQuery } from '../hooks/useProductQueries';
 import { useDebounce } from '../hooks/useDebounce';
 import { useFastProducts } from '../hooks/useFastProducts';
 import { queryClient } from '../lib/queryClient';
@@ -48,18 +48,9 @@ const ProductsGrid = ({
   const selectRef = useRef(null);
 
   // Category mapping function - frontend to backend
+  // No mapping needed - use lowercase directly (backend uses case-insensitive regex)
   const getCategoryApiValue = (frontendCategory) => {
-    const categoryMapping = {
-      // Map slugs to DB values (capitalized exact match in backend)
-      "xoz-mag": "Xoz-Mag",
-      "yevro-remont": "Yevro-Remont",
-      "elektrika": "Elektrika",
-      "dekor-mahsulotlar": "Dekor-mahsulotlar",
-      "dekorativ-mahsulotlar": "Dekor-mahsulotlar",
-      "santexnika": "Santexnika",
-    };
-
-    return categoryMapping[frontendCategory] || frontendCategory;
+    return frontendCategory; // Pass through as-is
   };
 
   // Normalize categories to a canonical slug for reliable comparisons
@@ -74,10 +65,10 @@ const ProductsGrid = ({
       'yevro': 'yevro-remont',
       'remont': 'yevro-remont',
       'elektrika': 'elektrika',
-      'dekor-mahsulotlar': 'dekor-mahsulotlar',
-      'dekorativ-mahsulotlar': 'dekor-mahsulotlar',
-      'dekorativ': 'dekor-mahsulotlar',
-      'dekor': 'dekor-mahsulotlar',
+      'dekor-mahsulotlar': 'dekor',
+      'dekorativ-mahsulotlar': 'dekor',
+      'dekorativ': 'dekor',
+      'dekor': 'dekor',
       'santexnika': 'santexnika',
       'santexnik': 'santexnika',
     };
@@ -85,31 +76,31 @@ const ProductsGrid = ({
   };
 
   // Backend infinite pagination via React Query
-  const mappedCategory = useMemo(() => (
-    debouncedCategory && debouncedCategory !== 'all' && debouncedCategory !== ''
-      ? getCategoryApiValue(debouncedCategory)
-      : ''
-  ), [debouncedCategory]);
+  const mappedCategory = useMemo(() => {
+    const result = debouncedCategory && debouncedCategory !== 'all' && debouncedCategory !== ''
+      ? normalizeCategory(debouncedCategory)
+      : '';
 
-  // Super fast initial load with 6 products - IMMEDIATE RENDER
-  const {
-    data: fastData,
-    isLoading: fastLoading,
-    error: fastError,
-    isFetched: fastFetched
-  } = useFastProducts(debouncedCategory, searchQuery || '');
+    return result;
+  }, [debouncedCategory]);
 
-  // Show products immediately if available
-  const hasInitialProducts = fastData?.products?.length > 0;
-
-  // Use regular products hook to load all products at once
+  // Use regular products hook to load products
   const {
     data: allProductsData,
     isLoading,
     isFetching,
     error,
     refetch
-  } = useProducts(mappedCategory, searchQuery || '', 1, 10000); // Load up to 10000 products at once
+  } = useProducts(mappedCategory, searchQuery || '', 1, 1000); // Load up to 1000 products at once
+  
+
+  
+  // Disable fast products for now - causing conflicts
+  const fastData = null;
+  const fastLoading = false;
+  const fastError = null;
+  const fastFetched = false;
+  const hasInitialProducts = false;
 
   // Current page state for pagination
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
@@ -131,12 +122,9 @@ const ProductsGrid = ({
     // Use full products data if available
     if (allProductsData && allProductsData.products && allProductsData.products.length > 0) {
       products = [...allProductsData.products];
-
-
     } else if (fastData && fastData.products && fastData.products.length > 0) {
       // Fallback to fast data for immediate display
       products = [...fastData.products];
-
     }
     
     return products;

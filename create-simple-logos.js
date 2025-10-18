@@ -74,13 +74,13 @@ function createTextLogo(isDark = true, width = 200, height = 60) {
     ctx.font = `bold ${height * 0.6}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    
+
     // Add text shadow for better visibility
     ctx.shadowColor = isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
     ctx.shadowBlur = 4;
     ctx.shadowOffsetX = 2;
     ctx.shadowOffsetY = 2;
-    
+
     ctx.fillText('ALI BOBO', width / 2, height / 2);
 
     return canvas;
@@ -113,7 +113,7 @@ try {
 
 // Add roundRect polyfill
 if (!CanvasRenderingContext2D.prototype.roundRect) {
-    CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, width, height, radius) {
         this.beginPath();
         this.moveTo(x + radius, y);
         this.lineTo(x + width - radius, y);

@@ -868,32 +868,36 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
       {/* Add/Edit Modal */}
       {isModalOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 modal z-50 flex items-center justify-center p-3 sm:p-4 overflow-hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 modal-overlay flex items-center justify-center p-4 overflow-hidden"
+          style={{ zIndex: 999999 }}
           onClick={closeModal}
         >
           <div
-            className="bg-white rounded-xl max-w-lg w-full max-h-[96vh] sm:max-h-[92vh] overflow-y-auto m-1 sm:m-0"
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-3 sm:p-5 border-b flex justify-between items-center">
-              <h3 className="text-base sm:text-lg font-bold text-primary-dark">
-                {selectedCraftsman ? 'Ustani tahrirlash' : 'Yangi usta qo\'shish'}
-              </h3>
-              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
-                <TimesFAIcon className="text-xl" />
-              </button>
+            <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-semibold text-gray-900">
+                  {selectedCraftsman ? 'Ustani tahrirlash' : 'Yangi usta qo\'shish'}
+                </h3>
+                <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <TimesFAIcon className="text-xl" />
+                </button>
+              </div>
             </div>
-            <form onSubmit={handleSubmit} className="p-3 sm:p-5 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Ism *</label>
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Ism *</label>
                   <input
                     type="text"
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-orange"
+                    placeholder="Ustaning ismini kiriting"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-orange focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -1027,26 +1031,26 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                 )}
               </div>
 
-              <div className="flex space-x-3 pt-4">
+              <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium"
+                  className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50"
+                  className="px-6 py-3 text-white bg-primary-orange hover:bg-opacity-90 disabled:bg-gray-400 rounded-lg font-medium transition-colors duration-200 flex items-center"
                 >
                   {isSubmitting ? (
-                    <span className="flex items-center justify-center">
+                    <>
                       <SpinnerFAIcon className="mr-2" />
                       Saqlanmoqda...
-                    </span>
+                    </>
                   ) : (
-                    selectedCraftsman ? 'Tahrirlash' : 'Qo\'shish'
+                    selectedCraftsman ? 'Yangilash' : 'Saqlash'
                   )}
                 </button>
               </div>
@@ -1058,20 +1062,23 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
       {/* View Modal */}
       {isViewModalOpen && selectedCraftsman && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 modal z-50 flex items-center justify-center p-3 sm:p-4 overflow-hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 modal-overlay flex items-center justify-center p-4 overflow-hidden"
+          style={{ zIndex: 999999 }}
           onClick={() => setIsViewModalOpen(false)}
         >
           <div
-            className="bg-white rounded-xl max-w-lg w-full max-h-[96vh] sm:max-h-[92vh] overflow-y-auto m-1 sm:m-0"
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-3 sm:p-5 border-b flex justify-between items-center">
-              <h3 className="text-base sm:text-lg font-bold text-primary-dark">Usta ma'lumotlari</h3>
-              <button onClick={() => setIsViewModalOpen(false)} className="text-gray-500 hover:text-gray-700">
-                <TimesFAIcon className="text-xl" />
-              </button>
+            <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-semibold text-gray-900">Usta ma'lumotlari</h3>
+                <button onClick={() => setIsViewModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <TimesFAIcon className="text-xl" />
+                </button>
+              </div>
             </div>
-            <div className="p-3 sm:p-5 space-y-4">
+            <div className="p-6 space-y-6">
               {(() => { var _data = selectedCraftDetail || selectedCraftsman; return (
                 <>
                   <div className="flex items-center space-x-4">
@@ -1124,10 +1131,10 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                   )}
                 </>
               ); })()}
-              <div className="flex space-x-3 pt-4">
+              <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
                 <button
                   onClick={() => setIsViewModalOpen(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium"
+                  className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200"
                 >
                   Yopish
                 </button>
@@ -1136,7 +1143,7 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                     setIsViewModalOpen(false);
                     openEditModal(selectedCraftsman);
                   }}
-                  className="flex-1 px-4 py-2 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 font-medium"
+                  className="px-6 py-3 text-white bg-primary-orange hover:bg-opacity-90 rounded-lg font-medium transition-colors duration-200"
                 >
                   Tahrirlash
                 </button>

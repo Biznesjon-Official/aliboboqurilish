@@ -23,6 +23,7 @@ const MainPage = lazy(() =>
 const ProductDetailPage = lazy(() => import('./components/ProductDetailPage'));
 // Lazy load the entire admin section to keep it out of main bundle
 const AdminRoutes = lazy(() => import('./components/AdminRoutes'));
+const TestProductUpdate = lazy(() => import('./components/TestProductUpdate'));
 
 // App content component that uses QueryClient context
 function AppContent() {
@@ -140,6 +141,11 @@ function AppContent() {
         <Route path="/craftsmen" element={
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="text-lg">Yuklanmoqda...</div></div>}>
             <MainPage onSuccessfulLogin={handleSuccessfulLogin} initialSection="craftsmen" />
+          </Suspense>
+        } />
+        <Route path="/test-product-update" element={
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="text-lg">Test sahifasi yuklanmoqda...</div></div>}>
+            <TestProductUpdate />
           </Suspense>
         } />
         <Route path="/admin/*" element={

@@ -376,7 +376,7 @@ const Header = ({
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Admin Panel</h2>
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-4" autoComplete="off" data-form-type="other">
               <div>
                 <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
                   Login
@@ -386,6 +386,9 @@ const Header = ({
                   id="username"
                   name="username"
                   required
+                  autoComplete="off"
+                  data-lpignore="true"
+                  data-form-type="other"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-orange"
@@ -402,6 +405,9 @@ const Header = ({
                   id="password"
                   name="password"
                   required
+                  autoComplete="off"
+                  data-lpignore="true"
+                  data-form-type="other"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-orange"
