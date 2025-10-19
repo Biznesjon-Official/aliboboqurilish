@@ -30,7 +30,8 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     safeNotifySuccess,
     safeNotifyError,
     safeNotifyWarning,
-    addNotification
+    addNotification,
+    notifyOrderReceived
   } = useNotifications();
 
   const [orders, setOrders] = useState([]);
