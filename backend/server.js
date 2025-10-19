@@ -382,9 +382,7 @@ if (enableClustering && cluster.isPrimary) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
-        if (process.env.DEBUG === 'true') {
-          console.log(`[STATIC] Serving image: ${path}`);
-        }
+        // Image serving log removed to reduce console spam
       } else {
         // Production: 7 days cache
         res.setHeader('Cache-Control', 'public, max-age=604800');

@@ -32,7 +32,7 @@ class SocketService {
             
             // Always allow requests in development mode
             if (process.env.NODE_ENV === 'development') {
-              console.log(`⚠️  Socket.IO request from origin: ${origin}`);
+              // Removed origin log to reduce console spam
               return callback(null, true);
             }
             

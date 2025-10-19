@@ -14,21 +14,8 @@ import {
 import AdminNotificationBell from './AdminNotificationBell';
 import AdminNotificationModals from './AdminNotificationModals';
 import useNotifications from '../hooks/useNotifications';
-import useRealNotifications from '../hooks/useRealNotifications';
 
 const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileToggle }) => {
-  // Real notification system for notification bell
-  const {
-    notifications: realNotifications,
-    setNotifications: setRealNotifications,
-    unreadCount,
-    markAllAsRead,
-    markAsRead,
-    deleteNotification,
-    deleteAllNotifications,
-    notifyOrderReceived,
-    notifyOrderDeleted
-  } = useRealNotifications(true, 30000);
 
   // Demo notification system for modals
   const {
@@ -47,7 +34,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
   } = useNotifications();
 
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -116,124 +103,61 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     return statusOptions.filter((o) => o.value);
   };
 
-  // Load orders function - memoized to prevent recreating on every render
-  const loadOrders = useCallback(async () => {
+  // Manual load function - NO AUTOMATIC LOADING
+  const loadOrders = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: '1',
-        limit: '1000',
-      });
-
-      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
-
-      let sortedOrders = [];
-      let totalCount = 0;
-
-      try {
-        const url = `${base}/orders?${params.toString()}`;
-
-
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(5000)
-        });
-        const data = await response.json();
-
-
-
-        if (response.ok) {
-          const apiOrders = data.orders || [];
-
-          sortedOrders = apiOrders.sort((a, b) => {
-            const dateA = new Date(a.createdAt || a.orderDate);
-            const dateB = new Date(b.createdAt || b.orderDate);
-            return dateB - dateA;
-          });
-          totalCount = data.pagination?.totalCount || apiOrders.length;
-        } else {
-          throw new Error(data.message || 'API error');
-        }
-      } catch (apiError) {
-
-        sortedOrders = [];
-        totalCount = 0;
+      console.log('🔄 Loading orders...');
+      
+      const response = await fetch('http://localhost:5000/api/orders?page=1&limit=1000');
+      console.log('📡 Response status:', response.status);
+      
+      const data = await response.json();
+      console.log('📦 Response data:', data);
+      
+      if (response.ok && data.orders) {
+        setOrders(data.orders);
+        setTotalCount(data.orders.length);
+        console.log('✅ Orders loaded:', data.orders.length);
+      } else {
+        console.log('❌ Response not ok or no orders');
+        setOrders([]);
+        setTotalCount(0);
       }
-
-      setOrders(sortedOrders);
-      setTotalCount(prevCount => {
-        if (prevCount !== totalCount && onCountChange) {
-          onCountChange(totalCount);
-        }
-        return totalCount;
-      });
-
-
     } catch (error) {
       console.error('❌ Error loading orders:', error);
       setOrders([]);
-      setTotalCount(prevCount => {
-        if (prevCount !== 0 && onCountChange) {
-          onCountChange(0);
-        }
-        return 0;
-      });
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
-  }, []); // Empty dependency array since this function doesn't depend on any props or state
-
-  // Load orders on component mount - optimized to prevent remounting
-  const mountedRef = useRef(true);
-  const intervalRef = useRef(null);
-
-  useEffect(() => {
-
-
-    // Clear any existing interval
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-
-    loadOrders();
-
-    // Set up interval for periodic refresh
-    intervalRef.current = setInterval(() => {
-      if (mountedRef.current) {
-
-        loadOrders();
-      }
-    }, 30000);
-
-    return () => {
-
-      mountedRef.current = false;
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, []); // Keep empty dependency array
+  };
 
   // Client-side filtering
   const filteredOrders = useMemo(() => {
+    console.log('🔍 Filtering orders. Total orders:', orders.length);
+    console.log('📋 Orders array:', orders);
+    console.log('🎯 Filter status:', filterStatus);
+    console.log('🔎 Search term:', searchTerm);
+    
     let filtered = [...orders];
 
     if (filterStatus) {
       filtered = filtered.filter(order => order.status === filterStatus);
+      console.log('📊 After status filter:', filtered.length);
     }
 
     if (searchTerm.trim()) {
-      const search = searchTerm.toLowerCase().trim();
+      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(order =>
-        order.customerName?.toLowerCase().includes(search) ||
-        order.customerPhone?.includes(search) ||
-        order._id?.toLowerCase().includes(search) ||
-        order.notes?.toLowerCase().includes(search)
+        order.customerName?.toLowerCase().includes(term) ||
+        order.customerPhone?.includes(term) ||
+        order._id?.toLowerCase().includes(term)
       );
+      console.log('📊 After search filter:', filtered.length);
     }
 
+    console.log('✅ Final filtered orders:', filtered.length);
     return filtered;
   }, [orders, filterStatus, searchTerm]);
 
@@ -241,7 +165,9 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
   const paginatedOrders = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return filteredOrders.slice(startIndex, endIndex);
+    const paginated = filteredOrders.slice(startIndex, endIndex);
+    console.log('📄 Pagination - Start:', startIndex, 'End:', endIndex, 'Result:', paginated.length);
+    return paginated;
   }, [filteredOrders, currentPage, itemsPerPage]);
 
   // Update total pages when filtered orders change
@@ -253,6 +179,13 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
       setCurrentPage(1);
     }
   }, [filteredOrders.length, itemsPerPage, currentPage]);
+
+  // Update parent component when totalCount changes
+  useEffect(() => {
+    if (onCountChange) {
+      onCountChange(totalCount);
+    }
+  }, [totalCount, onCountChange]);
 
   // Detect new orders and notify admin - optimized
   useEffect(() => {
@@ -333,15 +266,18 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
 
   const closeViewModal = () => {
     setIsViewModalOpen(false);
-    setSelectedOrder(null);
   };
 
   const deleteOrder = async (id) => {
     try {
+      console.log('🗑️ Deleting order with ID:', id);
       const deletedOrder = orders.find(o => o._id === id);
 
       const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
-      const response = await fetch(`${base}/orders/${id}`, {
+      const url = `${base}/orders/${id}`;
+      console.log('🌐 Delete URL:', url);
+      
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -355,20 +291,12 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
 
       setOrders(prevOrders => prevOrders.filter(order => order._id !== id));
 
-      setTotalCount(prevCount => {
-        const newCount = prevCount - 1;
-        onCountChange(newCount);
-        return newCount;
-      });
+      setTotalCount(prevCount => prevCount - 1);
 
       setTimeout(() => {
         const orderIndex = orders.findIndex(o => o._id === id);
         const orderNumber = String(orderIndex + 1).padStart(4, '0');
         safeNotifySuccess("Buyurtma o'chirildi", `Buyurtma #${orderNumber} muvaffaqiyatli o'chirildi`);
-
-        if (deletedOrder) {
-          notifyOrderDeleted(deletedOrder);
-        }
 
         addNotification({
           title: "Buyurtma o'chirildi",
@@ -694,6 +622,8 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
       </div>
     );
 
+    console.log('🎨 Rendering orders. Paginated count:', paginatedOrders.length);
+    
     return (
       <div className="space-y-2">
         {paginatedOrders.map((order, index) => (
@@ -742,13 +672,9 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
               <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Buyurtmalar</h1>
             </div>
             <div className="flex items-center">
-              <AdminNotificationBell
-                notifications={realNotifications}
-                unreadCount={unreadCount}
-                markAsRead={markAsRead}
-                markAllAsRead={markAllAsRead}
-                deleteNotification={deleteNotification}
-                deleteAllNotifications={deleteAllNotifications}
+              <AdminNotificationBell 
+                notifications={notifications}
+                setNotifications={setNotifications}
               />
             </div>
           </div>
@@ -772,10 +698,11 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
                     className="pl-9 pr-20 py-2 w-full border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
                   />
                   <button
-                    onClick={() => { }}
-                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-r-lg transition-colors duration-200"
+                    onClick={loadOrders}
+                    disabled={loading}
+                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white text-sm font-medium rounded-r-lg transition-colors duration-200"
                   >
-                    Qidirish
+                    {loading ? 'Yuklanmoqda...' : 'Yuklash'}
                   </button>
                   {searchTerm && (
                     <button

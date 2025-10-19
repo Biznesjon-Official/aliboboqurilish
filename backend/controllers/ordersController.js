@@ -178,11 +178,15 @@ const getOrderById = async (req, res) => {
 
 // POST create new order with optimized inventory synchronization
 const createOrder = async (req, res) => {
+  console.log('🛒 CREATE ORDER REQUEST RECEIVED');
+  console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
+  
   const session = await mongoose.startSession();
   
   try {
     // CRITICAL: Store events to emit after successful commit
     let postCommitEvents = [];
+    let createdOrder = null; // Store the actual order object
     
     const result = await session.withTransaction(async () => {
       const orderData = req.body;
@@ -366,7 +370,28 @@ const createOrder = async (req, res) => {
         totalAmount: totalOrderAmount // Use calculated amount
       });
       
+      // Send Telegram notification BEFORE saving to database
+      console.log('🔔 Sending Telegram notification BEFORE saving to database...');
+      try {
+        console.log('📨 Calling telegramService.sendOrderNotification with order data');
+        await telegramService.sendOrderNotification({
+          _id: 'temp-' + Date.now(), // Temporary ID for notification
+          customerName: orderData.customerName,
+          customerPhone: orderData.customerPhone,
+          customerAddress: orderData.customerAddress,
+          items: orderData.items,
+          totalAmount: totalOrderAmount,
+          status: orderData.status,
+          orderDate: orderData.orderDate
+        });
+        console.log('✅ Telegram notification sent successfully BEFORE database save');
+      } catch (telegramError) {
+        console.error('❌ Failed to send Telegram notification BEFORE save:', telegramError);
+        throw new Error('Telegram notification failed - order not saved: ' + telegramError.message);
+      }
+
       const savedOrder = await order.save({ session });
+      createdOrder = savedOrder; // Store for use outside transaction
       
       // CRITICAL: Prepare post-commit events (but don't emit yet)
       postCommitEvents = [
@@ -390,16 +415,23 @@ const createOrder = async (req, res) => {
       ];
       
       console.log(`✅ TX_COMMIT: Order created successfully: ${savedOrder._id}`);
+      console.log('🔄 Transaction completed, preparing to return order...');
       
       return savedOrder;
     }, {
       readConcern: { level: 'snapshot' },
       writeConcern: { w: 'majority' },
+      readPreference: 'primary',
       maxCommitTimeMS: 10000 // 10 second timeout
     });
     
+    console.log('🔍 Transaction result:', result);
+    console.log('🔍 Result type:', typeof result);
+    console.log('🔍 Result _id:', result?._id);
+    
     // CRITICAL: EMIT EVENTS ONLY AFTER SUCCESSFUL COMMIT
     console.log(`📡 EMIT_START: Broadcasting ${postCommitEvents.length} real-time events`);
+    console.log('🎯 Order creation transaction completed, starting post-commit tasks...');
     postCommitEvents.forEach(({ type, data }) => {
       switch (type) {
         case 'order:updated':
@@ -428,13 +460,8 @@ const createOrder = async (req, res) => {
       // Don't fail the request if notification fails
     }
 
-    // Step 5.5: Send Telegram notification
-    try {
-      await telegramService.sendOrderNotification(result);
-    } catch (telegramError) {
-      console.error('Failed to send Telegram notification:', telegramError);
-      // Don't fail the request if Telegram notification fails
-    }
+    // Telegram notification already sent BEFORE database save
+    console.log('✅ Telegram notification was sent BEFORE database save');
     
     // Invalidate cache after successful order creation
     invalidateCache();

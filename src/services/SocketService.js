@@ -69,30 +69,37 @@ class SocketService {
 
     this.socket.on('disconnect', (reason) => {
       this.isConnected = false;
-      if (DEBUG) console.log('❌ Disconnected from Socket.IO server:', reason);
+      // Only log disconnect in debug mode to reduce console spam
+      if (DEBUG) console.log('🔗 Socket disconnected:', reason);
       
       // Reset reconnect attempts on clean disconnect
       if (reason === 'io server disconnect' || reason === 'io client disconnect') {
         this.reconnectAttempts = 0;
       }
+      
+      // Don't attempt reconnection if it's a transport close or client disconnect
+      if (reason === 'transport close' || reason === 'transport error') {
+        // These are normal in development when server restarts
+        return;
+      }
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error);
+      // Only log connection errors in debug mode to reduce console spam
+      if (DEBUG) console.log('🔗 Socket connection error:', error.message || error);
       this.reconnectAttempts++;
+      
+      // In development, if we keep failing, disable socket connection to prevent spam
+      if (this.isDevelopment && this.reconnectAttempts > 3) {
+        if (DEBUG) console.log('🔧 Development mode: Disabling socket connection to prevent spam');
+        this.disconnect();
+        return;
+      }
       
       // Implement exponential backoff for connection errors
       if (this.reconnectAttempts <= this.maxReconnectAttempts) {
         const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
         if (DEBUG) console.log(`🔄 Retrying connection in ${delay/1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-      } else {
-        if (DEBUG) console.warn('⚠️ Max reconnection attempts reached. Socket will retry automatically.');
-      }
-      
-      // In development, if we keep failing, disable socket connection to prevent spam
-      if (this.isDevelopment && this.reconnectAttempts > 5) {
-        if (DEBUG) console.log('🔧 Development mode: Disabling socket connection to prevent spam');
-        this.disconnect();
       }
     });
 

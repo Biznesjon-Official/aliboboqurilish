@@ -83,10 +83,18 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include'
           });
-          if (!resp.ok) return;
+          if (!resp.ok) {
+            // Silently fail for 404 or other errors to prevent console spam
+            return;
+          }
           const data = await resp.json();
           if (!abort) setDetail(data);
-        } catch (_) {}
+        } catch (error) {
+          // Only log if it's not an abort error
+          if (error.name !== 'AbortError') {
+            // Silently fail to prevent console spam in development
+          }
+        }
       };
       if (craftsman && craftsman._id && initialImages.length <= 1) {
         fetchDetail();

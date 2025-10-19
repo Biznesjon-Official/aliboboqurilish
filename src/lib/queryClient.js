@@ -197,7 +197,8 @@ export const prefetchQueries = {
         } catch (error) {
           // More specific error handling
           if (error.name === 'AbortError') {
-            console.warn('Request aborted or timed out');
+            // Silently handle timeout/abort to prevent console spam
+            return { products: [], totalPages: 0, totalProducts: 0 };
           } else {
             console.error('Error prefetching products list:', error);
           }
@@ -224,6 +225,11 @@ export const prefetchQueries = {
           if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
           return await response.json();
         } catch (error) {
+          // Silently handle errors to prevent console spam
+          if (error.name === 'AbortError') {
+            return { craftsmen: [], totalPages: 0, totalCraftsmen: 0 };
+          }
+          // Only log non-abort errors
           console.error('Error prefetching craftsmen list:', error);
           throw error;
         }

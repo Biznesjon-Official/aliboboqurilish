@@ -47,9 +47,7 @@ const fetchProducts = async ({ category = '', search = '', page = 1, limit = 200
   const isJson = (res) => (res.headers.get('content-type') || '').includes('application/json');
 
   if (!response.ok || !isJson(response)) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[fetchProducts] Primary endpoint failed or not JSON:', primaryUrl, response.status, response.statusText, response.headers.get('content-type'));
-    }
+    // Silently try fallback without logging to prevent console spam
 
     // Try fallback endpoint
     response = await fetch(fallbackUrl, {

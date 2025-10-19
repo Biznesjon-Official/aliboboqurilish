@@ -1,4 +1,18 @@
+import { useCallback } from 'react';
 import { prefetchQueries } from '../lib/queryClient';
+
+// Debounce utility function
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 const CategoryNavigation = ({
   categories = [],
@@ -26,12 +40,19 @@ const CategoryNavigation = ({
     }
   };
 
-  const handleCategoryHover = (category) => {
-    try {
-      // Warm the first page for this category for instant switch
-      prefetchQueries.productsList(category.name || '', '', 20);
-    } catch { }
-  };
+  const handleCategoryHover = useCallback(
+    debounce((category) => {
+      try {
+        // Only prefetch if not already selected and not currently loading
+        if (category.name !== selectedCategory) {
+          prefetchQueries.productsList(category.name || '', '', 20);
+        }
+      } catch { 
+        // Silently fail to prevent console spam
+      }
+    }, 300), // 300ms debounce to prevent excessive requests
+    [selectedCategory]
+  );
 
   return (
     <div className={`w-full border-b border-gray-200 ${className}`}>

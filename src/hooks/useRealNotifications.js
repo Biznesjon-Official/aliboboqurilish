@@ -209,7 +209,7 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
         requestInProgress = false;
       }
     }
-  }, [notifications, formatTimeAgo, unreadCount]);
+  }, []); // Empty dependency to prevent infinite loop
 
   // Mark notification as read
   const markAsRead = useCallback(async (notificationId) => {
@@ -447,8 +447,8 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
         clearInterval(refreshTimerRef.current);
       }
       
-      // Set up new timer with adaptive interval based on unread count
-      const adaptiveInterval = unreadCount > 0 ? Math.min(refreshInterval, 15000) : refreshInterval;
+      // Set up new timer with fixed interval to prevent infinite loops
+      const adaptiveInterval = refreshInterval;
       
       refreshTimerRef.current = setInterval(() => {
         if (isMountedRef.current) {
@@ -463,7 +463,12 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
         refreshTimerRef.current = null;
       }
     };
-  }, [autoRefresh, fetchNotifications, refreshInterval, unreadCount]);
+  }, [autoRefresh, refreshInterval]); 
+
+  const throttledFetchNotifications = useCallback(
+    throttle(fetchNotifications, 1000, { leading: true, trailing: false }),
+    [] 
+  );
 
   return {
     notifications,
@@ -472,6 +477,7 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
     error,
     unreadCount,
     fetchNotifications,
+    throttledFetchNotifications,
     markAsRead,
     markAllAsRead,
     createNotification,

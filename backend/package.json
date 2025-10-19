@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "start:dev": "cross-env NODE_ENV=development SKIP_INDEX_CREATION=false ENABLE_CLUSTERING=false DEBUG=false node server.js",
-    "start:fast": "cross-env NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=false node server.js",
+    "start:fast": "cross-env NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=true node server.js",
     "start:turbo": "cross-env NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=false MICROCACHE_TTL_MS=2000 node server.js",
     "dev": "nodemon server.js",
     "optimize-db": "node scripts/optimize-database.js",
