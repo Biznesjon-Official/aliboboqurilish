@@ -2,7 +2,7 @@
 const https = require('https');
 
 const BOT_TOKEN = '8084499185:AAH2oQQn7b0adh9I0V97wK5_4FqfLFn50nE';
-const CHAT_ID = '-1003163359028';
+const CHAT_ID = '-1002936933249';
 
 // Test bot info
 const botInfoUrl = `https://api.telegram.org/bot${BOT_TOKEN}/getMe`;
