@@ -454,7 +454,7 @@ const createOrder = async (req, res) => {
     
     // Step 5: Generate notification and clear cache (outside transaction)
     try {
-      await NotificationService.createOrderNotification('created', result, 'Admin');
+      NotificationService.notifyNewOrder(result);
     } catch (notificationError) {
       console.error('Failed to create order notification:', notificationError);
       // Don't fail the request if notification fails
@@ -648,7 +648,7 @@ const updateOrderStatus = async (req, res) => {
       
       console.log(`✅ Order status updated: ${updatedOrder._id} -> ${status}`);
       
-      return updatedOrder;
+      return { updatedOrder, oldStatus: currentOrder.status };
     }, {
       readConcern: { level: 'snapshot' },
       writeConcern: { w: 'majority' },
@@ -657,14 +657,14 @@ const updateOrderStatus = async (req, res) => {
     
     // Generate notification (outside transaction)
     try {
-      await NotificationService.createOrderNotification('updated', result, 'Admin');
+      NotificationService.notifyOrderStatusUpdate(result.updatedOrder, result.oldStatus, result.updatedOrder.status);
     } catch (notificationError) {
       console.error('Failed to create order status update notification:', notificationError);
     }
 
     // Send Telegram status update notification
     try {
-      await telegramService.sendOrderStatusUpdate(result, result.status);
+      await telegramService.sendOrderStatusUpdate(result.updatedOrder, result.updatedOrder.status);
     } catch (telegramError) {
       console.error('Failed to send Telegram status update:', telegramError);
     }
@@ -675,7 +675,7 @@ const updateOrderStatus = async (req, res) => {
     res.json({
       success: true,
       message: 'Buyurtma holati muvaffaqiyatli yangilandi',
-      order: result
+      order: result.updatedOrder
     });
     
   } catch (error) {
@@ -928,7 +928,18 @@ const cancelOrder = async (req, res) => {
         }
       }
       
-      await NotificationService.createOrderNotification('deleted', result, 'Admin');
+      NotificationService.notifyAdmin({
+        title: 'Buyurtma bekor qilindi',
+        message: `Buyurtma #${result._id} bekor qilindi`,
+        type: 'order_cancelled',
+        icon: 'fa-times-circle',
+        color: 'danger',
+        data: result,
+        action: {
+          label: 'Ko\'rish',
+          url: `/admin/orders/${result._id}`,
+        },
+      });
     } catch (notificationError) {
       console.error('Failed to create order cancellation notification:', notificationError);
       // Don't fail the request if notification fails

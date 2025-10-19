@@ -105,23 +105,17 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
   };
 
   // Manual load function - NO AUTOMATIC LOADING
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔄 Loading orders...');
       
       const response = await fetch('http://localhost:5000/api/orders?page=1&limit=1000');
-      console.log('📡 Response status:', response.status);
-      
       const data = await response.json();
-      console.log('📦 Response data:', data);
       
       if (response.ok && data.orders) {
         setOrders(data.orders);
         setTotalCount(data.orders.length);
-        console.log('✅ Orders loaded:', data.orders.length);
       } else {
-        console.log('❌ Response not ok or no orders');
         setOrders([]);
         setTotalCount(0);
       }
@@ -132,20 +126,15 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Client-side filtering
   const filteredOrders = useMemo(() => {
-    console.log('🔍 Filtering orders. Total orders:', orders.length);
-    console.log('📋 Orders array:', orders);
-    console.log('🎯 Filter status:', filterStatus);
-    console.log('🔎 Search term:', searchTerm);
     
     let filtered = [...orders];
 
     if (filterStatus) {
       filtered = filtered.filter(order => order.status === filterStatus);
-      console.log('📊 After status filter:', filtered.length);
     }
 
     if (searchTerm.trim()) {
@@ -155,10 +144,8 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         order.customerPhone?.includes(term) ||
         order._id?.toLowerCase().includes(term)
       );
-      console.log('📊 After search filter:', filtered.length);
     }
 
-    console.log('✅ Final filtered orders:', filtered.length);
     return filtered;
   }, [orders, filterStatus, searchTerm]);
 
@@ -167,7 +154,6 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const paginated = filteredOrders.slice(startIndex, endIndex);
-    console.log('📄 Pagination - Start:', startIndex, 'End:', endIndex, 'Result:', paginated.length);
     return paginated;
   }, [filteredOrders, currentPage, itemsPerPage]);
 
@@ -242,34 +228,52 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     };
   }, [isViewModalOpen, alertModal?.show, confirmModal?.show, promptModal?.show]);
 
-  const openViewModal = (order) => {
+  const openViewModal = useCallback((order) => {
     setSelectedOrder(order);
     setIsViewModalOpen(true);
-  };
+  }, []);
 
   const handleOrderClick = (order) => {
     openViewModal(order);
   };
 
-  const openDeleteConfirm = (order) => {
-    const customerName = order.customerName || 'Noma\'lum mijoz';
+  const formatCurrency = useCallback((amount) => {
+    if (!amount || isNaN(amount)) return "0 so'm";
+    return new Intl.NumberFormat('uz-UZ').format(amount) + " so'm";
+  }, []);
 
-    showConfirm(
-      'Buyurtmani o\'chirish',
-      `"${customerName}" buyurtmasini o\'chirishni xohlaysizmi?`,
-      () => deleteOrder(order._id),
-      () => {
+  const formatPhoneNumber = useCallback((phone) => {
+    if (!phone) return '';
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 12 && cleaned.startsWith('998')) {
+      const code = cleaned.substring(3, 5);
+      const number = cleaned.substring(5);
+      return `+998 (${code}) ${number.substring(0, 3)}-${number.substring(3, 5)}-${number.substring(5)}`;
+    }
+    return phone;
+  }, []);
 
-      },
-      'danger'
-    );
-  };
+  const formatDate = useCallback((date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}.${month}.${year}`;
+  }, []);
 
-  const closeViewModal = () => {
-    setIsViewModalOpen(false);
-  };
+  const formatDateTime = useCallback((date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = d.getHours().toString().padStart(2, '0');
+    const minutes = d.getMinutes().toString().padStart(2, '0');
+    return `${day}.${month}.${year} ${hours}:${minutes}`;
+  }, []);
 
-  const deleteOrder = async (id) => {
+  const deleteOrder = useCallback(async (id) => {
     try {
       console.log('🗑️ Deleting order with ID:', id);
       const deletedOrder = orders.find(o => o._id === id);
@@ -318,9 +322,27 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         safeNotifyError('Xatolik', error.message || "Server bilan bog'lanishda xatolik");
       }, 0);
     }
+  }, [orders, currentPage, loadOrders, safeNotifyError, safeNotifySuccess, addNotification, formatCurrency]);
+
+  const openDeleteConfirm = useCallback((order) => {
+    const customerName = order.customerName || 'Noma\'lum mijoz';
+
+    showConfirm(
+      'Buyurtmani o\'chirish',
+      `"${customerName}" buyurtmasini o\'chirishni xohlaysizmi?`,
+      () => deleteOrder(order._id),
+      () => {
+
+      },
+      'danger'
+    );
+  }, [showConfirm, deleteOrder]);
+
+  const closeViewModal = () => {
+    setIsViewModalOpen(false);
   };
 
-  const updateOrderStatus = async (orderId, newStatus) => {
+  const updateOrderStatus = useCallback(async (orderId, newStatus) => {
     try {
       setOrders(prevOrders =>
         prevOrders.map(order =>
@@ -382,43 +404,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         safeNotifyError('Xatolik', error.message || "Server bilan bog'lanishda xatolik");
       }, 0);
     }
-  };
-
-  const formatCurrency = (amount) => {
-    if (!amount || isNaN(amount)) return "0 so'm";
-    return new Intl.NumberFormat('uz-UZ').format(amount) + " so'm";
-  };
-
-  const formatPhoneNumber = (phone) => {
-    if (!phone) return '';
-    const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.length === 12 && cleaned.startsWith('998')) {
-      const code = cleaned.substring(3, 5);
-      const number = cleaned.substring(5);
-      return `+998 (${code}) ${number.substring(0, 3)}-${number.substring(3, 5)}-${number.substring(5)}`;
-    }
-    return phone;
-  };
-
-  const formatDate = (date) => {
-    if (!date) return '';
-    const d = new Date(date);
-    const day = d.getDate().toString().padStart(2, '0');
-    const month = (d.getMonth() + 1).toString().padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}.${month}.${year}`;
-  };
-
-  const formatDateTime = (date) => {
-    if (!date) return '';
-    const d = new Date(date);
-    const day = d.getDate().toString().padStart(2, '0');
-    const month = (d.getMonth() + 1).toString().padStart(2, '0');
-    const year = d.getFullYear();
-    const hours = d.getHours().toString().padStart(2, '0');
-    const minutes = d.getMinutes().toString().padStart(2, '0');
-    return `${day}.${month}.${year} ${hours}:${minutes}`;
-  };
+  }, [selectedOrder, statusMap, safeNotifySuccess, safeNotifyError, loadOrders]);
 
   const changePage = (direction) => {
     setCurrentPage(prev => {
@@ -623,8 +609,6 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
       </div>
     );
 
-    console.log('🎨 Rendering orders. Paginated count:', paginatedOrders.length);
-    
     return (
       <div className="space-y-2">
         {paginatedOrders.map((order, index) => (
@@ -636,7 +620,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         ))}
       </div>
     );
-  }, [orders, loading, filteredOrders, paginatedOrders, totalCount, currentPage, itemsPerPage, statusMap, formatDate, formatPhoneNumber, formatCurrency, updateOrderStatus, openViewModal, openDeleteConfirm, searchTerm, filterStatus]);
+  }, [loading, filteredOrders, paginatedOrders, totalCount, currentPage, itemsPerPage, updateOrderStatus, openViewModal, openDeleteConfirm, searchTerm, filterStatus, formatDate, formatPhoneNumber, formatCurrency]);
 
   return (
     <div className="min-h-screen bg-gray-50">
