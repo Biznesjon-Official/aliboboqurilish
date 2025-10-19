@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   SearchFAIcon,
   TimesFAIcon,
@@ -14,6 +15,10 @@ import {
 import AdminNotificationBell from './AdminNotificationBell';
 import AdminNotificationModals from './AdminNotificationModals';
 import useNotifications from '../hooks/useNotifications';
+
+// Global flag to prevent multiple loads across component remounts
+let globalOrdersLoaded = false;
+let globalOrdersData = [];
 
 const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileToggle }) => {
 
@@ -34,21 +39,23 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     notifyOrderReceived
   } = useNotifications();
 
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState(globalOrdersData || []);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(globalOrdersData?.length || 0);
   const [isMobile, setIsMobile] = useState(false);
   const [previousOrderCount, setPreviousOrderCount] = useState(0);
   const previousOrderIdsRef = useRef(new Set());
+  const hasLoadedRef = useRef(false);
 
   // Modal states
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [modalPosition, setModalPosition] = useState({ top: '2rem' });
 
   // Table scroll ref
   const tableScrollRef = useRef(null);
@@ -104,12 +111,15 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     return statusOptions.filter((o) => o.value);
   };
 
-  // Manual load function - NO AUTOMATIC LOADING
+  // Manual load orders function for button clicks
   const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
+      hasLoadedRef.current = true; // Mark as loaded for manual refresh too
+      globalOrdersLoaded = true; // Mark globally as loaded
       
-      const response = await fetch('http://localhost:5000/api/orders?page=1&limit=1000');
+      const base = process.env.REACT_APP_API_BASE || 'http://localhost:5000/api';
+      const response = await fetch(`${base}/orders?page=1&limit=1000`);
       const data = await response.json();
       
       if (response.ok && data.orders) {
@@ -128,9 +138,55 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     }
   }, []);
 
+  // Load orders on component mount - ONLY ONCE with loading check
+  useEffect(() => {
+    // First, restore from global data if available
+    if (globalOrdersData.length > 0 && orders.length === 0) {
+      setOrders(globalOrdersData);
+      setTotalCount(globalOrdersData.length);
+      return;
+    }
+    
+    const fetchOrders = async () => {
+      // Prevent multiple simultaneous requests or if already loaded
+      if (loading || hasLoadedRef.current || globalOrdersLoaded) {
+        return;
+      }
+      
+      hasLoadedRef.current = true; // Mark as loaded immediately
+      globalOrdersLoaded = true; // Mark globally as loaded
+      
+      try {
+        setLoading(true);
+        
+        const base = process.env.REACT_APP_API_BASE || 'http://localhost:5000/api';
+        const response = await fetch(`${base}/orders?page=1&limit=1000`);
+        const data = await response.json();
+        
+        if (response.ok && data.orders) {
+          globalOrdersData = data.orders; // Store globally
+          setOrders(data.orders);
+          setTotalCount(data.orders.length);
+        } else {
+          globalOrdersData = [];
+          setOrders([]);
+          setTotalCount(0);
+        }
+      } catch (error) {
+        console.error('❌ Error loading orders:', error);
+        setOrders([]);
+        setTotalCount(0);
+        hasLoadedRef.current = false; // Reset on error to allow retry
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchOrders();
+  }, []); // Empty dependency array to run only once
+
   // Client-side filtering
   const filteredOrders = useMemo(() => {
-    
     let filtered = [...orders];
 
     if (filterStatus) {
@@ -228,13 +284,28 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     };
   }, [isViewModalOpen, alertModal?.show, confirmModal?.show, promptModal?.show]);
 
-  const openViewModal = useCallback((order) => {
+  const openViewModal = useCallback((order, event) => {
+    // Calculate position based on clicked element
+    if (event && event.currentTarget) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const clickedElementTop = rect.top + scrollTop;
+      
+      // Position modal near the clicked element, but ensure it's visible
+      const modalTop = Math.max(scrollTop + 20, clickedElementTop - 100);
+      setModalPosition({ top: `${modalTop}px` });
+    } else {
+      // Fallback to current scroll position + 2rem
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      setModalPosition({ top: `${scrollTop + 32}px` });
+    }
+    
     setSelectedOrder(order);
     setIsViewModalOpen(true);
   }, []);
 
-  const handleOrderClick = (order) => {
-    openViewModal(order);
+  const handleOrderClick = (order, event) => {
+    openViewModal(order, event);
   };
 
   const formatCurrency = useCallback((amount) => {
@@ -275,12 +346,10 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
 
   const deleteOrder = useCallback(async (id) => {
     try {
-      console.log('🗑️ Deleting order with ID:', id);
       const deletedOrder = orders.find(o => o._id === id);
 
       const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
       const url = `${base}/orders/${id}`;
-      console.log('🌐 Delete URL:', url);
       
       const response = await fetch(url, {
         method: 'DELETE',
@@ -294,9 +363,13 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         throw new Error(errorData.message || 'Buyurtmani o\'chirishda xatolik');
       }
 
-      setOrders(prevOrders => prevOrders.filter(order => order._id !== id));
-
-      setTotalCount(prevCount => prevCount - 1);
+      // Update local state immediately - don't reload from server
+      const updatedOrders = orders.filter(order => order._id !== id);
+      setOrders(updatedOrders);
+      setTotalCount(updatedOrders.length);
+      
+      // Update global data as well
+      globalOrdersData = updatedOrders;
 
       setTimeout(() => {
         const orderIndex = orders.findIndex(o => o._id === id);
@@ -310,19 +383,17 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         });
       }, 0);
 
-      const remainingOrders = orders.filter(order => order._id !== id).length;
-      if (remainingOrders === 0 && currentPage > 1) {
+      // Check if we need to go to previous page
+      if (updatedOrders.length === 0 && currentPage > 1) {
         setCurrentPage(currentPage - 1);
       }
-
-      loadOrders();
     } catch (error) {
       console.error("Order o'chirishda xatolik:", error);
       setTimeout(() => {
         safeNotifyError('Xatolik', error.message || "Server bilan bog'lanishda xatolik");
       }, 0);
     }
-  }, [orders, currentPage, loadOrders, safeNotifyError, safeNotifySuccess, addNotification, formatCurrency]);
+  }, [orders, currentPage, safeNotifyError, safeNotifySuccess, addNotification, formatCurrency]);
 
   const openDeleteConfirm = useCallback((order) => {
     const customerName = order.customerName || 'Noma\'lum mijoz';
@@ -332,7 +403,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
       `"${customerName}" buyurtmasini o\'chirishni xohlaysizmi?`,
       () => deleteOrder(order._id),
       () => {
-
+        // Bekor qilish - hech narsa qilmaslik
       },
       'danger'
     );
@@ -445,7 +516,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
       <div
         className={`bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer ${order.isDeleting ? 'opacity-50 pointer-events-none bg-red-50' : ''
           }`}
-        onClick={() => !order.isDeleting && handleOrderClick(order)}
+        onClick={(e) => !order.isDeleting && handleOrderClick(order, e)}
       >
         <div className="p-3 sm:p-4">
           {/* Mobile Layout */}
@@ -470,7 +541,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
               </div>
               <div className="flex gap-1 flex-shrink-0">
                 <button
-                  onClick={(e) => { e.stopPropagation(); openViewModal(order); }}
+                  onClick={(e) => { e.stopPropagation(); openViewModal(order, e); }}
                   className="w-6 h-6 bg-gray-50 hover:bg-green-50 text-gray-600 hover:text-green-600 rounded-md transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-green-200"
                   title="Ko'rish"
                 >
@@ -590,7 +661,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
             {/* Action Buttons */}
             <div className="flex gap-1 flex-shrink-0">
               <button
-                onClick={(e) => { e.stopPropagation(); openViewModal(order); }}
+                onClick={(e) => { e.stopPropagation(); openViewModal(order, e); }}
                 className="w-8 h-8 bg-gray-50 hover:bg-green-50 text-gray-600 hover:text-green-600 rounded-lg transition-colors duration-200 flex items-center justify-center border border-gray-200 hover:border-green-200"
                 title="Ko'rish"
               >
@@ -760,157 +831,185 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
       </main>
 
       {/* Modals */}
-      <AdminNotificationModals
-        alertModal={alertModal}
-        confirmModal={confirmModal}
-        promptModal={promptModal}
-        closeAlert={closeAlert}
-        handleConfirmResponse={handleConfirmResponse}
-        handlePromptResponse={handlePromptResponse}
-      />
+      {document.body && createPortal(
+        <AdminNotificationModals
+          alertModal={alertModal}
+          confirmModal={confirmModal}
+          promptModal={promptModal}
+          closeAlert={closeAlert}
+          onConfirmResponse={handleConfirmResponse}
+          onPromptResponse={handlePromptResponse}
+        />,
+        document.body
+      )}
 
-      {/* View Order Modal */}
-      {isViewModalOpen && selectedOrder && (
-        <div
-          className="modal-overlay fixed inset-0 bg-black bg-opacity-50 p-4"
-          style={{
-            zIndex: 9999999,
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '100vh'
-          }}
+      {/* Order View Modal */}
+      {isViewModalOpen && selectedOrder && document.body && createPortal(
+        <div 
+          id="admin-orders-modal"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+          style={{ zIndex: 99999, position: 'fixed' }}
         >
-          <div
-            className="bg-white rounded-lg max-w-2xl w-full overflow-y-auto"
-            style={{
-              maxHeight: 'calc(100vh - 2rem)',
-              margin: 'auto'
-            }}
-          >
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Buyurtma tafsilotlari</h2>
+              {/* Modal Header */}
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Buyurtma ma'lumotlari</h2>
                 <button
                   onClick={closeViewModal}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
                 >
-                  <TimesFAIcon className="text-xl" />
+                  ×
                 </button>
               </div>
-
+              
+              {/* Order Info */}
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-50 p-2 rounded-lg">
-                    <label className="block text-xs font-bold text-orange-600 mb-1">Mijoz ismi</label>
-                    <p className="text-xs font-bold text-gray-900">{selectedOrder.customerName}</p>
+                {/* Order ID & Date */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Buyurtma raqami</label>
+                    <p className="text-lg font-mono bg-gray-100 p-2 rounded">
+                      #{String(orders.findIndex(o => o._id === selectedOrder._id) + 1).padStart(4, '0')}
+                    </p>
                   </div>
-                  <div className="bg-gray-50 p-2 rounded-lg">
-                    <label className="block text-xs font-bold text-orange-600 mb-1">Telefon raqami</label>
-                    <p className="text-xs font-bold text-gray-900">{formatPhoneNumber(selectedOrder.customerPhone)}</p>
-                  </div>
-                  <div className="bg-gray-50 p-2 rounded-lg">
-                    <label className="block text-xs font-bold text-orange-600 mb-1">Manzil</label>
-                    <p className="text-xs font-bold text-gray-900">{selectedOrder.customerAddress || 'Ko\'rsatilmagan'}</p>
-                  </div>
-                  <div className="bg-gray-50 p-2 rounded-lg">
-                    <label className="block text-xs font-bold text-orange-600 mb-1">Buyurtma sanasi</label>
-                    <p className="text-xs font-bold text-gray-900">{formatDateTime(selectedOrder.createdAt || selectedOrder.orderDate)}</p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sana</label>
+                    <p className="text-lg bg-gray-100 p-2 rounded">
+                      {formatDateTime(selectedOrder.createdAt || selectedOrder.orderDate)}
+                    </p>
                   </div>
                 </div>
-
+                
+                {/* Customer Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Mijoz nomi</label>
+                    <p className="text-lg bg-gray-100 p-2 rounded">
+                      {selectedOrder.customerName}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Telefon raqam</label>
+                    <p className="text-lg bg-gray-100 p-2 rounded">
+                      {formatPhoneNumber(selectedOrder.customerPhone)}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Customer Address & Status */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedOrder.customerAddress ? (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Manzil</label>
+                      <p className="text-lg bg-gray-100 p-2 rounded">
+                        {selectedOrder.customerAddress}
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                      <div className="bg-gray-100 p-2 rounded">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          statusMap[selectedOrder.status]?.class || 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {statusMap[selectedOrder.status]?.text || 'Noma\'lum'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {selectedOrder.customerEmail && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <p className="text-lg bg-gray-100 p-2 rounded">
+                        {selectedOrder.customerEmail}
+                      </p>
+                    </div>
+                  )}
+                  {selectedOrder.customerAddress && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                      <div className="bg-gray-100 p-2 rounded">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          statusMap[selectedOrder.status]?.class || 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {statusMap[selectedOrder.status]?.text || 'Noma\'lum'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Total Amount */}
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Umumiy summa</label>
+                    <p className="text-xl font-bold text-orange-600 bg-gray-100 p-2 rounded">
+                      {formatCurrency(selectedOrder.totalAmount)}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Order Items */}
                 <div>
-                  <label className="block text-sm font-bold text-orange-600 mb-3">Mahsulotlar</label>
-                  <div className="border border-gray-200 rounded-lg overflow-x-auto" ref={tableScrollRef}>
-                    <table className="w-full divide-y divide-gray-200" style={{ minWidth: '500px' }}>
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style={{ minWidth: '200px' }}>Mahsulot</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style={{ minWidth: '80px' }}>Miqdor</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style={{ minWidth: '100px' }}>Narx</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style={{ minWidth: '120px' }}>Jami</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {selectedOrder.items && selectedOrder.items.map((item, index) => (
-                          <tr key={index} className="hover:bg-gray-50">
-                            <td className="px-3 py-2 text-xs font-bold text-gray-900 whitespace-nowrap" style={{ minWidth: '200px' }}>{item.name}</td>
-                            <td className="px-3 py-2 text-xs font-bold text-gray-900 whitespace-nowrap" style={{ minWidth: '80px' }}>{item.quantity}</td>
-                            <td className="px-3 py-2 text-xs font-bold text-gray-900 whitespace-nowrap" style={{ minWidth: '100px' }}>{formatCurrency(item.price)}</td>
-                            <td className="px-3 py-2 text-xs font-bold text-gray-900 whitespace-nowrap" style={{ minWidth: '120px' }}>{formatCurrency(item.price * item.quantity)}</td>
-                          </tr>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Buyurtma mahsulotlari</label>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                      <div className="space-y-3">
+                        {selectedOrder.items.map((item, index) => (
+                          <div key={index} className="flex justify-between items-center p-3 bg-white rounded border">
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-900">{item.name}</p>
+                              <p className="text-sm text-gray-600">Miqdor: {item.quantity}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-orange-600">{formatCurrency(item.price)}</p>
+                              <p className="text-sm text-gray-600">
+                                Jami: {formatCurrency(item.price * item.quantity)}
+                              </p>
+                            </div>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Horizontal scroll buttons */}
-                  <div className="flex justify-center mt-2 space-x-2">
-                    <button
-                      onClick={scrollLeft}
-                      className="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-xs font-bold"
-                      title="Chapga scroll qilish"
-                    >
-                      <ChevronLeftFAIcon className="text-sm" />
-                    </button>
-                    <button
-                      onClick={scrollRight}
-                      className="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-xs font-bold"
-                      title="O'ngga scroll qilish"
-                    >
-                      <ChevronRightFAIcon className="text-sm" />
-                    </button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-center py-4">Mahsulotlar ma'lumoti yo'q</p>
+                    )}
                   </div>
                 </div>
-
-                <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-gray-900">Jami summa:</span>
-                    <span className="text-sm font-bold text-orange-600">{formatCurrency(selectedOrder.totalAmount)}</span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 p-2 rounded-lg">
-                  <label className="block text-xs font-bold text-orange-600 mb-2">Holat</label>
-                  <button
-                    onClick={() => {
-                      const newStatus = selectedOrder.status === 'pending' ? 'processing' :
-                        selectedOrder.status === 'processing' ? 'completed' : 'pending';
-                      // Status o'zgartirish funksiyasi
-                      console.log('Status o\'zgartirish:', newStatus);
-                    }}
-                    className={`inline-flex px-3 py-1 rounded-full text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity ${statusMap[selectedOrder.status]?.class}`}
-                    title="Statusni o'zgartirish uchun bosing"
-                  >
-                    {statusMap[selectedOrder.status]?.text}
-                  </button>
-                </div>
-
+                
+                {/* Notes */}
                 {selectedOrder.notes && (
-                  <div className="bg-blue-50 p-2 rounded-lg">
-                    <label className="block text-xs font-bold text-orange-600 mb-1">Izohlar</label>
-                    <p className="text-xs font-bold text-blue-900">{selectedOrder.notes}</p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Izohlar</label>
+                    <p className="text-lg bg-gray-100 p-3 rounded">
+                      {selectedOrder.notes}
+                    </p>
                   </div>
                 )}
-
-                {/* Yopish tugmasi */}
-                <div className="flex justify-end pt-4">
-                  <button
-                    onClick={closeViewModal}
-                    className="px-6 py-2 bg-gray-500 text-white text-sm font-bold rounded-lg hover:bg-gray-600 transition-colors"
-                  >
-                    Yopish
-                  </button>
-                </div>
+              </div>
+              
+              {/* Modal Footer */}
+              <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
+                <button
+                  onClick={closeViewModal}
+                  className="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg transition-colors duration-200"
+                >
+                  Yopish
+                </button>
+                <button
+                  onClick={() => {
+                    closeViewModal();
+                    openDeleteConfirm(selectedOrder);
+                  }}
+                  className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors duration-200"
+                >
+                  O'chirish
+                </button>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Status Change Notification */}

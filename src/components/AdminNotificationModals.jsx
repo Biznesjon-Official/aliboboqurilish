@@ -121,8 +121,9 @@ const AdminNotificationModals = ({
             right: 0,
             bottom: 0,
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             justifyContent: 'center',
+            paddingTop: '2rem',
             minHeight: '100vh'
           }}
         >

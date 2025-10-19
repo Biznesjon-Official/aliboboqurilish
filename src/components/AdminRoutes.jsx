@@ -6,24 +6,9 @@ import AdminLoadingLayout from './skeletons/AdminLoadingLayout';
 import AdminSidebar from './AdminSidebar';
 import AdminBottomNav from './AdminBottomNav';
 
-// Lazy load all admin components with retry functionality and error handling
-const loadComponentWithRetry = (componentImport, retries = 2) => {
-  return new Promise((resolve, reject) => {
-    componentImport()
-      .then(resolve)
-      .catch((error) => {
-        // Retry logic for network failures
-        if (retries > 0) {
-          setTimeout(() => {
-            loadComponentWithRetry(componentImport, retries - 1)
-              .then(resolve)
-              .catch(reject);
-          }, 1500); // 1.5 second delay between retries
-        } else {
-          reject(error);
-        }
-      });
-  });
+// Simplified lazy loading without retry delays
+const loadComponentWithRetry = (componentImport) => {
+  return componentImport();
 };
 
 const AdminDashboard = lazy(() => loadComponentWithRetry(() => import(
@@ -151,10 +136,9 @@ const AdminRoutes = ({
     activeSection = first || 'dashboard';
   }
   
-  // Preload components on first render and when route changes
+  // Preload components immediately when route changes
   useEffect(() => {
-    const timer = setTimeout(() => preloadAdminComponents(activeSection), 800);
-    return () => clearTimeout(timer);
+    preloadAdminComponents(activeSection);
   }, [activeSection]);
 
   return (

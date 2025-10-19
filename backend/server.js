@@ -510,7 +510,7 @@ if (enableClustering && cluster.isPrimary) {
   }
   // Notification routes - always enabled for admin panel
   app.use('/api/notifications', require('./routes/notificationRoutes'));
-  // Always enable upload routes for image uploads
+  // Always enable upload routes for image uploads (with Sharp optimization)
   app.use('/api/upload', require('./routes/uploadRoutes'));
   
   // Image optimization routes

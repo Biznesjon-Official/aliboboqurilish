@@ -85,7 +85,6 @@ const ProductDetailPage = () => {
 
   const handleCheckout = useCallback(() => {
     // Simple checkout - could be enhanced
-    alert('Buyurtma berish funksiyasi hozircha ishlab chiqilmoqda');
     setIsCartOpen(false);
   }, []);
 

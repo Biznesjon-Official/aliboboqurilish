@@ -46,31 +46,26 @@ const AdminSidebar = ({ active = 'dashboard', counts = defaultCounts, onLogout, 
   const navigate = useNavigate();
 
   const handleSectionChange = (key) => {
-    // Add smooth transition delay for better UX
-    const navigateWithTransition = () => {
-      switch (key) {
-        case 'dashboard':
-          navigate('/admin');
-          break;
-        case 'craftsmen':
-          navigate('/admin/craftsmen');
-          break;
-        case 'products':
-          navigate('/admin/products');
-          break;
-        case 'orders':
-          navigate('/admin/orders');
-          break;
-        case 'promotions':
-          navigate('/admin/promotions');
-          break;
-        default:
-          navigate('/admin');
-      }
-    };
-
-    // Add slight delay for smooth visual feedback
-    setTimeout(navigateWithTransition, 100);
+    // Direct navigation without delay for reliability
+    switch (key) {
+      case 'dashboard':
+        navigate('/admin');
+        break;
+      case 'craftsmen':
+        navigate('/admin/craftsmen');
+        break;
+      case 'products':
+        navigate('/admin/products');
+        break;
+      case 'orders':
+        navigate('/admin/orders');
+        break;
+      case 'promotions':
+        navigate('/admin/promotions');
+        break;
+      default:
+        navigate('/admin');
+    }
 
     // Close mobile sidebar
     if (onMobileToggle) onMobileToggle();
@@ -95,11 +90,15 @@ const AdminSidebar = ({ active = 'dashboard', counts = defaultCounts, onLogout, 
       )}
 
       {/* Sidebar */}
-      <div className={`
-        sidebar fixed top-0 left-0 h-screen w-64 bg-primary-dark shadow-2xl z-50 flex flex-col
-        transform transition-transform duration-300 ease-in-out
-        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+      <div 
+        id="admin-sidebar"
+        className={`
+          sidebar fixed top-0 left-0 h-screen w-64 bg-primary-dark shadow-2xl flex flex-col
+          transform transition-transform duration-300 ease-in-out
+          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+        style={{ zIndex: 40, position: 'fixed' }}
+      >
         {/* Logo */}
         <div className="p-6 border-b border-gray-700">
           <div className="flex items-center space-x-3">

@@ -74,7 +74,9 @@ const getProducts = async (req, res) => {
     // Category filter - use case-insensitive regex for better matching
     if (req.query.category && req.query.category.trim() !== '') {
       const categoryValue = req.query.category.trim();
+      console.log(`🏷️ [getProducts] Category filter: "${categoryValue}"`);
       query.category = { $regex: new RegExp(`^${categoryValue}$`, 'i') };
+      console.log(`🏷️ [getProducts] Category query:`, query.category);
     }
 
     // Price range filter
@@ -337,6 +339,16 @@ const getProducts = async (req, res) => {
     let products = result.products;
     let totalCount = result.totalCount[0]?.count || 0;
     let totalPages = Math.ceil(totalCount / limit);
+    
+    // Debug: Log category filter results
+    if (req.query.category && req.query.category.trim() !== '') {
+      console.log(`🏷️ [getProducts] Category "${req.query.category}" results: ${totalCount} products found`);
+      if (products.length > 0) {
+        console.log(`🏷️ [getProducts] First 3 products categories:`, 
+          products.slice(0, 3).map(p => ({ name: p.name, category: p.category }))
+        );
+      }
+    }
 
     // If text search yielded no results and search term is 3+ characters, try fallback to regex
     if (req.query.search && req.query.search.trim().length >= 3 && totalCount === 0) {
@@ -928,10 +940,13 @@ const updateProduct = async (req, res) => {
 const createProduct = async (req, res) => {
   try {
     const productData = req.body;
+    console.log('📝 [createProduct] Received data:', JSON.stringify(productData, null, 2));
 
     // Create new product
     const product = new Product(productData);
+    console.log('🔄 [createProduct] Creating product...');
     const savedProduct = await product.save();
+    console.log('✅ [createProduct] Product saved with ID:', savedProduct._id);
 
     // OPTIMIZED: Minimal cache operations for speed
     cache.clear(); // Quick cache clear

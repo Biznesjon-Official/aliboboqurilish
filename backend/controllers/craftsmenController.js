@@ -24,6 +24,7 @@ const getCraftsmen = async (req, res) => {
     const query = {};
     
     if (search) {
+      console.log(`🔍 [getCraftsmen] Search filter: "${search}"`);
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { specialty: { $regex: search, $options: 'i' } }
@@ -31,6 +32,7 @@ const getCraftsmen = async (req, res) => {
     }
     
     if (specialty && specialty !== 'Barcha mutaxassisliklar') {
+      console.log(`🏷️ [getCraftsmen] Specialty filter: "${specialty}"`);
       query.specialty = specialty;
     }
     
@@ -187,6 +189,16 @@ const getCraftsmen = async (req, res) => {
     const count = craftsmen.length === limit ? limit * page + 1 : (page - 1) * limit + craftsmen.length;
     
     if (debug) console.log('[getCraftsmen] Found', craftsmen.length, 'craftsmen');
+    
+    // Debug: Log search/filter results
+    if (search || specialty) {
+      console.log(`🔍 [getCraftsmen] Filter results: search="${search}", specialty="${specialty}", found=${craftsmen.length} craftsmen`);
+      if (craftsmen.length > 0) {
+        console.log(`🔍 [getCraftsmen] First 3 craftsmen:`, 
+          craftsmen.slice(0, 3).map(c => ({ name: c.name, specialty: c.specialty }))
+        );
+      }
+    }
     
     res.json({
       craftsmen,

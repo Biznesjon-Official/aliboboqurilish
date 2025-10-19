@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { BarsFAIcon, SearchFAIcon, PlusFAIcon, SpinnerFAIcon, TimesFAIcon, UserFAIcon, PhoneFAIcon, EyeFAIcon, EditFAIcon, TrashFAIcon, ChevronLeftFAIcon, ChevronRightFAIcon } from './FontAwesome';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AdminNotificationBell from './AdminNotificationBell';
@@ -193,14 +194,29 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
     sortDirection
   );
 
+  // Debug: Log filter values
+  useEffect(() => {
+    console.log('🔍 Craftsmen Filter Debug:', {
+      searchTerm,
+      debouncedSearch,
+      filterSpecialty,
+      debouncedSpecialty,
+      currentPage,
+      itemsPerPage,
+      craftsmenCount: craftsmenData?.craftsmen?.length || 0,
+      totalCount: craftsmenData?.pagination?.totalCount || 0
+    });
+  }, [searchTerm, debouncedSearch, filterSpecialty, debouncedSpecialty, currentPage, craftsmenData]);
+
   // Debounce search/filter to reduce query churn
   useEffect(() => {
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     debounceTimeoutRef.current = setTimeout(() => {
+      console.log('⏰ Craftsmen debounce triggered:', { searchTerm, filterSpecialty });
       setDebouncedSearch(searchTerm);
       setDebouncedSpecialty(filterSpecialty);
       setCurrentPage(1);
-    }, 500);
+    }, 300); // Reduced from 500ms to 300ms for faster response
     return () => {
       if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     };
@@ -211,8 +227,8 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
   const totalPages = craftsmenData?.totalPages || 1;
   const totalCount = craftsmenData?.totalCount || 0;
   
-  // Show skeleton when query hasn't succeeded yet or while loading/fetching
-  const showSkeleton = (!isSuccess && !isError) || isLoading || (isFetching && craftsmen.length === 0);
+  // Show skeleton only during initial loading, not during refetching
+  const showSkeleton = (!isSuccess && !isError) || (isLoading && craftsmen.length === 0);
 
   // Update count only after a successful fetch to avoid showing 0 prematurely
   useEffect(() => {
@@ -686,6 +702,23 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                   placeholder="Usta qidirish..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      console.log('🔍 Enter pressed, applying search immediately');
+                      if (debounceTimeoutRef.current) {
+                        clearTimeout(debounceTimeoutRef.current);
+                      }
+                      // Immediately apply search values and reset to page 1
+                      setDebouncedSearch(searchTerm);
+                      setDebouncedSpecialty(filterSpecialty);
+                      setCurrentPage(1);
+                      // Clear cache to force refetch
+                      queryClient.invalidateQueries({ 
+                        queryKey: ['craftsmen'],
+                        exact: false 
+                      });
+                    }
+                  }}
                   className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-orange text-sm sm:text-base"
                 />
                 <SearchFAIcon className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
@@ -696,8 +729,24 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                   value={filterSpecialty}
                   onChange={(e) => {
                     const newValue = e.target.value;
-                    console.log('🔄 Filter changed to:', newValue);
+                    console.log('🔄 Specialty filter changed to:', newValue);
                     setFilterSpecialty(newValue);
+                    
+                    // Clear existing debounce timeout
+                    if (debounceTimeoutRef.current) {
+                      clearTimeout(debounceTimeoutRef.current);
+                    }
+                    
+                    // Immediately apply the filter change
+                    setDebouncedSpecialty(newValue);
+                    setDebouncedSearch(searchTerm); // Keep current search
+                    setCurrentPage(1);
+                    
+                    // Clear cache to force refetch
+                    queryClient.invalidateQueries({ 
+                      queryKey: ['craftsmen'],
+                      exact: false 
+                    });
                   }}
                   className="col-span-1 sm:flex-1 min-w-0 px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-orange text-sm sm:text-base"
                 >
@@ -762,6 +811,22 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
                         onClick={() => {
                           setFilterSpecialty('');
                           setSearchTerm('');
+                          setCurrentPage(1);
+                          
+                          // Clear debounce timeout
+                          if (debounceTimeoutRef.current) {
+                            clearTimeout(debounceTimeoutRef.current);
+                          }
+                          
+                          // Immediately clear debounced values
+                          setDebouncedSearch('');
+                          setDebouncedSpecialty('');
+                          
+                          // Clear cache to force refetch
+                          queryClient.invalidateQueries({ 
+                            queryKey: ['craftsmen'],
+                            exact: false 
+                          });
                         }}
                         className="bg-primary-orange text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition duration-300"
                       >
@@ -866,10 +931,10 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
       </main>
 
       {/* Add/Edit Modal */}
-      {isModalOpen && (
+      {isModalOpen && document.body && createPortal(
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 modal-overlay flex items-center justify-center p-4 overflow-hidden"
-          style={{ zIndex: 999999 }}
+          className="fixed inset-0 bg-black bg-opacity-50 modal-overlay flex items-start justify-center p-4 overflow-hidden"
+          style={{ zIndex: 999999, paddingTop: '2rem' }}
           onClick={closeModal}
         >
           <div
@@ -1056,14 +1121,15 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* View Modal */}
-      {isViewModalOpen && selectedCraftsman && (
+      {isViewModalOpen && selectedCraftsman && document.body && createPortal(
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 modal-overlay flex items-center justify-center p-4 overflow-hidden"
-          style={{ zIndex: 999999 }}
+          className="fixed inset-0 bg-black bg-opacity-50 modal-overlay flex items-start justify-center p-4 overflow-hidden"
+          style={{ zIndex: 999999, paddingTop: '2rem' }}
           onClick={() => setIsViewModalOpen(false)}
         >
           <div
@@ -1150,18 +1216,22 @@ const AdminCraftsmen = ({ onCountChange, onMobileToggle }) => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Notification Modals */}
-      <AdminNotificationModals
-        alertModal={alertModal}
-        confirmModal={confirmModal}
-        promptModal={promptModal}
-        closeAlert={closeAlert}
-        onConfirmResponse={handleConfirmResponse}
-        onPromptResponse={handlePromptResponse}
-      />
+      {document.body && createPortal(
+        <AdminNotificationModals
+          alertModal={alertModal}
+          confirmModal={confirmModal}
+          promptModal={promptModal}
+          closeAlert={closeAlert}
+          onConfirmResponse={handleConfirmResponse}
+          onPromptResponse={handlePromptResponse}
+        />,
+        document.body
+      )}
 
     </div>
   );

@@ -19,7 +19,7 @@ router.get('/test', (req, res) => {
 const ensureUploadDirs = async () => {
   const dirs = [
     'uploads/products/original',
-    'uploads/products/thumbnails',
+    'uploads/products/thumbnail',  // 's' ni olib tashlash
     'uploads/products/medium',
     'uploads/products/large'
   ];
@@ -27,14 +27,19 @@ const ensureUploadDirs = async () => {
   for (const dir of dirs) {
     try {
       await fs.mkdir(dir, { recursive: true });
+      console.log(`✅ Directory created/verified: ${dir}`);
     } catch (err) {
-      console.error(`Error creating directory ${dir}:`, err);
+      console.error(`❌ Error creating directory ${dir}:`, err);
     }
   }
 };
 
-// Initialize upload directories
-ensureUploadDirs();
+// Initialize upload directories when module loads
+ensureUploadDirs().then(() => {
+  console.log('🎯 All upload directories initialized successfully');
+}).catch(err => {
+  console.error('❌ Failed to initialize upload directories:', err);
+});
 
 // Configure multer for memory storage (we'll process and save manually)
 const upload = multer({
@@ -62,10 +67,14 @@ const upload = multer({
 
 // Image processing and optimization
 const processImage = async (buffer, filename) => {
+  console.log('🎨 Starting image processing for:', filename);
+  
   const baseFilename = path.parse(filename).name;
   const timestamp = Date.now();
   const uniqueId = uuidv4().split('-')[0];
   const baseName = `${baseFilename}_${timestamp}_${uniqueId}`;
+  
+  console.log('📝 Generated base name:', baseName);
   
   const sizes = {
     thumbnail: { width: 150, height: 150, quality: 80 },
@@ -78,10 +87,12 @@ const processImage = async (buffer, filename) => {
   
   for (const [sizeName, config] of Object.entries(sizes)) {
     try {
+      console.log(`🔧 Processing size: ${sizeName}`);
       let processor = sharp(buffer);
       
       // Resize if dimensions specified
       if (config.width && config.height) {
+        console.log(`📏 Resizing to: ${config.width}x${config.height}`);
         processor = processor.resize(config.width, config.height, {
           fit: 'cover',
           position: 'center'
@@ -92,8 +103,23 @@ const processImage = async (buffer, filename) => {
       const webpFilename = `${baseName}_${sizeName}.webp`;
       const jpegFilename = `${baseName}_${sizeName}.jpg`;
       
-      const webpPath = path.join('uploads', 'products', sizeName, webpFilename);
-      const jpegPath = path.join('uploads', 'products', sizeName, jpegFilename);
+      // Papka nomini to'g'rilash (thumbnail emas, thumbnails)
+      const folderName = sizeName === 'thumbnail' ? 'thumbnail' : sizeName;
+      const webpPath = path.join('uploads', 'products', folderName, webpFilename);
+      const jpegPath = path.join('uploads', 'products', folderName, jpegFilename);
+      
+      console.log(`💾 Saving to: ${webpPath}`);
+      
+      // Ensure directory exists before saving
+      const webpDir = path.dirname(webpPath);
+      const jpegDir = path.dirname(jpegPath);
+      
+      try {
+        await fs.mkdir(webpDir, { recursive: true });
+        await fs.mkdir(jpegDir, { recursive: true });
+      } catch (dirErr) {
+        console.error(`❌ Directory creation error for ${webpDir}:`, dirErr);
+      }
       
       // Save WebP version
       await processor
@@ -122,7 +148,11 @@ const processImage = async (buffer, filename) => {
 // Single image upload endpoint
 router.post('/image', upload.single('image'), async (req, res) => {
   try {
+    console.log('🔍 Upload endpoint hit');
+    console.log('📁 Request file:', req.file ? 'EXISTS' : 'MISSING');
+    
     if (!req.file) {
+      console.log('❌ No file in request');
       return res.status(400).json({
         error: 'Rasm fayli topilmadi',
         message: 'Iltimos, rasm faylini tanlang'
@@ -130,6 +160,8 @@ router.post('/image', upload.single('image'), async (req, res) => {
     }
     
     console.log('📸 Processing image:', req.file.originalname);
+    console.log('📊 File size:', req.file.size);
+    console.log('🎯 File mimetype:', req.file.mimetype);
     
     // Process and optimize image
     const processedImages = await processImage(req.file.buffer, req.file.originalname);

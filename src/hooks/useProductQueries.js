@@ -77,20 +77,20 @@ const fetchProduct = async (id, signal) => {
   return response.json();
 };
 
-// Hook for fetching products list with balanced caching for admin interface
+// Hook for fetching products list with optimized settings for admin interface
 export const useProducts = (category, search, page = 1, limit = 20) => {
   return useQuery({
     queryKey: queryKeys.products.list(category, search, page, limit),
     queryFn: ({ signal }) => fetchProducts({ category, search, page, limit, signal, useFastEndpoint: true }),
-    keepPreviousData: true, // Keep previous page data to avoid UI flicker
-    staleTime: 30 * 1000, // 30 seconds - faster updates
-    cacheTime: 2 * 60 * 1000, // 2 minutes cache time
+    keepPreviousData: false, // Disable to allow faster navigation
+    staleTime: 10 * 1000, // 10 seconds - faster updates
+    cacheTime: 1 * 60 * 1000, // 1 minute cache time
     refetchOnWindowFocus: false, // Disable to prevent unnecessary refetches
-    refetchOnReconnect: true, // Enable for real-time updates on reconnect
-    refetchOnMount: 'ifStale', // Only refetch if stale to avoid initial flash
-    // Balanced retry settings
-    retry: 3, // Increase retry attempts
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    refetchOnReconnect: false, // Disable to allow faster navigation
+    refetchOnMount: false, // Disable to allow faster navigation
+    // Fast retry settings
+    retry: 1, // Reduce retry attempts for faster failure
+    retryDelay: 500, // Fixed 500ms delay
     refetchInterval: false, // Disabled automatic refetching
     refetchIntervalInBackground: false, // Disabled background refetching
   });

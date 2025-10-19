@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   SearchFAIcon,
@@ -13,7 +14,6 @@ import {
   RotateLeftFAIcon
 } from './FontAwesome';
 import { useDeleteProduct, useRestoreProduct, useUpdateProduct, useCreateProduct, useProducts } from '../hooks/useProductQueries';
-import { useProductsFast } from '../hooks/useProductsFast';
 import { useUltraFastProducts } from '../hooks/useUltraFastProducts';
 import { useRecentActivitiesCache } from '../hooks/useRecentActivities';
 import { queryClient, queryKeys } from '../lib/queryClient';
@@ -126,23 +126,42 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [debouncedCategory, setDebouncedCategory] = useState('');
 
-  // React Query: fetch products with ultra-fast hook
+  // React Query: fetch products with standard hook (same as homepage)
   const { data: productsData, isLoading, isFetching, isFetched, isSuccess, isError, error } =
-    useProductsFast(debouncedCategory, debouncedSearch, currentPage, ITEMS_PER_PAGE);
+    useProducts(debouncedCategory, debouncedSearch, currentPage, ITEMS_PER_PAGE);
 
-  // Debug: Log filter values
+  // Debug: Log filter values (disabled for performance)
+  // useEffect(() => {
+  //   console.log('🔍 Filter Debug:', {
+  //     filterCategory,
+  //     debouncedCategory,
+  //     searchTerm,
+  //     debouncedSearch,
+  //     currentPage,
+  //     ITEMS_PER_PAGE,
+  //     productsData: productsData?.products?.length || 0,
+  //     totalCount: productsData?.pagination?.totalCount || 0
+  //   });
+  // }, [filterCategory, debouncedCategory, searchTerm, debouncedSearch, currentPage, productsData]);
+
+  // Debounce search/filter to reduce query churn
   useEffect(() => {
-    console.log('🔍 Filter Debug:', {
-      filterCategory,
-      debouncedCategory,
-      searchTerm,
-      debouncedSearch,
-      currentPage,
-      ITEMS_PER_PAGE,
-      productsData: productsData?.products?.length || 0,
-      totalCount: productsData?.pagination?.totalCount || 0
-    });
-  }, [filterCategory, debouncedCategory, searchTerm, debouncedSearch, currentPage, productsData]);
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    debounceTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setDebouncedCategory(filterCategory);
+      setCurrentPage(1);
+    }, 300); // 300ms debounce delay for faster response
+    
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [searchTerm, filterCategory]);
 
   // Image slideshow state (per product)
   const imageIndexRef = useRef(new Map()); // productId -> current image index
@@ -153,22 +172,28 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // Dynamic categories loaded from database
   const [categories, setCategories] = useState(['Barcha kategoriyalar']);
 
-  // Main categories (asosiy kategoriyalar) - only the 5 main categories
+  // Main categories (asosiy kategoriyalar) - database'dagi haqiqiy nomlar
   const mainCategories = [
     'xoz-mag',
-    'yevro-remont',
+    'yevro-remont', 
     'elektrika',
-    'dekorativ-mahsulotlar',
+    'dekor', // Database'da 'dekor' saqlanadi
     'santexnika'
   ];
 
-  // Category display names mapping
+  // Category display names mapping (database name → display name)
   const categoryDisplayNames = {
     'xoz-mag': 'Xoz-Mag',
-    'yevro-remont': 'Yevro-Remont',
+    'yevro-remont': 'Yevro-Remont', 
     'elektrika': 'Elektrika',
-    'dekorativ-mahsulotlar': 'Dekorativ-mahsulotlar',
+    'dekor': 'Dekorativ-mahsulotlar', // Database'da 'dekor' saqlanadi
     'santexnika': 'Santexnika'
+  };
+
+  // Reverse mapping (display name → database name) - eski nomlarni yangi nomlarga mapping
+  const categoryValueMapping = {
+    'dekorativ-mahsulotlar': 'dekor', // Frontend'dan backend'ga
+    'Dekorativ-mahsulotlar': 'dekor'
   };
 
   // Get display name for category
@@ -182,17 +207,13 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       const response = await fetch('http://localhost:5000/api/products/categories/list');
       if (response.ok) {
         const categoriesData = await response.json();
-        console.log('📊 Categories API Response:', categoriesData);
         // Extract categories with counts
         if (categoriesData && Array.isArray(categoriesData.categories)) {
           const categoryArray = categoriesData.categories.map((c) => ({
-            name: c._id,
-            count: c.count,
-            avgPrice: c.avgPrice,
-            minPrice: c.minPrice,
-            maxPrice: c.maxPrice
+            value: c.category,
+            label: c.category,
+            count: c.count
           }));
-          console.log('📊 Processed Categories:', categoryArray);
           setCategories([
             { name: 'Barcha kategoriyalar', count: categoryArray.reduce((sum, c) => sum + c.count, 0) },
             ...categoryArray
@@ -711,8 +732,6 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 
     setIsSubmitting(true);
 
-    // console.log(' Mahsulot saqlanmoqda...', selectedProduct ? 'Tahrirlash' : 'Yangi qo\'shish');
-    // console.log(' Form ma\'lumotlari:', formData);
 
     try {
       // For non-variant products, rely on images managed by SimpleProductForm's ImageUploader
@@ -770,7 +789,6 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         productData.images = allImages; // All images array
       }
 
-      // console.log(' Yuborilayotgan ma\'lumotlar:', productData);
 
       // Use React Query mutations for automatic cache invalidation
       if (selectedProduct && selectedProduct._id) {
@@ -787,10 +805,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         }, 0);
       } else {
         // Create new product using React Query mutation
-        // console.log('🔄 Creating product with mutation...');
         const newProduct = await createProductMutation.mutateAsync(productData);
-
-        // console.log('✅ Muvaffaqiyatli qo\'shildi:', newProduct);
 
         setTimeout(() => {
           safeNotifySuccess('Mahsulot qo\'shildi', `${productData.name} muvaffaqiyatli qo\'shildi`);
@@ -899,18 +914,59 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const handleFilterChange = (value) => {
     console.log('🔄 Filter changed to:', value);
     setFilterCategory(value);
-    // Immediately clear cache and reset page
-    queryClient.invalidateQueries({ queryKey: ['products-fast'] });
+    
+    // Clear existing debounce timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    // Map frontend category to backend category if needed
+    const mappedValue = categoryValueMapping[value] || value;
+    console.log('🔄 Mapped category value:', value, '→', mappedValue);
+    
+    // Immediately apply the filter change
+    setDebouncedCategory(mappedValue);
+    setDebouncedSearch(searchTerm); // Keep current search
     setCurrentPage(1);
+    
+    // Clear cache to force refetch with specific pattern
+    queryClient.invalidateQueries({ 
+      queryKey: ['products'],
+      exact: false // Invalidate all products queries
+    });
+    
+    // Also remove all cached data
+    queryClient.removeQueries({ 
+      queryKey: ['products'],
+      exact: false 
+    });
   };
 
   const clearSearchAndFilter = () => {
     setSearchTerm('');
     setFilterCategory('');
     setCurrentPage(1);
+    
+    // Clear debounce timeout
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
+    
+    // Immediately clear debounced values
+    setDebouncedSearch('');
+    setDebouncedCategory('');
+    
+    // Clear cache to force refetch with specific pattern
+    queryClient.invalidateQueries({ 
+      queryKey: ['products'],
+      exact: false // Invalidate all products queries
+    });
+    
+    // Also remove all cached data
+    queryClient.removeQueries({ 
+      queryKey: ['products'],
+      exact: false 
+    });
   };
 
   // ... (rest of the code remains the same)
@@ -969,9 +1025,9 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   }, [productsData]);
 
   const loading = isLoading;
-  // Show skeleton until we have a successful response; also during loading/fetching states
-  const showSkeleton = (!isSuccess && !isError) || loading || isFetching;
-  const showEmpty = isSuccess && !loading && !isFetching && (products?.length || 0) === 0;
+  // Show skeleton only during initial loading, not during refetching
+  const showSkeleton = (!isSuccess && !isError) || (loading && !products?.length);
+  const showEmpty = isSuccess && !loading && (products?.length || 0) === 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1330,29 +1386,14 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       </main >
 
       {/* Add/Edit Modal */}
-      {isModalOpen && (
-        <div
-          className="modal-overlay fixed inset-0 bg-black bg-opacity-50 p-4"
-          style={{
-            zIndex: 9999999,
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '100vh'
-          }}
+      {isModalOpen && document.body && createPortal(
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal-overlay overflow-hidden p-4"
+          style={{ zIndex: 99999 }}
           onClick={closeModal}
         >
-          <div
-            className="bg-white rounded-lg shadow-xl max-w-4xl w-full overflow-y-auto"
-            style={{
-              maxHeight: 'calc(100vh - 2rem)',
-              margin: 'auto'
-            }}
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
@@ -1536,46 +1577,30 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
               </div>
             </form>
           </div>
-        </div>
-      )
-      }
+        </div>,
+        document.body
+      )}
 
       {/* View Modal */}
-      {
-        isViewModalOpen && selectedProduct && (
-          <div
-            className="modal-overlay fixed inset-0 bg-black bg-opacity-50 p-4"
-            style={{
-              zIndex: 9999999,
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: '100vh'
-            }}
-            onClick={() => setIsViewModalOpen(false)}
+      {isViewModalOpen && selectedProduct && document.body && createPortal(
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal-overlay overflow-hidden p-4"
+          style={{ zIndex: 99999 }}
+          onClick={() => setIsViewModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="bg-white rounded-lg shadow-xl max-w-4xl w-full overflow-y-auto"
-              style={{
-                maxHeight: 'calc(100vh - 2rem)',
-                margin: 'auto'
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-2xl font-semibold text-gray-900">Mahsulot ma'lumotlari</h3>
-                  <button
-                    onClick={() => setIsViewModalOpen(false)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <TimesFAIcon className="text-xl" />
-                  </button>
+            <div className="sticky top-0 bg-white p-6 border-b border-gray-200 rounded-t-lg z-20">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-semibold text-gray-900">Mahsulot ma'lumotlari</h3>
+                <button
+                  onClick={() => setIsViewModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <TimesFAIcon className="text-xl" />
+                </button>
                 </div>
               </div>
 
@@ -1715,19 +1740,22 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                 </div>
               </div>
             </div>
-          </div>
-        )
-      }
+          </div>,
+        document.body
+      )}
 
       {/* AdminNotificationModals - matching index.html exactly */}
-      <AdminNotificationModals
-        alertModal={alertModal}
-        confirmModal={confirmModal}
-        promptModal={promptModal}
-        closeAlert={closeAlert}
-        onConfirmResponse={handleConfirmResponse}
-        onPromptResponse={handlePromptResponse}
-      />
+      {document.body && createPortal(
+        <AdminNotificationModals
+          alertModal={alertModal}
+          confirmModal={confirmModal}
+          promptModal={promptModal}
+          closeAlert={closeAlert}
+          onConfirmResponse={handleConfirmResponse}
+          onPromptResponse={handlePromptResponse}
+        />,
+        document.body
+      )}
 
       {/* Old alert modal removed - now using AdminNotificationModals */}
     </div >
