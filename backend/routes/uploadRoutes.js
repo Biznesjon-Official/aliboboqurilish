@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const sharp = require('sharp');
+const sharpWrapper = require('../utils/sharpFallback');
 const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
@@ -88,7 +88,7 @@ const processImage = async (buffer, filename) => {
   for (const [sizeName, config] of Object.entries(sizes)) {
     try {
       console.log(`🔧 Processing size: ${sizeName}`);
-      let processor = sharp(buffer);
+      let processor = sharpWrapper.create(buffer);
       
       // Resize if dimensions specified
       if (config.width && config.height) {

@@ -1,4 +1,4 @@
-const sharp = require('sharp');
+const sharpWrapper = require('../utils/sharpFallback');
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -69,7 +69,7 @@ const imageOptimization = (options = {}) => {
       } catch {}
 
       // Rasmni qayta ishlash
-      let pipeline = sharp(filePath);
+      let pipeline = sharpWrapper.create(filePath);
 
       // O'lchamni o'zgartirish
       if (enableResize && (width || height)) {
