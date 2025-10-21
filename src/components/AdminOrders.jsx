@@ -49,6 +49,10 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
   const [totalCount, setTotalCount] = useState(globalOrdersData?.length || 0);
   const [isMobile, setIsMobile] = useState(false);
   const [previousOrderCount, setPreviousOrderCount] = useState(0);
+  
+  // Bulk selection states
+  const [selectedOrders, setSelectedOrders] = useState(new Set());
+  const [isSelectAllMode, setIsSelectAllMode] = useState(false);
   const previousOrderIdsRef = useRef(new Set());
   const hasLoadedRef = useRef(false);
 
@@ -344,6 +348,104 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     return `${day}.${month}.${year} ${hours}:${minutes}`;
   }, []);
 
+  // Bulk selection functions
+  const toggleOrderSelection = useCallback((orderId) => {
+    setSelectedOrders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(orderId)) {
+        newSet.delete(orderId);
+      } else {
+        newSet.add(orderId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const selectAllOrders = useCallback(() => {
+    if (selectedOrders.size === filteredOrders.length) {
+      // Deselect all
+      setSelectedOrders(new Set());
+      setIsSelectAllMode(false);
+    } else {
+      // Select all
+      const allIds = new Set(filteredOrders.map(order => order._id));
+      setSelectedOrders(allIds);
+      setIsSelectAllMode(true);
+    }
+  }, [selectedOrders.size, filteredOrders]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedOrders(new Set());
+    setIsSelectAllMode(false);
+  }, []);
+
+  // Bulk delete function
+  const bulkDeleteOrders = useCallback(async () => {
+    if (selectedOrders.size === 0) return;
+
+    const selectedOrdersList = orders.filter(order => selectedOrders.has(order._id));
+    const customerNames = selectedOrdersList.map(order => order.customerName || 'Noma\'lum mijoz').slice(0, 3);
+    const displayNames = customerNames.join(', ') + (selectedOrdersList.length > 3 ? ` va yana ${selectedOrdersList.length - 3} ta` : '');
+
+    showConfirm(
+      'Buyurtmalarni o\'chirish',
+      `${selectedOrders.size} ta buyurtmani o\'chirishni xohlaysizmi?\n\nMijozlar: ${displayNames}`,
+      async () => {
+        try {
+          const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+          
+          // Delete all selected orders
+          const deletePromises = Array.from(selectedOrders).map(async (orderId) => {
+            const response = await fetch(`${base}/orders/${orderId}`, {
+              method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(`${orderId}: ${errorData.message || 'Xatolik'}`);
+            }
+            
+            return orderId;
+          });
+
+          const deletedIds = await Promise.all(deletePromises);
+          
+          // Update local state
+          const updatedOrders = orders.filter(order => !deletedIds.includes(order._id));
+          setOrders(updatedOrders);
+          setTotalCount(updatedOrders.length);
+          globalOrdersData = updatedOrders;
+          
+          // Clear selection
+          clearSelection();
+          
+          setTimeout(() => {
+            safeNotifySuccess("Buyurtmalar o'chirildi", `${deletedIds.length} ta buyurtma muvaffaqiyatli o'chirildi`);
+            
+            addNotification({
+              title: "Ko'p buyurtma o'chirildi",
+              message: `${deletedIds.length} ta buyurtma o'chirildi`,
+              type: 'order'
+            });
+          }, 0);
+          
+        } catch (error) {
+          console.error("Bulk delete error:", error);
+          setTimeout(() => {
+            safeNotifyError('Xatolik', error.message || "Ba'zi buyurtmalarni o'chirishda xatolik");
+          }, 0);
+        }
+      },
+      () => {
+        // Cancel - do nothing
+      },
+      'danger'
+    );
+  }, [selectedOrders, orders, showConfirm, clearSelection, safeNotifySuccess, safeNotifyError, addNotification]);
+
   const deleteOrder = useCallback(async (id) => {
     try {
       const deletedOrder = orders.find(o => o._id === id);
@@ -370,6 +472,13 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
       
       // Update global data as well
       globalOrdersData = updatedOrders;
+      
+      // Remove from selection if it was selected
+      setSelectedOrders(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
 
       setTimeout(() => {
         const orderIndex = orders.findIndex(o => o._id === id);
@@ -512,17 +621,40 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
       );
     }
 
-    const OrderCard = ({ order, orderNumber }) => (
+    const OrderCard = ({ order, orderNumber }) => {
+      const isSelected = selectedOrders.has(order._id);
+      
+      return (
       <div
-        className={`bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer ${order.isDeleting ? 'opacity-50 pointer-events-none bg-red-50' : ''
-          }`}
-        onClick={(e) => !order.isDeleting && handleOrderClick(order, e)}
+        className={`bg-white rounded-lg border transition-all duration-200 cursor-pointer ${
+          order.isDeleting ? 'opacity-50 pointer-events-none bg-red-50 border-gray-200' : 
+          isSelected ? 'border-orange-500 bg-orange-50 shadow-md' : 
+          'border-gray-200 hover:shadow-md'
+        }`}
+        onClick={(e) => {
+          // Check if click is on checkbox or its container
+          if (e.target.type === 'checkbox' || e.target.closest('.checkbox-container')) {
+            return; // Let checkbox handle the click
+          }
+          if (!order.isDeleting) {
+            handleOrderClick(order, e);
+          }
+        }}
       >
         <div className="p-3 sm:p-4">
           {/* Mobile Layout */}
           <div className="sm:hidden">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center space-x-2">
+                {/* Checkbox */}
+                <div className="checkbox-container flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleOrderSelection(order._id)}
+                    className="w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2"
+                  />
+                </div>
                 <div className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   {order.isDeleting ? (
                     <SpinnerFAIcon className="text-red-600 text-xs" />
@@ -592,6 +724,16 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
 
           {/* Desktop Layout */}
           <div className="hidden sm:flex items-center gap-4">
+            {/* Checkbox */}
+            <div className="checkbox-container flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => toggleOrderSelection(order._id)}
+                className="w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2"
+              />
+            </div>
+            
             {/* Left: Order Icon & Info */}
             <div className="flex items-center space-x-3 flex-shrink-0">
               <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
@@ -679,6 +821,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         </div>
       </div>
     );
+    };
 
     return (
       <div className="space-y-2">
@@ -786,14 +929,53 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
             </div>
           </div>
 
-          {/* Orders Count */}
+          {/* Orders Count and Bulk Actions */}
           <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <p className="text-xs sm:text-sm text-gray-600">
-              {searchTerm || filterStatus ?
-                `Qidiruv natijalari: ${filteredOrders.length} ta buyurtma` :
-                `Jami ${totalCount} ta buyurtma`
-              }
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <p className="text-xs sm:text-sm text-gray-600">
+                {searchTerm || filterStatus ?
+                  `Qidiruv natijalari: ${filteredOrders.length} ta buyurtma` :
+                  `Jami ${totalCount} ta buyurtma`
+                }
+              </p>
+              
+              {selectedOrders.size > 0 && (
+                <p className="text-xs sm:text-sm text-orange-600 font-medium">
+                  {selectedOrders.size} ta tanlangan
+                </p>
+              )}
+            </div>
+            
+            {/* Bulk Action Buttons */}
+            {filteredOrders.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={selectAllOrders}
+                  className="px-3 py-1.5 text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 border border-gray-300"
+                >
+                  {selectedOrders.size === filteredOrders.length ? 'Hammasini bekor qilish' : 'Hammasini tanlash'}
+                </button>
+                
+                {selectedOrders.size > 0 && (
+                  <>
+                    <button
+                      onClick={clearSelection}
+                      className="px-3 py-1.5 text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 border border-gray-300"
+                    >
+                      Tanlovni tozalash
+                    </button>
+                    
+                    <button
+                      onClick={bulkDeleteOrders}
+                      className="px-3 py-1.5 text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors duration-200 flex items-center gap-1"
+                    >
+                      <TrashFAIcon className="text-xs" />
+                      O'chirish ({selectedOrders.size})
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Orders List */}

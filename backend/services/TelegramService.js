@@ -3,11 +3,20 @@ const TelegramBot = require('node-telegram-bot-api');
 class TelegramService {
   constructor() {
     this.bot = null;
-    this.chatId = process.env.TELEGRAM_CHAT_ID;
-    this.token = process.env.TELEGRAM_BOT_TOKEN;
+    this.chatId = null;
+    this.token = null;
     this.isInitialized = false;
     
     console.log('🤖 TelegramService constructor called');
+    
+    // Initialize immediately if env vars are available
+    this.checkAndInitialize();
+  }
+
+  checkAndInitialize() {
+    this.chatId = process.env.TELEGRAM_CHAT_ID;
+    this.token = process.env.TELEGRAM_BOT_TOKEN;
+    
     console.log('📌 TELEGRAM_BOT_TOKEN:', this.token ? '✅ Set' : '❌ Not set');
     console.log('📌 TELEGRAM_CHAT_ID:', this.chatId ? `✅ Set (${this.chatId})` : '❌ Not set');
     
@@ -38,9 +47,19 @@ class TelegramService {
     console.log('📨 sendOrderNotification called');
     console.log('🔍 Bot initialized:', this.isInitialized);
     console.log('🔍 Bot exists:', !!this.bot);
+    console.log('🔍 Token available:', !!this.token);
+    console.log('🔍 Chat ID available:', !!this.chatId);
+    
+    // Try to re-initialize if not initialized
+    if (!this.isInitialized) {
+      console.log('🔄 Attempting to re-initialize Telegram Bot...');
+      this.checkAndInitialize();
+    }
     
     if (!this.isInitialized || !this.bot) {
       console.warn('⚠️ Telegram Bot not initialized, skipping notification');
+      console.warn('⚠️ Token:', this.token ? 'Available' : 'Missing');
+      console.warn('⚠️ Chat ID:', this.chatId ? 'Available' : 'Missing');
       return;
     }
 
@@ -66,9 +85,9 @@ ${itemsList}
 
 💰 <b>Jami summa:</b> <code>${order.totalAmount.toLocaleString('uz-UZ')} so'm</code>
 
-📝 <b>Izoh:</b> ${order.notes || 'Yo\'q'}
+ 
 
-⏰ <b>Vaqti:</b> ${new Date(order.createdAt).toLocaleString('uz-UZ')}
+⏰ <b>Vaqti:</b> ${this.formatDate(order.createdAt || order.orderDate || new Date())}
       `;
 
       console.log('🚀 Sending message to Telegram chat:', this.chatId);
@@ -150,6 +169,33 @@ ${statusEmoji[newStatus] || '📦'} <b>BUYURTMA HOLATI O'ZGARTIRILDI</b>
       console.log('✅ Message sent to Telegram');
     } catch (error) {
       console.error('❌ Failed to send message:', error.message);
+    }
+  }
+
+  /**
+   * Sanani to'g'ri formatda ko'rsatish
+   */
+  formatDate(date) {
+    try {
+      if (!date) return new Date().toLocaleString('uz-UZ');
+      
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) {
+        console.warn('⚠️ Invalid date provided, using current date');
+        return new Date().toLocaleString('uz-UZ');
+      }
+      
+      return dateObj.toLocaleString('uz-UZ', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    } catch (error) {
+      console.error('❌ Date formatting error:', error);
+      return new Date().toLocaleString('uz-UZ');
     }
   }
 }

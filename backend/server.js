@@ -23,6 +23,9 @@ const socketService = require('./services/SocketService'); // Real-time updates
 const telegramService = require('./services/TelegramService'); // Telegram notifications
 const { primeProductsFastCache } = require('./controllers/productControllerOptimized');
 
+// Ensure TelegramService is properly initialized with environment variables
+telegramService.checkAndInitialize();
+
 // Use clustering to take advantage of multi-core systems (disabled in development for faster startup)
 const enableClustering = process.env.ENABLE_CLUSTERING === 'true' && process.env.NODE_ENV !== 'development';
 

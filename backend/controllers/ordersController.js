@@ -382,7 +382,9 @@ const createOrder = async (req, res) => {
           items: orderData.items,
           totalAmount: totalOrderAmount,
           status: orderData.status,
-          orderDate: orderData.orderDate
+          orderDate: orderData.orderDate,
+          createdAt: new Date(), // Add current timestamp for Telegram
+          notes: orderData.notes || '' // Add notes field
         });
         console.log('✅ Telegram notification sent successfully BEFORE database save');
       } catch (telegramError) {
