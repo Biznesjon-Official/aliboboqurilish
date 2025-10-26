@@ -96,9 +96,11 @@ const getProductsFast = async (req, res) => {
     // Check cache first
     const cacheKey = getFastCacheKey(query, page, limit, sort);
     const cached = fastCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp) < FAST_CACHE_TTL) {
-      if (debug) console.log('[getProductsFast] ⚡ Served from cache in', Date.now() - startTime, 'ms');
-      return res.json(cached.payload);
+    
+    // TEMPORARY: Clear cache to ensure fresh data with description field
+    if (cached) {
+      console.log('[getProductsFast] 🧹 Clearing cache to get fresh data with description');
+      fastCache.clear();
     }
 
     // ULTRA-FAST AGGREGATION PIPELINE - Optimized for indexes
@@ -135,6 +137,7 @@ const getProductsFast = async (req, res) => {
           rating: 1,
           isNew: 1,
           isPopular: 1,
+          description: 1,
           // Optimize image handling - take only first image to reduce payload
           image: 1,
           thumbnail: { $arrayElemAt: ['$images', 0] }, // First image as thumbnail
@@ -163,7 +166,7 @@ const getProductsFast = async (req, res) => {
       console.log('[getProductsFast] Aggregation failed, using simple find fallback');
       if (msg.includes('timeout') || msg.includes('failed') || msg.includes('aggregation')) {
         products = await Product.find(query)
-          .select('_id name price oldPrice category stock unit badge image updatedAt')
+          .select('_id name price oldPrice category stock unit badge image description updatedAt')
           .sort(sort)
           .skip(skip)
           .limit(limit)
@@ -200,6 +203,7 @@ const getProductsFast = async (req, res) => {
         rating: product.rating || 0,
         isNew: product.isNew || false,
         isPopular: product.isPopular || false,
+        description: product.description || '',
         image: imageToUse,
         images: Array.isArray(product.images) && product.images.length > 0
           ? product.images.slice(0, 3).map(toMedium)
@@ -211,6 +215,20 @@ const getProductsFast = async (req, res) => {
     
     const duration = Date.now() - startTime;
     if (debug) console.log(`[getProductsFast] 🚀 ULTRA-FAST completed in ${duration}ms, returned ${products.length} products`);
+    
+    // Debug: Check if description is included in first product
+    if (productsWithImages.length > 0) {
+      console.log('[getProductsFast] 📝 First product description:', productsWithImages[0].description);
+      console.log('[getProductsFast] 📋 First product fields:', Object.keys(productsWithImages[0]));
+    }
+    
+    // Debug: Check pagination info
+    console.log('[getProductsFast] 📊 Pagination info:', {
+      requestedPage: page,
+      requestedLimit: limit,
+      returnedProducts: productsWithImages.length,
+      hasNextPage: products.length === limit
+    });
     
     const payload = {
       products: productsWithImages,
@@ -229,8 +247,8 @@ const getProductsFast = async (req, res) => {
       }
     };
 
-    // Cache the result
-    fastCache.set(cacheKey, { payload: { ...payload, performance: { ...payload.performance, cached: true } }, timestamp: Date.now() });
+    // Cache disabled temporarily to ensure fresh data with description
+    // fastCache.set(cacheKey, { payload: { ...payload, performance: { ...payload.performance, cached: true } }, timestamp: Date.now() });
 
     if (debug) console.log('[getProductsFast] 📤 Sending response with', products.length, 'products');
     
@@ -270,7 +288,7 @@ const getProductsFast = async (req, res) => {
         : { updatedAt: -1 };
 
       const products = await Product.find(query)
-        .select('_id name price oldPrice category stock unit badge rating isNew isPopular image images updatedAt createdAt')
+        .select('_id name price oldPrice category stock unit badge rating isNew isPopular image images description updatedAt createdAt')
         .sort(sort)
         .skip(skip)
         .limit(limit)
@@ -295,6 +313,7 @@ const getProductsFast = async (req, res) => {
         rating: product.rating || 0,
         isNew: product.isNew || false,
         isPopular: product.isPopular || false,
+        description: product.description || '',
         image: (product.image && product.image !== '/assets/default-product.svg')
           ? toMedium(product.image)
           : (product.images && product.images[0]) ? toMedium(product.images[0]) : '/assets/default-product.svg',
@@ -334,7 +353,8 @@ const getProductsFast = async (req, res) => {
 
       res.status(500).json({
         error: 'Failed to fetch products',
-        message: fallbackErr.message || error.message
+        message: fallbackErr.message || error.
+        message
       });
     }
   }

@@ -4,11 +4,11 @@ import { queryKeys } from '../lib/queryClient';
 // API base URL
 const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
 
-// Super fast initial load - just 8 products for immediate display
-const fetchFastProducts = async ({ category = '', search = '', signal }) => {
+// Fast products with pagination support
+const fetchFastProducts = async ({ category = '', search = '', page = 1, limit = 100, signal }) => {
   const params = new URLSearchParams({
-    limit: '8', // Slightly more products for better initial display
-    page: '1',
+    limit: limit.toString(),
+    page: page.toString(),
     sortBy: 'updatedAt',
     sortOrder: 'desc',
     includeImages: 'true'
@@ -51,11 +51,11 @@ const fetchFastProducts = async ({ category = '', search = '', signal }) => {
   }
 };
 
-// Hook for super fast initial product load - IMMEDIATE DISPLAY
-export const useFastProducts = (category, search) => {
+// Hook for fast products with pagination support
+export const useFastProducts = (category, search, page = 1, limit = 100) => {
   return useQuery({
-    queryKey: ['fast-products', category, search],
-    queryFn: ({ signal }) => fetchFastProducts({ category, search, signal }),
+    queryKey: ['fast-products', category, search, page, limit],
+    queryFn: ({ signal }) => fetchFastProducts({ category, search, page, limit, signal }),
     staleTime: 5 * 60 * 1000, // 5 minutes - longer stale time for immediate display
     cacheTime: 15 * 60 * 1000, // 15 minutes - longer cache
     refetchOnWindowFocus: false,

@@ -18,7 +18,7 @@ router.get('/with-images', async (req, res) => {
     };
 
     const products = await Product.find(query)
-      .select('name price image images category stock badge rating isNew isPopular')
+      .select('name price image images category stock badge rating isNew isPopular description')
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 })

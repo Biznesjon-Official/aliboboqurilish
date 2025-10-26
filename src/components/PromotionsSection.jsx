@@ -81,16 +81,7 @@
       }
     };
 
-    // Show loading state
-    if (loading) {
-      return (
-        <div className="w-full bg-white py-4 md:py-6">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="bg-gray-200 animate-pulse rounded-xl h-56"></div>
-          </div>
-        </div>
-      );
-    }
+    // Don't show loading state, just wait for data
 
     // Only show promotions if we have active ones from API
     const displayPromotions = promotions;

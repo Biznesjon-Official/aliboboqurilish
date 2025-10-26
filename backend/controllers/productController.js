@@ -854,6 +854,8 @@ const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
+    
+    // Product update request received
 
     // Validate ObjectId format
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {

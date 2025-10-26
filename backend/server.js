@@ -369,15 +369,12 @@ if (enableClustering && cluster.isPrimary) {
     maxHeight: 1920
   }));
 
-  // Static file serving for uploads with CORS headers
+  // Static file serving for uploads (CORS handled by main middleware)
   app.use('/uploads', express.static('uploads', {
     maxAge: process.env.NODE_ENV === 'development' ? '0' : '7d', // No cache in development, 7 days in production
     etag: true, // Generate ETags for caching
     setHeaders: (res, path, stat) => {
-      // Add CORS headers for image requests - allow all origins for static files
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
+      // Only set cache and resource policy headers (CORS handled by main middleware)
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       
       if (process.env.NODE_ENV === 'development') {

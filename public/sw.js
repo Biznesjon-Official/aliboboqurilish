@@ -1,7 +1,7 @@
 // Service Worker for image caching and offline support
-const CACHE_NAME = 'alibobo-images-v1';
-const API_CACHE_NAME = 'alibobo-api-v1';
-const STATIC_CACHE_NAME = 'alibobo-static-v1';
+const CACHE_NAME = 'alibobo-images-v2';
+const API_CACHE_NAME = 'alibobo-api-v2';
+const STATIC_CACHE_NAME = 'alibobo-static-v2';
 
 // Cache strategies
 const CACHE_STRATEGIES = {
@@ -13,8 +13,6 @@ const CACHE_STRATEGIES = {
 // URLs to cache
 const STATIC_ASSETS = [
   '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
   '/assets/default-product.svg',
   '/manifest.json'
 ];

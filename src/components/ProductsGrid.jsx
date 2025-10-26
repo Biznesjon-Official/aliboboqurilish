@@ -75,6 +75,10 @@ const ProductsGrid = ({
     return map[v] || v;
   };
 
+  // Current page state for pagination
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [isPageChanging, setIsPageChanging] = useState(false);
+
   // Backend infinite pagination via React Query
   const mappedCategory = useMemo(() => {
     const result = debouncedCategory && debouncedCategory !== 'all' && debouncedCategory !== ''
@@ -84,27 +88,14 @@ const ProductsGrid = ({
     return result;
   }, [debouncedCategory]);
 
-  // Use regular products hook to load products
+  // Use fast products hook with pagination
   const {
-    data: allProductsData,
-    isLoading,
-    isFetching,
-    error,
-    refetch
-  } = useProducts(mappedCategory, searchQuery || '', 1, 1000); // Load up to 1000 products at once
-  
-
-  
-  // Disable fast products for now - causing conflicts
-  const fastData = null;
-  const fastLoading = false;
-  const fastError = null;
-  const fastFetched = false;
-  const hasInitialProducts = false;
-
-  // Current page state for pagination
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const [isPageChanging, setIsPageChanging] = useState(false);
+    data: fastData,
+    isLoading: fastLoading,
+    isFetching: fastFetching,
+    error: fastError,
+    refetch: fastRefetch
+  } = useFastProducts(mappedCategory, searchQuery || '', currentPageIndex + 1, 100);
 
   // Reset to first page when category or search changes
   useEffect(() => {
@@ -115,24 +106,21 @@ const ProductsGrid = ({
 
   // No infinite scroll - all products loaded at once
 
-  // Get all products - combine fast data with full data
+  // Get products for current page only
   const fetchedProducts = useMemo(() => {
     let products = [];
     
-    // Use full products data if available
-    if (allProductsData && allProductsData.products && allProductsData.products.length > 0) {
-      products = [...allProductsData.products];
-    } else if (fastData && fastData.products && fastData.products.length > 0) {
-      // Fallback to fast data for immediate display
+    // Use fast data for immediate display (backend handles pagination)
+    if (fastData && fastData.products && fastData.products.length > 0) {
       products = [...fastData.products];
     }
     
     return products;
-  }, [allProductsData, fastData]);
+  }, [fastData]);
 
   // IMMEDIATE RENDER: Show content as soon as we have any products
   const shouldShowContent = fetchedProducts.length > 0;
-  const isInitialLoading = !shouldShowContent && (fastLoading || isLoading);
+  const isInitialLoading = !shouldShowContent && fastLoading;
 
 
   // No need to manage initial load state
@@ -286,42 +274,36 @@ const ProductsGrid = ({
     return products;
   }, [categoryFilteredProducts, searchResults, appliedMinPrice, appliedMaxPrice, quickFilter]);
 
-  // Pagination for filtered products - 100 products per page
-  const PRODUCTS_PER_PAGE = 100;
-  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+  // Backend pagination - get total pages from API response
+  const totalPages = fastData?.pagination?.hasNextPage ? currentPageIndex + 2 : currentPageIndex + 1;
   
-
+  // Use products directly from API (no local pagination needed)
+  const paginatedProducts = fetchedProducts;
   
-  const paginatedProducts = useMemo(() => {
-    const startIndex = currentPageIndex * PRODUCTS_PER_PAGE;
-    const endIndex = startIndex + PRODUCTS_PER_PAGE;
-    return filteredProducts.slice(startIndex, endIndex);
-  }, [filteredProducts, currentPageIndex]);
+  // Debug pagination (removed to reduce console spam)
 
-  // Safe page change function with debounce
+  // Fast page change function
   const changePage = useCallback((newPageIndex) => {
     if (isPageChanging) return; // Prevent multiple clicks
     
     setIsPageChanging(true);
     setCurrentPageIndex(newPageIndex);
     
-    // Scroll to products grid for better UX
-    setTimeout(() => {
-      const productsGrid = document.getElementById('products-grid');
-      if (productsGrid) {
-        const rect = productsGrid.getBoundingClientRect();
-        const scrollTop = window.pageYOffset + rect.top - 100; // 100px offset from top
-        window.scrollTo({ top: scrollTop, behavior: 'smooth' });
-      } else {
-        // Fallback to top of page
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    }, 150);
+    // Immediate scroll to products grid
+    const productsGrid = document.getElementById('products-grid');
+    if (productsGrid) {
+      const rect = productsGrid.getBoundingClientRect();
+      const scrollTop = window.pageYOffset + rect.top - 100; // 100px offset from top
+      window.scrollTo({ top: scrollTop, behavior: 'smooth' });
+    } else {
+      // Fallback to top of page
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     
-    // Reset debounce after a short delay
+    // Quick reset
     setTimeout(() => {
       setIsPageChanging(false);
-    }, 300);
+    }, 100);
   }, [isPageChanging]);
 
 
@@ -403,17 +385,17 @@ const ProductsGrid = ({
 
   // Handle retry functionality
   const handleRetry = useCallback(() => {
-    if (refetch) {
-      refetch();
+    if (fastRefetch) {
+      fastRefetch();
     }
-  }, [refetch]);
+  }, [fastRefetch]);
 
   // No loader logic needed - show content immediately
 
   // No loader - show content immediately
 
   // Show error state if there's an API error and no products
-  if ((error || fastError) && fetchedProducts.length === 0) {
+  if (fastError && fetchedProducts.length === 0) {
     return (
       <div className="container mx-auto px-4 lg:px-6 py-4 lg:py-6">
         <div className="text-center py-16">
@@ -586,15 +568,23 @@ const ProductsGrid = ({
                 </button>
               )}
               
-              {/* Page Numbers - Sliding Window */}
+              {/* Page Numbers - Always show first 5-7 pages when on early pages */}
               {(() => {
-                const maxVisiblePages = 10;
-                let startPage = Math.max(0, currentPageIndex - Math.floor(maxVisiblePages / 2));
-                let endPage = Math.min(totalPages - 1, startPage + maxVisiblePages - 1);
+                const maxVisiblePages = 7; // Show more pages
+                let startPage, endPage;
                 
-                // Adjust start if we're near the end
-                if (endPage - startPage + 1 < maxVisiblePages) {
-                  startPage = Math.max(0, endPage - maxVisiblePages + 1);
+                if (currentPageIndex <= 2) {
+                  // When on first 3 pages, show from page 1 onwards
+                  startPage = 0;
+                  endPage = Math.min(totalPages - 1, maxVisiblePages - 1);
+                } else if (currentPageIndex >= totalPages - 3) {
+                  // When near the end, show last pages
+                  endPage = totalPages - 1;
+                  startPage = Math.max(0, totalPages - maxVisiblePages);
+                } else {
+                  // In the middle, center the current page
+                  startPage = Math.max(0, currentPageIndex - Math.floor(maxVisiblePages / 2));
+                  endPage = Math.min(totalPages - 1, startPage + maxVisiblePages - 1);
                 }
                 
                 return Array.from({ length: endPage - startPage + 1 }, (_, i) => {
@@ -635,12 +625,6 @@ const ProductsGrid = ({
             </div>
           )}
           
-          {/* Products Info */}
-          {filteredProducts.length > 0 && (
-            <div className="text-center text-sm text-gray-600 mt-4">
-              {filteredProducts.length} ta mahsulotdan {currentPageIndex * PRODUCTS_PER_PAGE + 1}-{Math.min((currentPageIndex + 1) * PRODUCTS_PER_PAGE, filteredProducts.length)} tasi ko'rsatilmoqda
-            </div>
-          )}
         </>
       ) : isInitialLoading ? (
         // Clear construction-themed loader

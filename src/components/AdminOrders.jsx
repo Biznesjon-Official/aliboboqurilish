@@ -951,7 +951,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
               <div className="flex items-center gap-2">
                 <button
                   onClick={selectAllOrders}
-                  className="px-3 py-1.5 text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 border border-gray-300"
+                  className="px-4 py-2 text-sm bg-primary-orange hover:bg-orange-600 text-white rounded-lg transition-colors duration-200 font-medium shadow-sm hover:shadow-md"
                 >
                   {selectedOrders.size === filteredOrders.length ? 'Hammasini bekor qilish' : 'Hammasini tanlash'}
                 </button>
@@ -960,16 +960,16 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
                   <>
                     <button
                       onClick={clearSelection}
-                      className="px-3 py-1.5 text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 border border-gray-300"
+                      className="px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors duration-200 font-medium shadow-sm hover:shadow-md"
                     >
                       Tanlovni tozalash
                     </button>
                     
                     <button
                       onClick={bulkDeleteOrders}
-                      className="px-3 py-1.5 text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors duration-200 flex items-center gap-1"
+                      className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors duration-200 font-medium shadow-sm hover:shadow-md flex items-center gap-2"
                     >
-                      <TrashFAIcon className="text-xs" />
+                      <TrashFAIcon className="text-sm" />
                       O'chirish ({selectedOrders.size})
                     </button>
                   </>

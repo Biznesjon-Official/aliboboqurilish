@@ -511,6 +511,8 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     };
   }, [isModalOpen, isViewModalOpen, alertModal?.show, confirmModal?.show, promptModal?.show]);
 
+  // Debug: Monitor formData changes (removed for performance)
+
   // Handle Escape key to close modal
   useEffect(() => {
     const handleEscapeKey = (event) => {
@@ -559,7 +561,15 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     // console.log('🔍 Tahrirlash uchun mahsulot ma\'lumotlari:', JSON.stringify(product, null, 2));
 
     // Mahsulot rasmlarini to'g'ri olish
-    const productImages = product.images || (product.image ? [product.image] : []);
+    const productImages = (product.images && product.images.length > 0) 
+      ? product.images 
+      : (product.image ? [product.image] : []);
+    
+    // Images loaded successfully
+    
+    // Product data loaded for editing
+    console.log('🔍 Product description from API:', product.description);
+    console.log('🔍 Product keys from API:', Object.keys(product));
 
     setSelectedProduct(product);
     setFormData({
@@ -768,6 +778,8 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
         reviews: 0,
         status: 'active'
       };
+
+      // Product data prepared for submission
 
       // Add price, stock, and images based on variant status
       if (formData.hasVariants) {

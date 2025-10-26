@@ -16,7 +16,7 @@ const ImageUploader = ({
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Debug: rasmlar massivini console ga chiqarish
+  // ImageUploader component initialized
 
 
 
