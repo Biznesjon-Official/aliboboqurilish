@@ -16,10 +16,10 @@ console.log('🎯 Goal: Completely eliminate ALL Sharp messages from everywhere'
 // Step 1: Clear PM2 logs first
 console.log('🧹 Step 1: Clearing PM2 logs...');
 try {
-  execSync('pm2 flush alibobo-backend', { stdio: 'inherit' });
-  console.log('✅ PM2 logs cleared');
+    execSync('pm2 flush alibobo-backend', { stdio: 'inherit' });
+    console.log('✅ PM2 logs cleared');
 } catch (error) {
-  console.log('⚠️ Could not clear PM2 logs (may not be running)');
+    console.log('⚠️ Could not clear PM2 logs (may not be running)');
 }
 
 // Step 2: Update sharpFallback.js to be COMPLETELY silent
@@ -130,14 +130,14 @@ const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 
 // Remove sharp from dependencies
 if (packageJson.dependencies && packageJson.dependencies.sharp) {
-  delete packageJson.dependencies.sharp;
-  console.log('✅ Sharp removed from dependencies');
+    delete packageJson.dependencies.sharp;
+    console.log('✅ Sharp removed from dependencies');
 }
 
 // Add sharp configuration to suppress any remaining messages
 packageJson.sharp = {
-  "logging": false,
-  "verbose": false
+    "logging": false,
+    "verbose": false
 };
 
 fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
@@ -149,41 +149,41 @@ const nodeModulesPath = path.join(__dirname, '..', 'node_modules');
 const sharpModulePath = path.join(nodeModulesPath, 'sharp');
 
 try {
-  // Remove existing sharp if it exists
-  if (fs.existsSync(sharpModulePath)) {
-    execSync(\`rm -rf "\${sharpModulePath}"\`, { stdio: 'pipe' });
-  }
-  
-  // Create dummy sharp directory
-  fs.mkdirSync(sharpModulePath, { recursive: true });
-  
-  // Create dummy package.json
-  const dummyPackageJson = {
-    "name": "sharp",
-    "version": "0.0.0-dummy",
-    "description": "Dummy Sharp module to prevent loading errors",
-    "main": "index.js"
-  };
-  
-  fs.writeFileSync(
-    path.join(sharpModulePath, 'package.json'), 
-    JSON.stringify(dummyPackageJson, null, 2)
-  );
-  
-  // Create dummy index.js that throws silently
-  const dummyIndex = \`// Dummy Sharp module - prevents loading errors
+    // Remove existing sharp if it exists
+    if (fs.existsSync(sharpModulePath)) {
+        execSync(`rm -rf "${sharpModulePath}"`, { stdio: 'pipe' });
+    }
+
+    // Create dummy sharp directory
+    fs.mkdirSync(sharpModulePath, { recursive: true });
+
+    // Create dummy package.json
+    const dummyPackageJson = {
+        "name": "sharp",
+        "version": "0.0.0-dummy",
+        "description": "Dummy Sharp module to prevent loading errors",
+        "main": "index.js"
+    };
+
+    fs.writeFileSync(
+        path.join(sharpModulePath, 'package.json'),
+        JSON.stringify(dummyPackageJson, null, 2)
+    );
+
+    // Create dummy index.js that throws silently
+    const dummyIndex = `// Dummy Sharp module - prevents loading errors
 module.exports = function() {
   throw new Error('Sharp not available');
 };
 
 module.exports.versions = { sharp: '0.0.0-dummy' };
-\`;
-  
-  fs.writeFileSync(path.join(sharpModulePath, 'index.js'), dummyIndex);
-  
-  console.log('✅ Dummy Sharp module created');
+`;
+
+    fs.writeFileSync(path.join(sharpModulePath, 'index.js'), dummyIndex);
+
+    console.log('✅ Dummy Sharp module created');
 } catch (error) {
-  console.log('⚠️ Could not create dummy module:', error.message);
+    console.log('⚠️ Could not create dummy module:', error.message);
 }
 
 // Step 5: Update upload routes to not mention Sharp at all
@@ -191,14 +191,14 @@ console.log('📝 Step 5: Updating upload routes...');
 
 const uploadRoutesPath = path.join(__dirname, '..', 'routes', 'uploadRoutes.js');
 if (fs.existsSync(uploadRoutesPath)) {
-  let uploadContent = fs.readFileSync(uploadRoutesPath, 'utf8');
-  
-  // Replace any Sharp-related console.log messages
-  uploadContent = uploadContent.replace(/console\.log\([^)]*[Ss]harp[^)]*\)/g, '// Sharp message removed');
-  uploadContent = uploadContent.replace(/console\.warn\([^)]*[Ss]harp[^)]*\)/g, '// Sharp warning removed');
-  
-  fs.writeFileSync(uploadRoutesPath, uploadContent);
-  console.log('✅ Upload routes cleaned');
+    let uploadContent = fs.readFileSync(uploadRoutesPath, 'utf8');
+
+    // Replace any Sharp-related console.log messages
+    uploadContent = uploadContent.replace(/console\.log\([^)]*[Ss]harp[^)]*\)/g, '// Sharp message removed');
+    uploadContent = uploadContent.replace(/console\.warn\([^)]*[Ss]harp[^)]*\)/g, '// Sharp warning removed');
+
+    fs.writeFileSync(uploadRoutesPath, uploadContent);
+    console.log('✅ Upload routes cleaned');
 }
 
 console.log('');
