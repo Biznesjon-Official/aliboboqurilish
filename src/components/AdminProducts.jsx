@@ -149,13 +149,13 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
-    
+
     debounceTimeoutRef.current = setTimeout(() => {
       setDebouncedSearch(searchTerm);
       setDebouncedCategory(filterCategory);
       setCurrentPage(1);
     }, 300); // 300ms debounce delay for faster response
-    
+
     return () => {
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
@@ -175,7 +175,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // Main categories (asosiy kategoriyalar) - database'dagi haqiqiy nomlar
   const mainCategories = [
     'xoz-mag',
-    'yevro-remont', 
+    'yevro-remont',
     'elektrika',
     'dekor', // Database'da 'dekor' saqlanadi
     'santexnika'
@@ -184,7 +184,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // Category display names mapping (database name → display name)
   const categoryDisplayNames = {
     'xoz-mag': 'Xoz-Mag',
-    'yevro-remont': 'Yevro-Remont', 
+    'yevro-remont': 'Yevro-Remont',
     'elektrika': 'Elektrika',
     'dekor': 'Dekorativ-mahsulotlar', // Database'da 'dekor' saqlanadi
     'santexnika': 'Santexnika'
@@ -565,12 +565,12 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     // console.log('🔍 Tahrirlash uchun mahsulot ma\'lumotlari:', JSON.stringify(product, null, 2));
 
     // Mahsulot rasmlarini to'g'ri olish
-    const productImages = (product.images && product.images.length > 0) 
-      ? product.images 
+    const productImages = (product.images && product.images.length > 0)
+      ? product.images
       : (product.image ? [product.image] : []);
-    
+
     // Images loaded successfully
-    
+
     // Product data loaded for editing
     console.log('🔍 Product description from API:', product.description);
     console.log('🔍 Product keys from API:', Object.keys(product));
@@ -930,31 +930,31 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   const handleFilterChange = (value) => {
     console.log('🔄 Filter changed to:', value);
     setFilterCategory(value);
-    
+
     // Clear existing debounce timeout
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
-    
+
     // Map frontend category to backend category if needed
     const mappedValue = categoryValueMapping[value] || value;
     console.log('🔄 Mapped category value:', value, '→', mappedValue);
-    
+
     // Immediately apply the filter change
     setDebouncedCategory(mappedValue);
     setDebouncedSearch(searchTerm); // Keep current search
     setCurrentPage(1);
-    
+
     // Clear cache to force refetch with specific pattern
-    queryClient.invalidateQueries({ 
+    queryClient.invalidateQueries({
       queryKey: ['products'],
       exact: false // Invalidate all products queries
     });
-    
+
     // Also remove all cached data
-    queryClient.removeQueries({ 
+    queryClient.removeQueries({
       queryKey: ['products'],
-      exact: false 
+      exact: false
     });
   };
 
@@ -962,26 +962,26 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
     setSearchTerm('');
     setFilterCategory('');
     setCurrentPage(1);
-    
+
     // Clear debounce timeout
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
-    
+
     // Immediately clear debounced values
     setDebouncedSearch('');
     setDebouncedCategory('');
-    
+
     // Clear cache to force refetch with specific pattern
-    queryClient.invalidateQueries({ 
+    queryClient.invalidateQueries({
       queryKey: ['products'],
       exact: false // Invalidate all products queries
     });
-    
+
     // Also remove all cached data
-    queryClient.removeQueries({ 
+    queryClient.removeQueries({
       queryKey: ['products'],
-      exact: false 
+      exact: false
     });
   };
 
@@ -1403,12 +1403,12 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 
       {/* Add/Edit Modal */}
       {isModalOpen && document.body && createPortal(
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal-overlay overflow-hidden p-4"
           style={{ zIndex: 99999 }}
           onClick={closeModal}
         >
-          <div 
+          <div
             className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1599,12 +1599,12 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 
       {/* View Modal */}
       {isViewModalOpen && selectedProduct && document.body && createPortal(
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal-overlay overflow-hidden p-4"
           style={{ zIndex: 99999 }}
           onClick={() => setIsViewModalOpen(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1617,146 +1617,146 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
                 >
                   <TimesFAIcon className="text-xl" />
                 </button>
-                </div>
               </div>
+            </div>
 
-              <div className="p-6 space-y-6">
-                {/* Product Images */}
-                {((selectedProduct.images && selectedProduct.images.length > 0) || selectedProduct.image) && (
-                  <div className="space-y-3">
-                    <label className="block text-sm font-medium text-gray-700">Mahsulot rasmlari</label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {selectedProduct.images && selectedProduct.images.length > 0 ? (
-                        selectedProduct.images.map((image, index) => (
-                          <div key={index} className="relative group">
-                            <OptimizedImage
-                              src={image}
-                              alt={`${selectedProduct.name} - ${index + 1}`}
-                              className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"
-                              fallbackSrc={null}
-                              placeholder="skeleton"
-                            />
-                            <div className="absolute -top-2 -left-2 bg-primary-orange text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
-                              {index + 1}
-                            </div>
-                          </div>
-                        ))
-                      ) : selectedProduct.image && (
-                        <div className="relative group">
+            <div className="p-6 space-y-6">
+              {/* Product Images */}
+              {((selectedProduct.images && selectedProduct.images.length > 0) || selectedProduct.image) && (
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">Mahsulot rasmlari</label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {selectedProduct.images && selectedProduct.images.length > 0 ? (
+                      selectedProduct.images.map((image, index) => (
+                        <div key={index} className="relative group">
                           <OptimizedImage
-                            src={selectedProduct.image}
-                            alt={selectedProduct.name}
+                            src={image}
+                            alt={`${selectedProduct.name} - ${index + 1}`}
                             className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"
                             fallbackSrc={null}
                             placeholder="skeleton"
                           />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Product Information Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-500 mb-2">Mahsulot nomi</label>
-                      <p className="text-lg font-semibold text-gray-900">{selectedProduct.name}</p>
-                    </div>
-
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-500 mb-2">Kategoriya</label>
-                      <p className="text-gray-900 capitalize">{selectedProduct.category}</p>
-                    </div>
-
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-500 mb-2">Narx</label>
-                      <div className="flex items-center space-x-3">
-                        <p className="text-xl font-bold text-primary-dark">{formatCurrency(selectedProduct.price)}</p>
-                        {selectedProduct.oldPrice && selectedProduct.oldPrice > selectedProduct.price && (
-                          <div className="flex items-center space-x-2">
-                            <p className="text-sm text-gray-400 line-through decoration-red-500 decoration-2">{formatCurrency(selectedProduct.oldPrice)}</p>
-                            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
-                              -{Math.round(((selectedProduct.oldPrice - selectedProduct.price) / selectedProduct.oldPrice) * 100)}%
-                            </span>
+                          <div className="absolute -top-2 -left-2 bg-primary-orange text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                            {index + 1}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-500 mb-2">Zaxira</label>
-                      <div className="flex items-center justify-between">
-                        <p className="text-gray-900 font-medium">{selectedProduct.stock} {selectedProduct.unit}</p>
-                        <span className={`text-xs px-3 py-1 rounded-full font-medium ${getStockStatus(selectedProduct.stock).class}`}>
-                          {getStockStatus(selectedProduct.stock).text}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-500 mb-2">O'lchov birligi</label>
-                      <p className="text-gray-900">{selectedProduct.unit}</p>
-                    </div>
-
-                    {selectedProduct.badge && (
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <label className="block text-sm font-medium text-gray-500 mb-2">Badge</label>
-                        <span className="bg-primary-orange text-white text-sm px-3 py-1 rounded-full font-medium">
-                          {selectedProduct.badge}
-                        </span>
+                        </div>
+                      ))
+                    ) : selectedProduct.image && (
+                      <div className="relative group">
+                        <OptimizedImage
+                          src={selectedProduct.image}
+                          alt={selectedProduct.name}
+                          className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-orange transition-colors cursor-pointer"
+                          fallbackSrc={null}
+                          placeholder="skeleton"
+                        />
                       </div>
                     )}
                   </div>
                 </div>
+              )}
 
-                {selectedProduct.description && (
+              {/* Product Information Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <label className="block text-sm font-medium text-gray-500 mb-2">Tavsif</label>
-                    <p className="text-gray-900 leading-relaxed">{selectedProduct.description}</p>
+                    <label className="block text-sm font-medium text-gray-500 mb-2">Mahsulot nomi</label>
+                    <p className="text-lg font-semibold text-gray-900">{selectedProduct.name}</p>
                   </div>
-                )}
 
-                {/* Additional Information */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-blue-50 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-blue-600">{selectedProduct.stock}</div>
-                    <div className="text-sm text-blue-600 font-medium">Zaxirada</div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <label className="block text-sm font-medium text-gray-500 mb-2">Kategoriya</label>
+                    <p className="text-gray-900 capitalize">{selectedProduct.category}</p>
                   </div>
-                  <div className="bg-green-50 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-green-600">{formatCurrency(selectedProduct.price)}</div>
-                    <div className="text-sm text-green-600 font-medium">Joriy narx</div>
-                  </div>
-                  <div className="bg-purple-50 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-purple-600 capitalize">{selectedProduct.category}</div>
-                    <div className="text-sm text-purple-600 font-medium">Kategoriya</div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <label className="block text-sm font-medium text-gray-500 mb-2">Narx</label>
+                    <div className="flex items-center space-x-3">
+                      <p className="text-xl font-bold text-primary-dark">{formatCurrency(selectedProduct.price)}</p>
+                      {selectedProduct.oldPrice && selectedProduct.oldPrice > selectedProduct.price && (
+                        <div className="flex items-center space-x-2">
+                          <p className="text-sm text-gray-400 line-through decoration-red-500 decoration-2">{formatCurrency(selectedProduct.oldPrice)}</p>
+                          <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                            -{Math.round(((selectedProduct.oldPrice - selectedProduct.price) / selectedProduct.oldPrice) * 100)}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="sticky bottom-0 bg-white pt-6 border-t border-gray-200 z-10">
-                  <div className="flex items-center justify-end space-x-4">
-                    <button
-                      onClick={() => setIsViewModalOpen(false)}
-                      className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-200 font-medium"
-                    >
-                      Yopish
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsViewModalOpen(false);
-                        openEditModal(selectedProduct);
-                      }}
-                      className="px-6 py-3 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 transition duration-200 font-medium"
-                    >
-                      <EditFAIcon className="mr-2" />Tahrirlash
-                    </button>
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <label className="block text-sm font-medium text-gray-500 mb-2">Zaxira</label>
+                    <div className="flex items-center justify-between">
+                      <p className="text-gray-900 font-medium">{selectedProduct.stock} {selectedProduct.unit}</p>
+                      <span className={`text-xs px-3 py-1 rounded-full font-medium ${getStockStatus(selectedProduct.stock).class}`}>
+                        {getStockStatus(selectedProduct.stock).text}
+                      </span>
+                    </div>
                   </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <label className="block text-sm font-medium text-gray-500 mb-2">O'lchov birligi</label>
+                    <p className="text-gray-900">{selectedProduct.unit}</p>
+                  </div>
+
+                  {selectedProduct.badge && (
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-500 mb-2">Badge</label>
+                      <span className="bg-primary-orange text-white text-sm px-3 py-1 rounded-full font-medium">
+                        {selectedProduct.badge}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {selectedProduct.description && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <label className="block text-sm font-medium text-gray-500 mb-2">Tavsif</label>
+                  <p className="text-gray-900 leading-relaxed">{selectedProduct.description}</p>
+                </div>
+              )}
+
+              {/* Additional Information */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-blue-600">{selectedProduct.stock}</div>
+                  <div className="text-sm text-blue-600 font-medium">Zaxirada</div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-green-600">{formatCurrency(selectedProduct.price)}</div>
+                  <div className="text-sm text-green-600 font-medium">Joriy narx</div>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-purple-600 capitalize">{selectedProduct.category}</div>
+                  <div className="text-sm text-purple-600 font-medium">Kategoriya</div>
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 bg-white pt-6 border-t border-gray-200 z-10">
+                <div className="flex items-center justify-end space-x-4">
+                  <button
+                    onClick={() => setIsViewModalOpen(false)}
+                    className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-200 font-medium"
+                  >
+                    Yopish
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsViewModalOpen(false);
+                      openEditModal(selectedProduct);
+                    }}
+                    className="px-6 py-3 bg-primary-orange text-white rounded-lg hover:bg-opacity-90 transition duration-200 font-medium"
+                  >
+                    <EditFAIcon className="mr-2" />Tahrirlash
+                  </button>
                 </div>
               </div>
             </div>
-          </div>,
+          </div>
+        </div>,
         document.body
       )}
 
