@@ -69,10 +69,17 @@ const upload = multer({
 const processImage = async (buffer, filename) => {
   console.log('🎨 Starting image processing for:', filename);
   
-  const baseFilename = path.parse(filename).name;
+  // Clean filename - remove special characters and normalize
+  const cleanFilename = path.parse(filename).name
+    .replace(/[^\w\s.-]/g, '') // Remove special characters
+    .replace(/\s+/g, '_') // Replace spaces with underscores
+    .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+    .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+    .substring(0, 50); // Limit length
+  
   const timestamp = Date.now();
   const uniqueId = uuidv4().split('-')[0];
-  const baseName = `${baseFilename}_${timestamp}_${uniqueId}`;
+  const baseName = `${cleanFilename}_${timestamp}_${uniqueId}`;
   
   console.log('📝 Generated base name:', baseName);
   
