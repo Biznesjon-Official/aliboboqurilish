@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { PlusFAIcon, ChevronUpFAIcon, ChevronDownFAIcon, TimesFAIcon, ExclamationTriangleFAIcon, UploadFAIcon } from '../FontAwesome';
 import OptimizedImage from '../OptimizedImage';
 
@@ -40,13 +40,27 @@ const ImageUploader = ({
           throw new Error(`${file.name} juda katta (5MB dan oshmasin)`);
         }
 
+        // Clean filename - remove special characters and spaces
+        const cleanFileName = file.name
+          .replace(/[^\w\s.-]/g, '') // Remove special characters except word chars, spaces, dots, hyphens
+          .replace(/\s+/g, '_') // Replace spaces with underscores
+          .replace(/_{2,}/g, '_'); // Replace multiple underscores with single
+
+        // Create new file with clean name
+        const cleanFile = new File([file], cleanFileName, { type: file.type });
+
         // Create FormData
         const formData = new FormData();
-        formData.append('image', file);
+        formData.append('image', cleanFile);
 
-        // Upload to server - use environment variable or fallback
-        const backendUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE?.replace('/api', '') || 'http://localhost:5000';
-        const response = await fetch(`${backendUrl}/api/upload/image`, {
+        // Upload to server - use relative URL for production, absolute for development
+        const isProduction = process.env.NODE_ENV === 'production';
+        const uploadUrl = isProduction
+          ? '/api/upload/image' // Relative URL for production (nginx will handle)
+          : `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/upload/image`;
+
+        console.log('🔗 Upload URL:', uploadUrl);
+        const response = await fetch(uploadUrl, {
           method: 'POST',
           body: formData,
         });
