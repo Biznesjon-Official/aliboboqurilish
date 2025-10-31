@@ -47,6 +47,17 @@ for (const dir of uploadDirs) {
 
 // Check 3: Environment variables
 console.log('📋 Checking environment variables...');
+
+// Load environment config like the main server does
+const path = require('path');
+if (process.env.NODE_ENV === 'development') {
+  if (!process.env.MONGODB_URI && !process.env.MONGO_URI) {
+    require('dotenv').config({ path: path.join(__dirname, '..', '.env.development') });
+  }
+} else {
+  require('dotenv').config({ path: path.join(__dirname, '..', 'config.env') });
+}
+
 const requiredEnvVars = ['NODE_ENV', 'MONGODB_URI', 'PORT'];
 const missingVars = [];
 
@@ -58,8 +69,12 @@ for (const varName of requiredEnvVars) {
 
 if (missingVars.length > 0) {
   console.log('⚠️ Missing environment variables:', missingVars.join(', '));
+  console.log('💡 Check config.env or .env.development files');
 } else {
-  console.log('✅ All required environment variables present');
+  console.log('✅ All required environment variables loaded');
+  console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`   PORT: ${process.env.PORT}`);
+  console.log(`   MONGODB_URI: ${process.env.MONGODB_URI ? 'configured' : 'missing'}`);
 }
 
 // Check 4: Socket.IO service
