@@ -17,13 +17,13 @@ const dirs = ['original', 'thumbnail', 'medium', 'large'];
 console.log('📁 Creating upload directories...');
 
 for (const dir of dirs) {
-  const dirPath = path.join(uploadsDir, dir);
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-    console.log(`✅ Created: ${dir}`);
-  } else {
-    console.log(`✅ Exists: ${dir}`);
-  }
+    const dirPath = path.join(uploadsDir, dir);
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+        console.log(`✅ Created: ${dir}`);
+    } else {
+        console.log(`✅ Exists: ${dir}`);
+    }
 }
 
 console.log('');
