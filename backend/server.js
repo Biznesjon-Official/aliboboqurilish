@@ -495,6 +495,10 @@ if (enableClustering && cluster.isPrimary) {
     });
   }
 
+  // Image serving middleware - handle missing images
+  const imageServing = require('./middleware/imageServing');
+  app.use(imageServing);
+
   // API routes
   app.use('/api', require('./routes/healthRoutes'));
   app.use('/api/products', require('./routes/productRoutes'));
