@@ -1,6 +1,6 @@
 // API Configuration for production and development
 const getApiBaseUrl = () => {
-    // Production mode - use relative URLs (nginx will handle)
+    // Production mode - use empty string for relative URLs (nginx will handle)
     if (process.env.NODE_ENV === 'production') {
         return '';
     }

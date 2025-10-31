@@ -18,7 +18,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const cluster = require('cluster');
 const os = require('os');
-const http = require('http'); // For Socket.IO integration
+const http = require('http'); 
 const socketService = require('./services/SocketService'); // Real-time updates
 const telegramService = require('./services/TelegramService'); // Telegram notifications
 const { primeProductsFastCache } = require('./controllers/productControllerOptimized');
@@ -369,13 +369,17 @@ if (enableClustering && cluster.isPrimary) {
     maxHeight: 1920
   }));
 
-  // Static file serving for uploads (CORS handled by main middleware)
+  // Static file serving for uploads with enhanced CORS
   app.use('/uploads', express.static('uploads', {
     maxAge: process.env.NODE_ENV === 'development' ? '0' : '7d', // No cache in development, 7 days in production
     etag: true, // Generate ETags for caching
     setHeaders: (res, path, stat) => {
-      // Only set cache and resource policy headers (CORS handled by main middleware)
+      // Enhanced CORS headers for images
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Type, Last-Modified, ETag');
       
       if (process.env.NODE_ENV === 'development') {
         // Development: No caching for easier debugging

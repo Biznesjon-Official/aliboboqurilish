@@ -61,11 +61,20 @@ const processImageSrc = (baseSrc, fallbackSrc) => {
   
   // Handle file paths - convert to full backend base URL
   if (normalized && normalized.startsWith('/uploads/')) {
-    const API_BASE = process.env.NODE_ENV === 'production' 
-      ? 'https://aliboboqurilish.uz/api' 
-      : 'http://localhost:5000/api';
-    const baseNoApi = API_BASE.replace(/\/api$/, '');
-    return `${baseNoApi}${normalized}`;
+    // Production: Use relative URLs (nginx handles routing)
+    // Development: Use full localhost URL
+    if (process.env.NODE_ENV === 'production') {
+      if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+        console.log(`[OptimizedImage] Production URL: ${normalized}`);
+      }
+      return normalized; // Return relative URL like /uploads/products/...
+    } else {
+      const fullUrl = `http://localhost:5000${normalized}`;
+      if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+        console.log(`[OptimizedImage] Development URL: ${fullUrl}`);
+      }
+      return fullUrl;
+    }
   }
   
   // Handle regular URLs
