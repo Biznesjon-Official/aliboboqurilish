@@ -204,7 +204,8 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // Load categories from API with fallback to main categories
   const loadCategories = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/products/categories/list');
+      const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api');
+      const response = await fetch(`${API_BASE}/products/categories/list`);
       if (response.ok) {
         const categoriesData = await response.json();
         // Extract categories with counts

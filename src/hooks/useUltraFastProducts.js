@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 // Ultra-fast API base URL - Direct connection to backend
-const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api');
 const USE_FAST = (process.env.REACT_APP_USE_FAST || 'true').toLowerCase() === 'true';
 
 // Ultra-fast fetch function - minimal data, no images
