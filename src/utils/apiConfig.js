@@ -11,7 +11,22 @@ const getApiBaseUrl = () => {
         'http://localhost:5000';
 };
 
+const getApiUrl = () => {
+    // Production mode - use relative URLs with /api prefix
+    if (process.env.NODE_ENV === 'production') {
+        return '/api';
+    }
+
+    // Development mode - use full URL with /api
+    const baseUrl = process.env.REACT_APP_API_URL ||
+        process.env.REACT_APP_API_BASE?.replace('/api', '') ||
+        'http://localhost:5000';
+
+    return `${baseUrl}/api`;
+};
+
 export const API_BASE_URL = getApiBaseUrl();
+export const API_URL = getApiUrl();
 
 // Helper function to build API URLs
 export const buildApiUrl = (endpoint) => {
@@ -25,6 +40,12 @@ export const buildApiUrl = (endpoint) => {
         // Development - use full URLs
         return `${baseUrl}${cleanEndpoint}`;
     }
+};
+
+// Helper function to build full API URLs with /api prefix
+export const buildFullApiUrl = (endpoint) => {
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+    return `${API_URL}/${cleanEndpoint}`;
 };
 
 // Export for debugging
