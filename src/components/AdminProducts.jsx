@@ -482,7 +482,10 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       if (debouncedSearch) params.append('search', debouncedSearch);
       queryClient.prefetchQuery({
         queryKey: key,
-        queryFn: ({ signal }) => fetch(`http://localhost:5000/api/products?${params.toString()}`, { signal }).then(r => r.json()),
+        queryFn: ({ signal }) => {
+          const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api');
+          return fetch(`${API_BASE}/products?${params.toString()}`, { signal }).then(r => r.json());
+        },
         staleTime: 2 * 60 * 1000,
       });
     }
