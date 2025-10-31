@@ -53,12 +53,10 @@ const ImageUploader = ({
         const formData = new FormData();
         formData.append('image', cleanFile);
 
-        // Upload to server - use relative URL for production, absolute for development
-        const isProduction = process.env.NODE_ENV === 'production';
-        const uploadUrl = isProduction
-          ? '/api/upload/image' // Relative URL for production (nginx will handle)
-          : `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/upload/image`;
-
+        // Upload to server - use API config
+        const { buildApiUrl } = await import('../../utils/apiConfig');
+        const uploadUrl = buildApiUrl('/api/upload/image');
+        
         console.log('🔗 Upload URL:', uploadUrl);
         const response = await fetch(uploadUrl, {
           method: 'POST',
