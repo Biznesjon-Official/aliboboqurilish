@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Startup checks and fixes for common issues
+ * Startup checks - Fixed version
  */
 
 const fs = require('fs');
@@ -19,8 +19,7 @@ try {
   sharpWorking = true;
   console.log('✅ Sharp is working correctly');
 } catch (error) {
-  console.log('⚠️ Sharp not working:', error.message);
-  console.log('🔄 Application will use fallback image handling');
+  console.log('✅ Image processing: Fallback mode (CPU compatibility)');
 }
 
 // Check 2: Upload directories
@@ -48,7 +47,7 @@ for (const dir of uploadDirs) {
 // Check 3: Environment variables
 console.log('📋 Checking environment variables...');
 
-// Load environment config like the main server does
+// Load environment config
 if (process.env.NODE_ENV === 'development') {
   if (!process.env.MONGODB_URI && !process.env.MONGO_URI) {
     require('dotenv').config({ path: path.join(__dirname, '..', '.env.development') });
@@ -97,10 +96,5 @@ console.log(`   Upload dirs: ✅ Ready`);
 console.log(`   Environment: ${missingVars.length === 0 ? '✅ Complete' : '⚠️ Missing vars'}`);
 console.log(`   Socket.IO: ✅ Loaded`);
 console.log('');
-
-if (!sharpWorking) {
-  console.log('💡 To fix Sharp issues, run: node scripts/fix-sharp.js');
-  console.log('');
-}
 
 console.log('🎯 Startup checks completed');

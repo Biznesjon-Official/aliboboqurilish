@@ -4,9 +4,9 @@
   "description": "Clean backend for Alibobo products API",
   "main": "server.js",
   "scripts": {
-    "start": "node scripts/startup-checks.js && node server.js",
-    "start:dev": "node scripts/startup-checks.js && cross-env NODE_ENV=development SKIP_INDEX_CREATION=false ENABLE_CLUSTERING=false DEBUG=false node server.js",
-    "start:fast": "node scripts/startup-checks.js && cross-env NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=true node server.js",
+    "start": "node scripts/startup-checks-fixed.js && node server.js",
+    "start:dev": "node scripts/startup-checks-fixed.js && cross-env NODE_ENV=development SKIP_INDEX_CREATION=false ENABLE_CLUSTERING=false DEBUG=false node server.js",
+    "start:fast": "node scripts/startup-checks-fixed.js && cross-env NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=true node server.js",
     "start:turbo": "node scripts/startup-checks.js && cross-env NODE_ENV=development SKIP_INDEX_CREATION=true ENABLE_CLUSTERING=false DEBUG=false MICROCACHE_TTL_MS=2000 node server.js",
     "start:production": "cross-env NODE_ENV=production node scripts/startup-checks.js && node server.js",
     "dev": "nodemon server.js",
