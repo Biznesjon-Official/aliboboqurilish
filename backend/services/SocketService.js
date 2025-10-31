@@ -32,7 +32,6 @@ class SocketService {
             
             // Always allow requests in development mode
             if (process.env.NODE_ENV === 'development') {
-              // Removed origin log to reduce console spam
               return callback(null, true);
             }
             
@@ -52,7 +51,8 @@ class SocketService {
               if (isAllowed) {
                 callback(null, true);
               } else {
-                callback(new Error('Not allowed by CORS')); // Be strict in production
+                console.warn(`❌ CORS rejected origin: ${origin}`);
+                callback(new Error('Not allowed by CORS'));
               }
             }
           },
@@ -70,6 +70,10 @@ class SocketService {
         serveClient: false, // Don't serve client files
         httpCompression: true, // Enable compression for better performance
         compression: true,
+        // Add session handling
+        cookie: false, // Disable cookies for stateless operation
+        destroyUpgrade: false, // Don't destroy upgrade requests
+        destroyUpgradeTimeout: 1000,
       });
 
       this.setupEventHandlers();
@@ -139,12 +143,15 @@ class SocketService {
 
     // Connection error handling with detailed logging
     this.io.engine.on('connection_error', (err) => {
-      console.error('❌ Socket.IO connection error:', {
-        message: err.message,
-        type: err.type || 'unknown',
-        description: err.description || 'No description',
-        context: err.context || 'No context'
-      });
+      // Only log significant errors, not session cleanup
+      if (err.message !== 'Session ID unknown' && !err.message.includes('transport close')) {
+        console.error('❌ Socket.IO connection error:', {
+          message: err.message,
+          type: err.type || 'unknown',
+          description: err.description || 'No description',
+          context: err.context || 'No context'
+        });
+      }
     });
 
     // Monitor connection health
@@ -322,6 +329,42 @@ class SocketService {
 
     if (process.env.DEBUG === 'true') {
       console.log('🔔 Notification emitted:', payload);
+    }
+  }
+
+  // Send notification to admin room (missing method)
+  sendToAdmin(event, data) {
+    if (!this.io) {
+      console.warn('⚠️ Socket.IO not initialized, cannot send to admin');
+      return;
+    }
+
+    const payload = {
+      ...data,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.io.to('admin').emit(event, payload);
+    if (process.env.DEBUG === 'true') {
+      console.log(`📢 Admin message sent (${event}):`, payload);
+    }
+  }
+
+  // Broadcast notification to all clients (missing method)
+  broadcast(event, data) {
+    if (!this.io) {
+      console.warn('⚠️ Socket.IO not initialized, cannot broadcast');
+      return;
+    }
+
+    const payload = {
+      ...data,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.io.emit(event, payload);
+    if (process.env.DEBUG === 'true') {
+      console.log(`📡 Broadcast message sent (${event}):`, payload);
     }
   }
 

@@ -25,14 +25,24 @@ class NotificationService {
         this.notifications = this.notifications.slice(0, this.maxNotifications);
       }
 
-      // Send via Socket.IO
-      socketService.sendToAdmin('notification', adminNotification);
+      // Send via Socket.IO with error handling
+      try {
+        if (socketService && typeof socketService.sendToAdmin === 'function') {
+          socketService.sendToAdmin('notification', adminNotification);
+        } else {
+          console.warn('⚠️ Socket service not available or sendToAdmin method missing');
+        }
+      } catch (socketError) {
+        console.error('❌ Failed to send socket notification:', socketError.message);
+        // Don't throw - notification is still stored in memory
+      }
       
-      console.log('📢 Admin notification sent:', adminNotification);
+      console.log('📢 Admin notification processed:', adminNotification.title);
       return adminNotification;
     } catch (error) {
-      console.error('❌ Failed to send admin notification:', error);
-      throw error;
+      console.error('❌ Failed to create admin notification:', error);
+      // Don't throw - this shouldn't break the main flow
+      return null;
     }
   }
 
@@ -46,14 +56,24 @@ class NotificationService {
         ...notification,
       };
 
-      // Send via Socket.IO
-      socketService.broadcast('notification', globalNotification);
+      // Send via Socket.IO with error handling
+      try {
+        if (socketService && typeof socketService.broadcast === 'function') {
+          socketService.broadcast('notification', globalNotification);
+        } else {
+          console.warn('⚠️ Socket service not available or broadcast method missing');
+        }
+      } catch (socketError) {
+        console.error('❌ Failed to broadcast notification:', socketError.message);
+        // Don't throw - this is not critical
+      }
       
-      console.log('📢 Global notification sent:', globalNotification);
+      console.log('📢 Global notification processed:', globalNotification.title);
       return globalNotification;
     } catch (error) {
-      console.error('❌ Failed to send global notification:', error);
-      throw error;
+      console.error('❌ Failed to create global notification:', error);
+      // Don't throw - this shouldn't break the main flow
+      return null;
     }
   }
 
@@ -77,7 +97,13 @@ class NotificationService {
       this.notifyAdmin(notification);
       
       // Also emit specific new order event
-      socketService.emitNewOrder(orderData);
+      try {
+        if (socketService && typeof socketService.emitNewOrder === 'function') {
+          socketService.emitNewOrder(orderData);
+        }
+      } catch (socketError) {
+        console.error('❌ Failed to emit new order event:', socketError.message);
+      }
       
       return notification;
     } catch (error) {
@@ -106,12 +132,18 @@ class NotificationService {
       this.notifyAdmin(notification);
       
       // Also emit specific order status update event
-      socketService.emitOrderStatusUpdate({
-        orderId: orderData._id || orderData.id,
-        oldStatus,
-        newStatus,
-        order: orderData,
-      });
+      try {
+        if (socketService && typeof socketService.emitOrderStatusUpdate === 'function') {
+          socketService.emitOrderStatusUpdate({
+            orderId: orderData._id || orderData.id,
+            oldStatus,
+            newStatus,
+            order: orderData,
+          });
+        }
+      } catch (socketError) {
+        console.error('❌ Failed to emit order status update:', socketError.message);
+      }
       
       return notification;
     } catch (error) {
@@ -169,14 +201,19 @@ class NotificationService {
       this.notifyAdmin(notification);
       
       // Also emit specific stock update event
-      socketService.emitStockUpdate({
-        productId: productData._id || productData.id,
-        oldStock,
-        newStock,
-        stockDelta,
-        reason,
-        product: productData,
-      });
+      try {
+        if (socketService && typeof socketService.emitStockUpdate === 'function') {
+          socketService.emitStockUpdate(
+            productData._id || productData.id,
+            stockDelta,
+            newStock,
+            null, // orderId
+            null  // variantOption
+          );
+        }
+      } catch (socketError) {
+        console.error('❌ Failed to emit stock update:', socketError.message);
+      }
       
       return notification;
     } catch (error) {
@@ -205,10 +242,16 @@ class NotificationService {
       this.notifyAdmin(notification);
       
       // Also emit specific product update event
-      socketService.emitProductUpdate({
-        action: 'created',
-        product: productData,
-      });
+      try {
+        if (socketService && typeof socketService.emitProductUpdate === 'function') {
+          socketService.emitProductUpdate({
+            action: 'created',
+            product: productData,
+          });
+        }
+      } catch (socketError) {
+        console.error('❌ Failed to emit product update:', socketError.message);
+      }
       
       return notification;
     } catch (error) {
@@ -237,11 +280,17 @@ class NotificationService {
       this.notifyAdmin(notification);
       
       // Also emit specific product update event
-      socketService.emitProductUpdate({
-        action: 'updated',
-        product: productData,
-        changes,
-      });
+      try {
+        if (socketService && typeof socketService.emitProductUpdate === 'function') {
+          socketService.emitProductUpdate({
+            action: 'updated',
+            product: productData,
+            changes,
+          });
+        }
+      } catch (socketError) {
+        console.error('❌ Failed to emit product update:', socketError.message);
+      }
       
       return notification;
     } catch (error) {

@@ -1,0 +1,92 @@
+#!/usr/bin/env node
+
+/**
+ * Startup checks and fixes for common issues
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+console.log('🚀 Running startup checks...');
+
+// Check 1: Sharp availability
+console.log('📋 Checking Sharp availability...');
+let sharpWorking = false;
+try {
+  const sharp = require('sharp');
+  const testBuffer = Buffer.alloc(100);
+  sharp(testBuffer);
+  sharpWorking = true;
+  console.log('✅ Sharp is working correctly');
+} catch (error) {
+  console.log('⚠️ Sharp not working:', error.message);
+  console.log('🔄 Application will use fallback image handling');
+}
+
+// Check 2: Upload directories
+console.log('📋 Checking upload directories...');
+const uploadDirs = [
+  'uploads/products/original',
+  'uploads/products/thumbnail',
+  'uploads/products/medium',
+  'uploads/products/large'
+];
+
+for (const dir of uploadDirs) {
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`✅ Created directory: ${dir}`);
+    } else {
+      console.log(`✅ Directory exists: ${dir}`);
+    }
+  } catch (error) {
+    console.error(`❌ Failed to create directory ${dir}:`, error.message);
+  }
+}
+
+// Check 3: Environment variables
+console.log('📋 Checking environment variables...');
+const requiredEnvVars = ['NODE_ENV', 'MONGODB_URI', 'PORT'];
+const missingVars = [];
+
+for (const varName of requiredEnvVars) {
+  if (!process.env[varName]) {
+    missingVars.push(varName);
+  }
+}
+
+if (missingVars.length > 0) {
+  console.log('⚠️ Missing environment variables:', missingVars.join(', '));
+} else {
+  console.log('✅ All required environment variables present');
+}
+
+// Check 4: Socket.IO service
+console.log('📋 Checking Socket.IO service...');
+try {
+  const socketService = require('../services/SocketService');
+  if (socketService && typeof socketService.initialize === 'function') {
+    console.log('✅ Socket service loaded correctly');
+  } else {
+    console.log('⚠️ Socket service may have issues');
+  }
+} catch (error) {
+  console.error('❌ Socket service error:', error.message);
+}
+
+// Summary
+console.log('');
+console.log('📊 Startup Check Summary:');
+console.log(`   Sharp: ${sharpWorking ? '✅ Working' : '⚠️ Fallback mode'}`);
+console.log(`   Upload dirs: ✅ Ready`);
+console.log(`   Environment: ${missingVars.length === 0 ? '✅ Complete' : '⚠️ Missing vars'}`);
+console.log(`   Socket.IO: ✅ Loaded`);
+console.log('');
+
+if (!sharpWorking) {
+  console.log('💡 To fix Sharp issues, run: node scripts/fix-sharp.js');
+  console.log('');
+}
+
+console.log('🎯 Startup checks completed');

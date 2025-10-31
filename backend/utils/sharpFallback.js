@@ -8,12 +8,19 @@ let sharpAvailable = false;
 // Try to load Sharp, fallback to no-op if it fails
 try {
   sharp = require('sharp');
+  // Test if Sharp actually works by creating a simple instance
+  const testBuffer = Buffer.from('test');
+  sharp(testBuffer);
   sharpAvailable = true;
-  console.log('✅ Sharp.js loaded successfully');
+  console.log('✅ Sharp.js loaded and tested successfully');
 } catch (error) {
-  console.warn('⚠️ Sharp.js not available:', error.message);
+  console.warn('⚠️ Sharp.js not available or incompatible:', error.message);
+  if (error.message.includes('linux-x64') || error.message.includes('microarchitecture')) {
+    console.log('🔧 CPU architecture incompatibility detected - using fallback mode');
+  }
   console.log('🔄 Using fallback image handling (no optimization)');
   sharpAvailable = false;
+  sharp = null; // Ensure it's null
 }
 
 // Fallback image processor that just copies files without optimization
