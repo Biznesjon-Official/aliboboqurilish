@@ -19,6 +19,8 @@
     "cache:clear": "node scripts/clear-cache.js",
     "performance:analyze": "node scripts/analyze-performance.js",
     "fix:sharp": "node scripts/fix-sharp.js",
+    "fix:security": "node scripts/safe-security-fix.js",
+    "fix:security-full": "node scripts/fix-security-vulnerabilities.js",
     "check:startup": "node scripts/startup-checks.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
