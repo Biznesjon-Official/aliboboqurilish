@@ -2,9 +2,9 @@ import React, { useState, useRef } from 'react';
 import { PlusFAIcon, ChevronUpFAIcon, ChevronDownFAIcon, TimesFAIcon, ExclamationTriangleFAIcon, UploadFAIcon } from '../FontAwesome';
 import OptimizedImage from '../OptimizedImage';
 
-const ImageUploader = ({ 
-  images = [], 
-  onImagesChange, 
+const ImageUploader = ({
+  images = [],
+  onImagesChange,
   maxImages = 5,
   title = "Rasmlar",
   allowReorder = true,
@@ -24,7 +24,7 @@ const ImageUploader = ({
   // File upload handler
   const handleFileUpload = async (files) => {
     if (!files || files.length === 0) return;
-    
+
     setIsUploading(true);
     setError(null);
 
@@ -45,7 +45,7 @@ const ImageUploader = ({
         formData.append('image', file);
 
         // Upload to server - use environment variable or fallback
-        const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        const backendUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE?.replace('/api', '') || 'http://localhost:5000';
         const response = await fetch(`${backendUrl}/api/upload/image`, {
           method: 'POST',
           body: formData,
@@ -61,7 +61,7 @@ const ImageUploader = ({
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);
-      
+
       // Add to existing images
       const updated = [...images, ...uploadedUrls];
       onImagesChange(updated);
@@ -116,7 +116,7 @@ const ImageUploader = ({
       </div>
 
       {/* File Upload Section - Compact */}
-      <div 
+      <div
         className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-primary-orange transition-colors"
         onDragOver={(e) => {
           e.preventDefault();
@@ -143,12 +143,12 @@ const ImageUploader = ({
           onChange={(e) => handleFileUpload(e.target.files)}
           className="hidden"
         />
-        
+
         <div className="flex items-center justify-center gap-3">
           <div className="text-lg text-gray-400">
             <UploadFAIcon />
           </div>
-          
+
           <div className="flex-1">
             <button
               type="button"
@@ -160,7 +160,7 @@ const ImageUploader = ({
               {isUploading ? 'Yuklanmoqda...' : 'Rasm tanlang'}
             </button>
           </div>
-          
+
           <p className="text-xs text-gray-400 flex-shrink-0">
             JPG, PNG, WebP (5MB)
           </p>
@@ -174,19 +174,19 @@ const ImageUploader = ({
             // Rasmni to'g'ri URL ga aylantirish
             const imageUrl = (() => {
               if (!image) return '';
-              
+
               // Agar base64 bo'lsa, to'g'ridan-to'g'ri qaytarish
               if (image.startsWith('data:')) return image;
-              
+
               // Agar to'liq URL bo'lsa, to'g'ridan-to'g'ri qaytarish
               if (image.startsWith('http')) return image;
-              
+
               // Agar uploads/ bilan boshlansa, to'g'ri URL yaratish
               if (image.startsWith('/uploads/') || image.startsWith('uploads/')) {
                 const cleanPath = image.startsWith('/') ? image : '/' + image;
                 return `http://localhost:5000${cleanPath}`;
               }
-              
+
               // Boshqa hollarda to'g'ridan-to'g'ri qaytarish
               return image;
             })();
@@ -203,7 +203,7 @@ const ImageUploader = ({
                     fallbackSrc="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMiA4VjE2TTggMTJIMTYiIHN0cm9rZT0iIzlDQTNBRiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+"
                   />
                 </div>
-              
+
                 {/* Image Controls Overlay */}
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 rounded-md flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex space-x-1">
@@ -219,7 +219,7 @@ const ImageUploader = ({
                         <ChevronUpFAIcon className="text-xs" />
                       </button>
                     )}
-                    
+
                     {/* Move Down */}
                     {allowReorder && (
                       <button
@@ -232,7 +232,7 @@ const ImageUploader = ({
                         <ChevronDownFAIcon className="text-xs" />
                       </button>
                     )}
-                    
+
                     {/* Delete */}
                     {allowDelete && (
                       <button
@@ -246,7 +246,7 @@ const ImageUploader = ({
                     )}
                   </div>
                 </div>
-                
+
                 {/* Image Number Badge */}
                 <div className="absolute -top-1 -left-1 bg-primary-orange text-white rounded-full w-3.5 h-3.5 flex items-center justify-center text-xs font-bold">
                   {index + 1}
