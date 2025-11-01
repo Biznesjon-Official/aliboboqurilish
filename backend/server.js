@@ -461,10 +461,12 @@ if (enableClustering && cluster.isPrimary) {
       }
     }));
 
-    // Serve the React app for any non-API routes
+    // Serve the React app for any non-API routes (EXCLUDE /uploads/)
     app.get('*', (req, res, next) => {
-      // Don't serve index.html for API routes
-      if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
+      // Don't serve index.html for API routes, uploads, or socket.io
+      if (req.path.startsWith('/api/') || 
+          req.path.startsWith('/socket.io/') || 
+          req.path.startsWith('/uploads/')) {
         return next();
       }
 
