@@ -18,7 +18,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const cluster = require('cluster');
 const os = require('os');
-const http = require('http'); 
+const http = require('http');
 const socketService = require('./services/SocketService'); // Real-time updates
 const telegramService = require('./services/TelegramService'); // Telegram notifications
 const { primeProductsFastCache } = require('./controllers/productControllerOptimized');
@@ -311,10 +311,10 @@ if (enableClustering && cluster.isPrimary) {
           res.set('X-MicroCache', 'HIT');
           if (hit.headers) {
             Object.entries(hit.headers).forEach(([k, v]) => {
-              try { res.setHeader(k, v); } catch {}
+              try { res.setHeader(k, v); } catch { }
             });
           }
-        } catch {}
+        } catch { }
         return res.send(hit.body);
       }
 
@@ -324,7 +324,7 @@ if (enableClustering && cluster.isPrimary) {
           const headers = typeof res.getHeaders === 'function' ? res.getHeaders() : {};
           store.set(key, { time: Date.now(), body, headers });
           res.set('X-MicroCache', 'MISS');
-        } catch {}
+        } catch { }
         return originalSend(body);
       };
 
@@ -380,7 +380,7 @@ if (enableClustering && cluster.isPrimary) {
       res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Type, Last-Modified, ETag');
-      
+
       if (process.env.NODE_ENV === 'development') {
         // Development: No caching for easier debugging
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -464,9 +464,9 @@ if (enableClustering && cluster.isPrimary) {
     // Serve the React app for any non-API routes (EXCLUDE /uploads/)
     app.get('*', (req, res, next) => {
       // Don't serve index.html for API routes, uploads, or socket.io
-      if (req.path.startsWith('/api/') || 
-          req.path.startsWith('/socket.io/') || 
-          req.path.startsWith('/uploads/')) {
+      if (req.path.startsWith('/api/') ||
+        req.path.startsWith('/socket.io/') ||
+        req.path.startsWith('/uploads/')) {
         return next();
       }
 
@@ -514,7 +514,7 @@ if (enableClustering && cluster.isPrimary) {
   app.use('/api/statistics', require('./routes/statisticsRoutes'));
   app.use('/api/recent-activities', require('./routes/recentActivitiesRoutes').router);
   app.use('/api/promotions', require('./routes/promotionRoutes'));
-  
+
   if (process.env.ENABLE_BASE64_ROUTES === 'true') {
     app.use('/api/base64', require('./routes/base64Routes'));
   }
@@ -522,10 +522,10 @@ if (enableClustering && cluster.isPrimary) {
   app.use('/api/notifications', require('./routes/notificationRoutes'));
   // Always enable upload routes for image uploads (with Sharp optimization)
   app.use('/api/upload', require('./routes/uploadRoutes'));
-  
+
   // Image optimization routes
   app.use('/api/image-optimization', require('./routes/imageOptimizationRoutes'));
-  
+
   // Image conversion routes
   app.use('/api/image-conversion', require('./routes/imageConversionRoutes'));
 
@@ -687,7 +687,7 @@ if (enableClustering && cluster.isPrimary) {
       primeProductsFastCache({ pages: pagesToPrime, limit: limitToPrime, sortBy: 'updatedAt', sortOrder: 'desc' })
         .then(() => { if (process.env.DEBUG === 'true') console.log('⚡ Primed products fast cache'); })
         .catch(err => { if (process.env.DEBUG === 'true') console.log('⚠️ Prime cache error:', err?.message || err); });
-    } catch (_) {}
+    } catch (_) { }
 
     // Create HTTP server for Socket.IO integration
     const httpServer = http.createServer(app);
