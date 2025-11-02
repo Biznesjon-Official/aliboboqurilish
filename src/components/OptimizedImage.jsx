@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 // Validate and process base64 images
 const processImageSrc = (baseSrc, fallbackSrc) => {
   if (!baseSrc) return fallbackSrc || null;
-  
+
   // Handle base64 images - SKIP LARGE BASE64 FOR PERFORMANCE
   if (baseSrc.startsWith('data:')) {
     // Check if base64 data is complete
@@ -13,7 +13,7 @@ const processImageSrc = (baseSrc, fallbackSrc) => {
       }
       return fallbackSrc;
     }
-    
+
     // PERFORMANCE: Skip very large base64 images (>100KB estimated)
     if (baseSrc.length > 150000) {
       if (process.env.REACT_APP_DEBUG_MODE === 'true') {
@@ -21,7 +21,7 @@ const processImageSrc = (baseSrc, fallbackSrc) => {
       }
       return fallbackSrc;
     }
-    
+
     // Validate base64 format (relaxed: allow svg+xml and extra parameters)
     const looksLikeImageBase64 = baseSrc.startsWith('data:image/') && baseSrc.includes(';base64,');
     if (!looksLikeImageBase64) {
@@ -30,7 +30,7 @@ const processImageSrc = (baseSrc, fallbackSrc) => {
       }
       return fallbackSrc;
     }
-    
+
     return baseSrc;
   }
 
@@ -58,25 +58,44 @@ const processImageSrc = (baseSrc, fallbackSrc) => {
   };
 
   const normalized = normalizeUploadsPath(baseSrc);
-  
-  // Handle file paths - convert to full backend base URL
+
+  // Handle file paths - convert to full backend base URL with size optimization
   if (normalized && normalized.startsWith('/uploads/')) {
+    // Auto-detect and use appropriate image size based on context
+    let optimizedPath = normalized;
+
+    // If it's a product image, try to use medium size for better performance
+    if (normalized.includes('/uploads/products/') && !normalized.includes('/original/') &&
+      !normalized.includes('/medium/') && !normalized.includes('/large/') &&
+      !normalized.includes('/thumbnail/')) {
+
+      // Extract filename from path like /uploads/products/converted-xxx.jpg
+      const filename = normalized.split('/').pop();
+
+      // Try medium size first (best balance of quality and performance)
+      optimizedPath = `/uploads/products/medium/${filename}`;
+
+      if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+        console.log(`[OptimizedImage] Auto-optimized path: ${normalized} -> ${optimizedPath}`);
+      }
+    }
+
     // Production: Use relative URLs (nginx handles routing)
     // Development: Use full localhost URL
     if (process.env.NODE_ENV === 'production') {
       if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-        console.log(`[OptimizedImage] Production URL: ${normalized}`);
+        console.log(`[OptimizedImage] Production URL: ${optimizedPath}`);
       }
-      return normalized; // Return relative URL like /uploads/products/...
+      return optimizedPath; // Return relative URL like /uploads/products/medium/...
     } else {
-      const fullUrl = `http://localhost:5000${normalized}`;
+      const fullUrl = `http://localhost:5000${optimizedPath}`;
       if (process.env.REACT_APP_DEBUG_MODE === 'true') {
         console.log(`[OptimizedImage] Development URL: ${fullUrl}`);
       }
       return fullUrl;
     }
   }
-  
+
   // Handle regular URLs
   return normalized;
 };
@@ -146,17 +165,17 @@ const OptimizedImage = ({
     if (!isInView) return;
     triedFallbackRef.current = false;
     const processedSrc = processImageSrc(src, fallbackSrc) || fallbackSrc;
-    
+
     // Skip loading if no valid source
     if (!processedSrc) {
       setHasError(true);
       return;
     }
-    
+
     setCurrentSrc(processedSrc);
     setIsLoaded(false);
     setHasError(false);
-    
+
     // Add timeout for slow loading images
     const img = new Image();
     const timeoutId = setTimeout(() => {
@@ -165,7 +184,7 @@ const OptimizedImage = ({
       }
       setHasError(true);
     }, 10000); // 10 second timeout
-    
+
     img.onload = () => {
       clearTimeout(timeoutId);
       setIsLoaded(true);
@@ -175,7 +194,7 @@ const OptimizedImage = ({
       setHasError(true);
     };
     img.src = processedSrc;
-    
+
     return () => clearTimeout(timeoutId);
   }, [isInView, src, fallbackSrc]);
 
@@ -185,12 +204,12 @@ const OptimizedImage = ({
     if (process.env.REACT_APP_DEBUG_MODE === 'true' && src && src.startsWith('/uploads/')) {
       console.log(`[OptimizedImage] Successfully loaded image: ${src}`);
     }
-    
+
     setIsLoaded(true);
     if (onLoad) onLoad(e);
   }, [onLoad, src]);
 
-  // Handle image error
+  // Handle image error with smart fallback
   const handleError = useCallback((e) => {
     // Development-specific error logging (only if debug enabled)
     if (process.env.REACT_APP_DEBUG_MODE === 'true') {
@@ -204,7 +223,7 @@ const OptimizedImage = ({
         isBase64: src?.startsWith('data:'),
         isIncompleteBase64: src?.startsWith('data:') && src.length < 100
       });
-      
+
       // Special handling for base64 images
       if (src && src.startsWith('data:')) {
         if (src.length < 100) {
@@ -213,25 +232,44 @@ const OptimizedImage = ({
           console.warn('[OptimizedImage] Base64 image failed to load - data may be corrupted');
         }
       }
-      
-      // Check if backend is available
-      if (src && src.startsWith('/uploads/')) {
-        fetch('/api/health')
-          .then(response => {
-            if (!response.ok) {
-              console.warn('[OptimizedImage] Backend health check failed - server may be down');
-            } else {
-              console.log('[OptimizedImage] Backend health check passed - server is responding');
-            }
-          })
-          .catch(() => {
-            console.warn('[OptimizedImage] Backend is not responding - ensure backend is reachable at aliboboqurilish.uz');
-          });
+    }
+
+    // Smart fallback for product images: medium -> original -> fallback
+    if (currentSrc && currentSrc.includes('/uploads/products/') && !triedFallbackRef.current) {
+      triedFallbackRef.current = true;
+      setHasError(false);
+      setIsLoaded(false);
+
+      // If we tried medium and it failed, try original
+      if (currentSrc.includes('/medium/')) {
+        const originalPath = currentSrc.replace('/medium/', '/original/');
+        if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+          console.log(`[OptimizedImage] Fallback: medium failed, trying original: ${originalPath}`);
+        }
+        setCurrentSrc(originalPath);
+        return;
+      }
+
+      // If original also failed, try the raw path (without size folder)
+      if (currentSrc.includes('/original/')) {
+        const filename = currentSrc.split('/').pop();
+        const rawPath = `/uploads/products/${filename}`;
+        if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+          console.log(`[OptimizedImage] Fallback: original failed, trying raw path: ${rawPath}`);
+        }
+        setCurrentSrc(rawPath);
+        return;
+      }
+
+      // Final fallback
+      if (fallbackSrc) {
+        setCurrentSrc(fallbackSrc);
+        return;
       }
     }
 
-    // Try swapping to fallback once if not already
-    if (currentSrc !== fallbackSrc && !triedFallbackRef.current) {
+    // Try regular fallback once if not already
+    if (currentSrc !== fallbackSrc && fallbackSrc && !triedFallbackRef.current) {
       triedFallbackRef.current = true;
       setHasError(false);
       setIsLoaded(false);
@@ -246,7 +284,7 @@ const OptimizedImage = ({
   // Generate WebP URLs for better compression
   const generateWebPUrl = useCallback((baseSrc) => {
     if (!baseSrc || baseSrc.startsWith('data:')) return baseSrc;
-    
+
     // Check if browser supports WebP
     const supportsWebP = (() => {
       const canvas = document.createElement('canvas');
@@ -254,29 +292,29 @@ const OptimizedImage = ({
       canvas.height = 1;
       return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
     })();
-    
+
     if (!supportsWebP) return baseSrc;
-    
+
     // Convert to WebP if it's a regular image URL
     if (baseSrc.includes('/uploads/') && !baseSrc.includes('.webp')) {
       // Add WebP conversion parameter (if your backend supports it)
       return baseSrc.includes('?') ? `${baseSrc}&format=webp` : `${baseSrc}?format=webp`;
     }
-    
+
     return baseSrc;
   }, []);
 
   // Generate srcSet for responsive images with WebP support
   const generateSrcSet = useCallback((baseSrc) => {
     if (!baseSrc || baseSrc.startsWith('data:')) return undefined;
-    
+
     const breakpoints = [320, 480, 640, 768, 1024, 1280, 1536];
     const webpSrc = generateWebPUrl(baseSrc);
-    
+
     return breakpoints
       .map(bp => {
-        const url = webpSrc.includes('?') 
-          ? `${webpSrc}&w=${bp}&q=${quality}` 
+        const url = webpSrc.includes('?')
+          ? `${webpSrc}&w=${bp}&q=${quality}`
           : `${webpSrc}?w=${bp}&q=${quality}`;
         return `${url} ${bp}w`;
       })
@@ -286,20 +324,20 @@ const OptimizedImage = ({
   // Create blur placeholder
   const createBlurPlaceholder = useCallback(() => {
     if (blurDataURL) return blurDataURL;
-    
+
     // Generate a simple blur placeholder
     const canvas = document.createElement('canvas');
     canvas.width = 40;
     canvas.height = 40;
     const ctx = canvas.getContext('2d');
-    
+
     // Create a simple gradient placeholder
     const gradient = ctx.createLinearGradient(0, 0, 40, 40);
     gradient.addColorStop(0, '#f3f4f6');
     gradient.addColorStop(1, '#e5e7eb');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 40, 40);
-    
+
     return canvas.toDataURL();
   }, [blurDataURL]);
 
@@ -339,7 +377,7 @@ const OptimizedImage = ({
   const finalSrcSet = undefined;
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className={`relative ${className}`}
       style={containerStyles}
@@ -367,16 +405,16 @@ const OptimizedImage = ({
       {placeholder === 'skeleton' && !isLoaded && (
         <div style={placeholderStyles}>
           <div className="animate-pulse bg-gray-200 w-full h-full flex items-center justify-center">
-            <svg 
-              className="w-8 h-8 text-gray-400" 
-              fill="currentColor" 
+            <svg
+              className="w-8 h-8 text-gray-400"
+              fill="currentColor"
               viewBox="0 0 20 20"
               aria-hidden="true"
             >
-              <path 
-                fillRule="evenodd" 
-                d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" 
-                clipRule="evenodd" 
+              <path
+                fillRule="evenodd"
+                d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                clipRule="evenodd"
               />
             </svg>
           </div>
@@ -416,17 +454,17 @@ const OptimizedImage = ({
       {hasError && (
         <div style={placeholderStyles}>
           <div className="text-center text-gray-500">
-            <svg 
-              className="w-8 h-8 mx-auto mb-2" 
-              fill="none" 
-              stroke="currentColor" 
+            <svg
+              className="w-8 h-8 mx-auto mb-2"
+              fill="none"
+              stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
             <span className="text-xs">Image not available</span>
@@ -489,13 +527,13 @@ export const useImagePreloader = () => {
 };
 
 // Image gallery component with optimized loading
-export const OptimizedImageGallery = ({ 
-  images, 
-  currentIndex = 0, 
+export const OptimizedImageGallery = ({
+  images,
+  currentIndex = 0,
   onIndexChange,
   className = '',
   thumbnailSize = 60,
-  showThumbnails = true 
+  showThumbnails = true
 }) => {
   const { preloadImage } = useImagePreloader();
   const [loadedImages, setLoadedImages] = useState(new Set([currentIndex]));
@@ -504,11 +542,11 @@ export const OptimizedImageGallery = ({
   useEffect(() => {
     const preloadAdjacent = async () => {
       const toPreload = [];
-      
+
       // Preload previous and next images
       if (currentIndex > 0) toPreload.push(images[currentIndex - 1]);
       if (currentIndex < images.length - 1) toPreload.push(images[currentIndex + 1]);
-      
+
       // Preload current image if not loaded
       if (!loadedImages.has(currentIndex)) {
         toPreload.push(images[currentIndex]);
@@ -546,11 +584,10 @@ export const OptimizedImageGallery = ({
             <button
               key={index}
               onClick={() => onIndexChange?.(index)}
-              className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
-                index === currentIndex 
-                  ? 'border-orange-500 ring-2 ring-orange-200' 
+              className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${index === currentIndex
+                  ? 'border-orange-500 ring-2 ring-orange-200'
                   : 'border-gray-200 hover:border-gray-300'
-              }`}
+                }`}
               style={{ width: thumbnailSize, height: thumbnailSize }}
             >
               <OptimizedImage
