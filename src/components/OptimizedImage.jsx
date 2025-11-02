@@ -334,8 +334,9 @@ const OptimizedImage = ({
     transition: 'opacity 0.3s ease-in-out'
   };
 
-  const finalSrc = generateWebPUrl(currentSrc || fallbackSrc);
-  const finalSrcSet = generateSrcSet(currentSrc || fallbackSrc);
+  // Disable WebP and srcSet for production - use original URLs
+  const finalSrc = currentSrc || fallbackSrc;
+  const finalSrcSet = undefined;
 
   return (
     <div 
