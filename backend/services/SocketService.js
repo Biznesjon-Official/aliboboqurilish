@@ -1,4 +1,6 @@
 const { Server } = require('socket.io');
+require('dotenv').config();
+const { Server } = require('socket.io');
 
 class SocketService {
   constructor() {
@@ -18,14 +20,8 @@ class SocketService {
       this.io = new Server(httpServer, {
         cors: {
           origin: function(origin, callback) {
-            const allowedOrigins = [
-              'http://localhost:3000', 
-              'http://127.0.0.1:3000', 
-              'http://localhost:3001', 
-              'http://127.0.0.1:3001', 
-              'https://aliboboqurilish.uz',
-              'https://www.aliboboqurilish.uz'
-            ];
+            const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,https://aliboboqurilish.uz,https://www.aliboboqurilish.uz').split(',').map(o => o.trim());
+
             
             // Allow requests with no origin (like mobile apps or curl requests)
             if (!origin) return callback(null, true);

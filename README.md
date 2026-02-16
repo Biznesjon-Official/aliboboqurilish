@@ -1,135 +1,217 @@
-# Alibobo - Product Management System
+# Alibobo - E-Commerce Platform
 
-A modern web application for managing products with real-time stock updates, built with React, Node.js, and MongoDB.
+Production-ready MERN stack e-commerce platform with real-time updates, authentication, and comprehensive monitoring.
 
 ## Features
 
-- Real-time stock management with Socket.IO
-- Product CRUD operations
-- Craftsmen management
-- Order tracking
-- Statistics dashboard
-- Responsive admin panel
-- Image upload and optimization
-
-## Prerequisites
-
-- Node.js (version 14 or higher)
-- MongoDB Atlas account
+- ✅ Full-stack MERN (MongoDB, Express, React, Node.js)
+- ✅ Real-time updates with Socket.IO
+- ✅ JWT Authentication & Authorization
+- ✅ Comprehensive error handling & logging
+- ✅ Rate limiting & security headers
+- ✅ Docker & Docker Compose support
+- ✅ CI/CD with GitHub Actions
+- ✅ Performance monitoring
+- ✅ Automated backups
+- ✅ Production-ready configuration
 
 ## Quick Start
 
-### Running on localhost:3000
-
-1. **Set up the development environment** (ensures MongoDB indexes and seeds sample data):
-   ```bash
-   npm run setup:dev
-   ```
-
-2. **Start both frontend and backend concurrently**:
-   ```bash
-   npm run dev
-   ```
-
-   Or start them separately:
-   
-   **Start the backend server** (runs on port 5000):
-   ```bash
-   npm run dev:backend-only
-   ```
-
-   **In a separate terminal, start the frontend** (runs on port 3000):
-   ```bash
-   npm run dev:frontend-3000
-   ```
-
-3. **Access the application**:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:5000/api
-
-### Running with default ports (frontend on 3001)
+### Development
 
 ```bash
-npm start
+# Install dependencies
+npm install
+cd backend && npm install && cd ..
+
+# Setup environment
+cp .env.example .env
+cp backend/.env.example backend/.env
+
+# Start development server
+npm run dev
 ```
 
-This will start both the frontend (port 3001) and backend (port 5000) concurrently.
+### Production
 
-## Project Structure
+```bash
+# Build frontend
+npm run build
 
-```
-alibobo/
-├── backend/              # Node.js backend server
-│   ├── controllers/      # Request handlers
-│   ├── models/          # MongoDB models
-│   ├── routes/          # API routes
-│   ├── services/        # Business logic
-│   └── server.js        # Main server file
-├── public/              # Static assets
-├── src/                 # React frontend
-│   ├── components/      # React components
-│   ├── hooks/           # Custom hooks
-│   ├── pages/           # Page components
-│   ├── services/        # API service calls
-│   └── App.js           # Main app component
-├── uploads/             # Uploaded images (gitignored)
-└── package.json         # Frontend dependencies
+# Setup environment
+cp backend/.env.example backend/.env
+# Edit backend/.env with production values
+
+# Start with PM2
+pm2 start ecosystem.config.js --env production
+
+# Or with Docker
+docker-compose up -d
 ```
 
-## Environment Configuration
+## Environment Variables
 
-### Frontend Environment Variables
-
-Create a `.env.development` file in the root directory:
-```
-REACT_APP_API_BASE=http://localhost:5000/api
-REACT_APP_SOCKET_URL=http://localhost:5000
-```
-
-### Backend Environment Variables
-
-Create a `backend/.env.development` file:
-```
-NODE_ENV=development
-PORT=5000
-MONGODB_URI=your_mongodb_atlas_connection_string
-CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001
+### Frontend (.env)
+```env
+REACT_APP_API_BASE_URL=https://api.yourdomain.com
+REACT_APP_SOCKET_URL=https://yourdomain.com
+REACT_APP_DEBUG_MODE=false
 ```
 
-## Available Scripts
+### Backend (backend/.env)
+```env
+NODE_ENV=production
+PORT=5001
+MONGODB_URI=mongodb+srv://...
+JWT_SECRET=your_secret_key
+ALLOWED_ORIGINS=https://yourdomain.com
+TELEGRAM_BOT_TOKEN=optional
+TELEGRAM_CHAT_ID=optional
+```
 
-### Frontend Scripts
-- `npm run dev:frontend-3000` - Start frontend on port 3000
-- `npm run dev:frontend-only` - Start frontend on port 3001
-- `npm run build` - Build frontend for production
+## API Endpoints
 
-### Backend Scripts
-- `npm run dev:backend-only` - Start backend server
-- `npm run backend-only` - Start backend with development settings
-- `npm run db:ensure-indexes` - Ensure MongoDB indexes for optimal performance
-- `npm run db:seed` - Seed database with sample data
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login user
+- `GET /api/auth/verify` - Verify token
 
-### Combined Scripts
-- `npm start` - Start both frontend (3001) and backend (5000)
-- `npm run dev` - Start backend first, then frontend (3000) after a 5-second delay
-- `npm run setup:dev` - Set up development environment (indexes + seed data)
+### Products
+- `GET /api/products` - List products
+- `GET /api/products/:id` - Get product details
+- `POST /api/products` - Create product (admin)
+- `PUT /api/products/:id` - Update product (admin)
+- `DELETE /api/products/:id` - Delete product (admin)
 
-## Development
+### Orders
+- `GET /api/orders` - List orders
+- `POST /api/orders` - Create order
+- `PUT /api/orders/:id/status` - Update order status
 
-See [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) for detailed development setup instructions.
+### Health
+- `GET /api/health` - Health check
 
-## Production Deployment
+## Deployment
 
-For production deployment, the application should be configured with:
-- Proper SSL certificates
-- Nginx reverse proxy
-- MongoDB Atlas cluster
-- Environment variables set for production
+See [PRODUCTION_SETUP.md](./PRODUCTION_SETUP.md) for detailed deployment instructions.
+
+### Quick Deploy with Docker
+
+```bash
+# Build image
+docker build -t alibobo:latest .
+
+# Run container
+docker run -d \
+  -p 5001:5001 \
+  -e MONGODB_URI=mongodb+srv://... \
+  -e JWT_SECRET=your_secret \
+  alibobo:latest
+```
+
+## Monitoring
+
+### Logs
+```bash
+# View application logs
+tail -f logs/app.log
+
+# View error logs
+tail -f logs/error.log
+```
+
+### Performance
+```bash
+# Check PM2 status
+pm2 status
+pm2 monit
+```
+
+### Health Check
+```bash
+curl http://localhost:5001/api/health
+```
+
+## Security
+
+- ✅ Environment variables for secrets
+- ✅ JWT authentication
+- ✅ Rate limiting
+- ✅ CORS configuration
+- ✅ Helmet security headers
+- ✅ MongoDB injection prevention
+- ✅ HTTPS/SSL support
+- ✅ Input validation
+
+## Database
+
+### MongoDB Atlas Setup
+1. Create cluster at mongodb.com
+2. Create database user
+3. Whitelist IP addresses
+4. Get connection string
+5. Add to `.env` as `MONGODB_URI`
+
+### Indexes
+```bash
+cd backend
+npm run db:indexes
+```
+
+### Backups
+```bash
+# Manual backup
+npm run backup
+
+# Automatic backups (configured in code)
+```
+
+## Testing
+
+```bash
+# Run tests
+npm test
+
+# Run backend tests
+cd backend && npm test
+```
+
+## Performance
+
+- Compression enabled
+- Caching strategies
+- Database indexing
+- Rate limiting
+- Connection pooling
 
 ## Troubleshooting
 
-See [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) for common issues and solutions.
+### MongoDB Connection Issues
+- Check connection string
+- Verify IP whitelist in MongoDB Atlas
+- Check network connectivity
+
+### High Memory Usage
+```bash
+pm2 restart alibobo
+```
+
+### SSL Certificate Issues
+```bash
+sudo certbot renew
+```
+
+## Contributing
+
+1. Create feature branch
+2. Make changes
+3. Run tests
+4. Submit pull request
 
 ## License
 
 MIT
+
+## Support
+
+For issues and questions, please open an issue on GitHub.
