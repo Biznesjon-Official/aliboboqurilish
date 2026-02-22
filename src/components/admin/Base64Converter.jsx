@@ -11,7 +11,8 @@ const Base64Converter = () => {
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
     try {
-      const response = await fetch('http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api/image-conversion/analyze-base64');
+      const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`);
+      const response = await fetch(`${API_BASE}/image-conversion/analyze-base64`);
       const result = await response.json();
       
       if (result.success) {
@@ -36,7 +37,8 @@ const Base64Converter = () => {
 
     setIsConverting(true);
     try {
-      const response = await fetch('http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api/image-conversion/convert-all-base64', {
+      const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`);
+      const response = await fetch(`${API_BASE}/image-conversion/convert-all-base64`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

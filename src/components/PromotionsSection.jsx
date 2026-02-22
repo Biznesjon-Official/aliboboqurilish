@@ -15,7 +15,7 @@
       if (process.env.NODE_ENV === 'production' && origin) {
         return `${origin.replace(/\/$/, '')}/api`;
       }
-      return 'http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api';
+      return `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`;
     })();
 
     // Fetch promotions from API

@@ -2,7 +2,7 @@ import { useQuery, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys, invalidateQueries, queryClient } from '../lib/queryClient';
 
 // API base URL - Direct connection to backend
-const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
+const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5001/api');
 // Feature flag: allow disabling the fast endpoint if it's unstable in production
 const USE_FAST_DEFAULT = (process.env.REACT_APP_USE_FAST || 'true').toLowerCase() === 'true';
 

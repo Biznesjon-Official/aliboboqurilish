@@ -68,9 +68,10 @@ const DirectProductForm = ({ product, onSuccess, onError, onCancel }) => {
       console.log('🔄 Sending product data:', productData);
 
       // Direct API call
-      const url = product?._id 
-        ? `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api/products/${product._id}`
-        : 'http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api/products';
+      const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`);
+      const url = product?._id
+        ? `${API_BASE}/products/${product._id}`
+        : `${API_BASE}/products`;
       
       const method = product?._id ? 'PUT' : 'POST';
 

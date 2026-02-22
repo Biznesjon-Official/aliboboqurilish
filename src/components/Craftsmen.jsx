@@ -34,7 +34,7 @@ const Craftsmen = ({ craftsmenData = [], loading = false, initialSpecialty = '' 
     if (process.env.NODE_ENV === 'production' && origin) {
       return `${origin.replace(/\/$/, '')}/api`;
     }
-    return 'http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api';
+    return `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`;
   }, []);
 
   // Local state for full detail to power modal images

@@ -15,7 +15,8 @@ const TestProductUpdate = () => {
   const loadProducts = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api/products?limit=10');
+      const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`);
+      const response = await fetch(`${API_BASE}/products?limit=10`);
       
       if (response.ok) {
         const data = await response.json();
@@ -151,7 +152,8 @@ const TestProductUpdate = () => {
           <button
             onClick={async () => {
               try {
-                const response = await fetch('http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api/upload/test');
+                const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`);
+                const response = await fetch(`${API_BASE}/upload/test`);
                 const data = await response.json();
                 setMessage({ type: 'success', text: `Upload API: ${data.message}` });
               } catch (error) {
@@ -166,7 +168,8 @@ const TestProductUpdate = () => {
           <button
             onClick={async () => {
               try {
-                const response = await fetch('http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api/health');
+                const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`);
+                const response = await fetch(`${API_BASE}/health`);
                 const data = await response.json();
                 setMessage({ type: 'success', text: `Backend: ${JSON.stringify(data)}` });
               } catch (error) {

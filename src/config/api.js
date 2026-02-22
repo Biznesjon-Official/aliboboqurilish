@@ -21,7 +21,7 @@ const getApiBase = () => {
   }
   
   if (isProduction) {
-    return 'https://aliboboqurilish.uz';
+    return '';
   }
   
   return `http://localhost:${BACKEND_PORT}`;
@@ -34,7 +34,7 @@ const getSocketUrl = () => {
   }
   
   if (isProduction) {
-    return 'https://aliboboqurilish.uz';
+    return '';
   }
   
   return `http://localhost:${BACKEND_PORT}`;

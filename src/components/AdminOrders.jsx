@@ -122,7 +122,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
       hasLoadedRef.current = true; // Mark as loaded for manual refresh too
       globalOrdersLoaded = true; // Mark globally as loaded
       
-      const base = process.env.REACT_APP_API_BASE || 'http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api';
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`);
       const response = await fetch(`${base}/orders?page=1&limit=1000`);
       const data = await response.json();
       
@@ -163,7 +163,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
       try {
         setLoading(true);
         
-        const base = process.env.REACT_APP_API_BASE || 'http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api';
+        const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`);
         const response = await fetch(`${base}/orders?page=1&limit=1000`);
         const data = await response.json();
         
@@ -392,7 +392,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
       `${selectedOrders.size} ta buyurtmani o\'chirishni xohlaysizmi?\n\nMijozlar: ${displayNames}`,
       async () => {
         try {
-          const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api');
+          const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`);
           
           // Delete all selected orders
           const deletePromises = Array.from(selectedOrders).map(async (orderId) => {
@@ -450,7 +450,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
     try {
       const deletedOrder = orders.find(o => o._id === id);
 
-      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api');
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`);
       const url = `${base}/orders/${id}`;
       
       const response = await fetch(url, {
@@ -532,7 +532,7 @@ const AdminOrders = ({ onCountChange, notifications, setNotifications, onMobileT
         )
       );
 
-      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api');
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`);
       const response = await fetch(`${base}/orders/${orderId}/status`, {
         method: 'PUT',
         headers: {

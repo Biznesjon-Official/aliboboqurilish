@@ -28,10 +28,7 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
         return fallbackData;
       }
       // Prefer REACT_APP_API_BASE when set; otherwise choose sensible defaults
-      const primaryBase = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
-      const secondaryBase = primaryBase.includes('aliboboqurilish.uz')
-        ? 'http://localhost:5001/api'
-        : 'https://aliboboqurilish.uz/api';
+      const primaryBase = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5001/api');
 
       // Try primary
       let response = null;
@@ -41,22 +38,9 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
         // Network failure on primary; will try secondary below
       }
 
-      // If primary fails or not OK, try secondary
+      // If primary fails, use fallback
       if (!response || !response.ok) {
-        try {
-          const r2 = await fetch(`${secondaryBase}/statistics/dashboard`);
-          if (r2.ok) {
-            const d2 = await r2.json();
-            setStatistics(d2);
-            setLastUpdated(new Date());
-            setError(null);
-            return d2;
-          }
-        } catch (_) {
-          // swallow and continue to fallback
-        }
-
-        // Fallback data when both bases fail - empty data
+        // Fallback data when API fails - empty data
         const fallbackData = {
           products: { total: 0, byCategory: [] },
           craftsmen: { total: 0, active: 0, inactive: 0 },
@@ -113,10 +97,7 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
         setError(null);
         return fallbackData;
       }
-      const primaryBase = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
-      const secondaryBase = primaryBase.includes('aliboboqurilish.uz')
-        ? 'http://localhost:5001/api'
-        : 'https://aliboboqurilish.uz/api';
+      const primaryBase = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5001/api');
 
       let response = null;
       try {
@@ -124,16 +105,6 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
       } catch (_) {}
 
       if (!response || !response.ok) {
-        try {
-          const r2 = await fetch(`${secondaryBase}/statistics/edits?days=${days}`);
-          if (r2.ok) {
-            const d2 = await r2.json();
-            setEditStats(d2);
-            setError(null);
-            return d2;
-          }
-        } catch (_) {}
-
         const fallbackData = {
           total: 0,
           today: 0,

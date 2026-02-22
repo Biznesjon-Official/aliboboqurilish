@@ -21,7 +21,7 @@ const LCPOptimizer = () => {
 
     // Preload critical API endpoints
     const API_BASE = process.env.REACT_APP_API_BASE || 
-      (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api');
+      (process.env.NODE_ENV === 'production' ? '/api' : `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api`);
     const USE_FAST = (process.env.REACT_APP_USE_FAST || '').toLowerCase() === 'true';
 
     const criticalEndpoints = [
