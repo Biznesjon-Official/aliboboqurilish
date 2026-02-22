@@ -232,3 +232,4 @@ const ImageOptimization = () => {
 };
 
 export default ImageOptimization;
+

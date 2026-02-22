@@ -24,7 +24,7 @@ class SocketService {
     try {
       // Use environment variables for socket URL
       const socketUrl = process.env.REACT_APP_SOCKET_URL || 
-                       (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000');
+                       (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5001');
       
       if (DEBUG) console.log(`🔧 Initializing Socket.IO with URL: ${socketUrl}`);
       

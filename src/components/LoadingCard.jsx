@@ -100,3 +100,4 @@ const LoadingCard = ({ count = 1, type = 'product' }) => {
 };
 
 export default LoadingCard;
+

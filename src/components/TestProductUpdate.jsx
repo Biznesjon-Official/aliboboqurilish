@@ -15,7 +15,7 @@ const TestProductUpdate = () => {
   const loadProducts = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('http://localhost:5000/api/products?limit=10');
+      const response = await fetch('http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api/products?limit=10');
       
       if (response.ok) {
         const data = await response.json();
@@ -151,7 +151,7 @@ const TestProductUpdate = () => {
           <button
             onClick={async () => {
               try {
-                const response = await fetch('http://localhost:5000/api/upload/test');
+                const response = await fetch('http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api/upload/test');
                 const data = await response.json();
                 setMessage({ type: 'success', text: `Upload API: ${data.message}` });
               } catch (error) {
@@ -166,7 +166,7 @@ const TestProductUpdate = () => {
           <button
             onClick={async () => {
               try {
-                const response = await fetch('http://localhost:5000/api/health');
+                const response = await fetch('http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api/health');
                 const data = await response.json();
                 setMessage({ type: 'success', text: `Backend: ${JSON.stringify(data)}` });
               } catch (error) {
@@ -184,3 +184,4 @@ const TestProductUpdate = () => {
 };
 
 export default TestProductUpdate;
+

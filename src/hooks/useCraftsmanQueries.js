@@ -8,7 +8,7 @@ const API_BASE = (() => {
   if (process.env.NODE_ENV === 'production' && origin) {
     return `${origin.replace(/\/$/, '')}/api`;
   }
-  return 'http://localhost:5000/api';
+  return 'http://localhost:5001/api';
 })();
 
 console.log(`🔧 API Base URL: ${API_BASE}`);

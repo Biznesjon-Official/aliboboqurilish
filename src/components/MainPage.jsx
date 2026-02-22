@@ -93,7 +93,8 @@ const MainPage = ({ onSuccessfulLogin, initialSection }) => {
     if (process.env.NODE_ENV === 'production' && origin) {
       return `${origin.replace(/\/$/, '')}/api`;
     }
-    return 'http://localhost:5000/api';
+    const backendPort = process.env.REACT_APP_BACKEND_PORT || '5001';
+    return `http://localhost:${backendPort}/api`;
   })();
   const USE_FAST = (process.env.REACT_APP_USE_FAST || '').toLowerCase() === 'true';
   
@@ -413,3 +414,4 @@ const MainPage = ({ onSuccessfulLogin, initialSection }) => {
 };
 
 export default MainPage;
+

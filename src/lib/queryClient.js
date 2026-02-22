@@ -183,8 +183,9 @@ export const prefetchQueries = {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
           
-          // Direct connection to backend
-          const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+          // Direct connection to backend - use environment variable for port
+          const backendPort = process.env.REACT_APP_BACKEND_PORT || '5001';
+          const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : `http://localhost:${backendPort}/api`);
           const response = await fetch(`${base}/products?${params.toString()}`, { 
             signal: AbortSignal.any([signal, controller.signal]), 
             headers: { 'Cache-Control': 'max-age=3600' } // Enable HTTP cache
@@ -218,7 +219,8 @@ export const prefetchQueries = {
       queryKey: queryKeys.craftsmen.lists(),
       queryFn: async ({ signal }) => {
         try {
-          const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+          const backendPort = process.env.REACT_APP_BACKEND_PORT || '5001';
+          const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : `http://localhost:${backendPort}/api`);
           const isProdHost = /aliboboqurilish\.uz/i.test(base || '');
           const url = `${base}/craftsmen?limit=20&page=1${isProdHost ? '&minimal=1' : ''}`;
           const response = await fetch(url, { signal });

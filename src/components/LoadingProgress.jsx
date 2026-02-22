@@ -86,3 +86,4 @@ const LoadingProgress = ({ isVisible = true, onComplete }) => {
 };
 
 export default LoadingProgress;
+

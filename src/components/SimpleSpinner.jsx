@@ -18,3 +18,4 @@ const SimpleSpinner = ({ size = 'medium', message = 'Yuklanmoqda...', className 
 };
 
 export default SimpleSpinner;
+

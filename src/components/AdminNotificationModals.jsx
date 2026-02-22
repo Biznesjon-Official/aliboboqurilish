@@ -200,3 +200,4 @@ const AdminNotificationModals = ({
 };
 
 export default AdminNotificationModals;
+

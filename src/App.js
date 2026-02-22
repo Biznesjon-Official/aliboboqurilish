@@ -51,7 +51,7 @@ function AppContent() {
       queryKey: ['fast-products', '', ''],
       queryFn: async () => {
         const API_BASE = process.env.REACT_APP_API_BASE || 
-          (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+          (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
         
         const response = await fetch(`${API_BASE}/products/fast?limit=8&page=1&sortBy=updatedAt&sortOrder=desc&includeImages=true`, {
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },

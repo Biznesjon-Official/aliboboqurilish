@@ -713,3 +713,4 @@ const ProductsGrid = ({
 };
 
 export default ProductsGrid;
+

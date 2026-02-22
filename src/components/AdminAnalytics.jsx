@@ -507,3 +507,4 @@ const AdminAnalytics = ({ onMobileToggle, notifications, setNotifications }) => 
 };
 
 export default React.memo(AdminAnalytics);
+

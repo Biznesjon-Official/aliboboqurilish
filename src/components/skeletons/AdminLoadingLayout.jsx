@@ -20,3 +20,4 @@ const AdminLoadingLayout = ({ isLoading = true, message = "Sahifa yuklanmoqda...
 };
 
 export default AdminLoadingLayout;
+

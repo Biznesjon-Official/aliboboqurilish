@@ -252,3 +252,4 @@ const ProductVariants = ({ variants = [], onVariantsChange }) => {
 };
 
 export default ProductVariants;
+

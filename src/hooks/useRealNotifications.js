@@ -119,7 +119,7 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
       
       // NOTE: Using direct backend URL instead of proxy due to setupProxy.js issues
       // This ensures notifications work reliably in development environment
-      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
       const response = await fetch(`${base}/notifications?limit=100`, {
         signal: controllerRef.current.signal,
         headers: {
@@ -214,7 +214,7 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
   // Mark notification as read
   const markAsRead = useCallback(async (notificationId) => {
     try {
-      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
       const response = await fetch(`${base}/notifications/${notificationId}/read`, {
         method: 'PUT',
         headers: {
@@ -236,7 +236,7 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
   // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
     try {
-      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
       const response = await fetch(`${base}/notifications/read-all`, {
         method: 'PUT',
         headers: {
@@ -256,7 +256,7 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
   // Create new notification
   const createNotification = useCallback(async (notificationData) => {
     try {
-      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
       const response = await fetch(`${base}/notifications`, {
         method: 'POST',
         headers: {
@@ -297,7 +297,7 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
   // Delete notification
   const deleteNotification = useCallback(async (notificationId) => {
     try {
-      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
       const response = await fetch(`${base}/notifications/${notificationId}`, {
         method: 'DELETE',
       });
@@ -319,7 +319,7 @@ const useRealNotifications = (autoRefresh = true, refreshInterval = 30000) => {
   // Delete all notifications
   const deleteAllNotifications = useCallback(async () => {
     try {
-      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const base = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
       const response = await fetch(`${base}/notifications`, {
         method: 'DELETE',
       });

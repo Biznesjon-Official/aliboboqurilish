@@ -294,3 +294,4 @@ const AdminRecentActivities = ({ onNavigate, isLoading = false }) => {
 };
 
 export default AdminRecentActivities;
+

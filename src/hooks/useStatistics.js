@@ -28,9 +28,9 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
         return fallbackData;
       }
       // Prefer REACT_APP_API_BASE when set; otherwise choose sensible defaults
-      const primaryBase = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const primaryBase = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
       const secondaryBase = primaryBase.includes('aliboboqurilish.uz')
-        ? 'http://localhost:5000/api'
+        ? 'http://localhost:5001/api'
         : 'https://aliboboqurilish.uz/api';
 
       // Try primary
@@ -113,9 +113,9 @@ const useStatistics = (autoRefresh = true, refreshInterval = 300000) => { // 5 m
         setError(null);
         return fallbackData;
       }
-      const primaryBase = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5000/api');
+      const primaryBase = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://aliboboqurilish.uz/api' : 'http://localhost:5001/api');
       const secondaryBase = primaryBase.includes('aliboboqurilish.uz')
-        ? 'http://localhost:5000/api'
+        ? 'http://localhost:5001/api'
         : 'https://aliboboqurilish.uz/api';
 
       let response = null;

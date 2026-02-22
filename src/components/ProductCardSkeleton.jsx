@@ -74,3 +74,4 @@ const ProductCardSkeleton = ({ count = 1, className = '' }) => {
 };
 
 export default ProductCardSkeleton;
+

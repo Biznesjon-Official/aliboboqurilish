@@ -20,7 +20,7 @@ const getApiUrl = () => {
     // Development mode - use full URL with /api
     const baseUrl = process.env.REACT_APP_API_URL ||
         process.env.REACT_APP_API_BASE?.replace('/api', '') ||
-        'http://localhost:5000';
+        'http://localhost:5001';
 
     return `${baseUrl}/api`;
 };

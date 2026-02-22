@@ -40,3 +40,4 @@ const RecentActivitiesSkeleton = ({ itemCount = 5 }) => {
 };
 
 export default RecentActivitiesSkeleton;
+

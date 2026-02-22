@@ -121,3 +121,4 @@ const ModernProductGrid = memo(({
 ModernProductGrid.displayName = 'ModernProductGrid';
 
 export default ModernProductGrid;
+

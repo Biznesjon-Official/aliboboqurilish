@@ -584,3 +584,4 @@ const ModernProductCard = memo(({
 ModernProductCard.displayName = 'ModernProductCard';
 
 export default ModernProductCard;
+

@@ -69,8 +69,8 @@ const DirectProductForm = ({ product, onSuccess, onError, onCancel }) => {
 
       // Direct API call
       const url = product?._id 
-        ? `http://localhost:5000/api/products/${product._id}`
-        : 'http://localhost:5000/api/products';
+        ? `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api/products/${product._id}`
+        : 'http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api/products';
       
       const method = product?._id ? 'PUT' : 'POST';
 
@@ -294,3 +294,4 @@ const DirectProductForm = ({ product, onSuccess, onError, onCancel }) => {
 };
 
 export default DirectProductForm;
+

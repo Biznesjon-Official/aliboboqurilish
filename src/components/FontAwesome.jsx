@@ -239,3 +239,4 @@ export const ArrowDownFAIcon = ({ className, ...props }) => (
 );
 
 export default FAIcon;
+

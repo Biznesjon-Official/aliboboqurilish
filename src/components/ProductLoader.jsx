@@ -149,3 +149,4 @@ const ProductLoader = ({
 };
 
 export default ProductLoader;
+

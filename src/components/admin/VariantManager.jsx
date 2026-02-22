@@ -143,3 +143,4 @@ const VariantManager = ({ variants = [], onVariantsChange }) => {
 };
 
 export default VariantManager;
+

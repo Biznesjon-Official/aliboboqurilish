@@ -1,6 +1,5 @@
 const { Server } = require('socket.io');
 require('dotenv').config();
-const { Server } = require('socket.io');
 
 class SocketService {
   constructor() {

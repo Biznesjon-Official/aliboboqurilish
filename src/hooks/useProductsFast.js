@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 // API base URL - Direct connection to backend
-const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api');
+const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5001/api');
 
 // Fast fetch function - minimal data with ultra-small batches and images
 const fetchProductsFast = async ({ category, search = '', page = 1, limit = 20, signal }) => {

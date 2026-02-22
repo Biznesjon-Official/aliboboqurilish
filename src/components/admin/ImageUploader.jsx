@@ -196,7 +196,7 @@ const ImageUploader = ({
               // Agar uploads/ bilan boshlansa, to'g'ri URL yaratish
               if (image.startsWith('/uploads/') || image.startsWith('uploads/')) {
                 const cleanPath = image.startsWith('/') ? image : '/' + image;
-                return `http://localhost:5000${cleanPath}`;
+                return `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}${cleanPath}`;
               }
 
               // Boshqa hollarda to'g'ridan-to'g'ri qaytarish
@@ -299,3 +299,4 @@ const ImageUploader = ({
 };
 
 export default ImageUploader;
+

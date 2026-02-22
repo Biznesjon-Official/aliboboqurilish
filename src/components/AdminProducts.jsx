@@ -204,7 +204,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
   // Load categories from API with fallback to main categories
   const loadCategories = useCallback(async () => {
     try {
-      const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api');
+      const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api');
       const response = await fetch(`${API_BASE}/products/categories/list`);
       if (response.ok) {
         const categoriesData = await response.json();
@@ -483,7 +483,7 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
       queryClient.prefetchQuery({
         queryKey: key,
         queryFn: ({ signal }) => {
-          const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api');
+          const API_BASE = process.env.REACT_APP_API_BASE || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/api');
           return fetch(`${API_BASE}/products?${params.toString()}`, { signal }).then(r => r.json());
         },
         staleTime: 2 * 60 * 1000,
@@ -1779,3 +1779,4 @@ const AdminProducts = ({ onCountChange, notifications, setNotifications }) => {
 };
 
 export default AdminProducts; 
+

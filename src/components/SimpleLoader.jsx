@@ -101,3 +101,4 @@ const SimpleLoader = ({ message = "", size = "medium", variant = "modern" }) => 
 };
 
 export default SimpleLoader;
+

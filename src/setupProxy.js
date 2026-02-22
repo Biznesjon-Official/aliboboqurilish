@@ -3,7 +3,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 module.exports = function (app) {
   const targetBase = process.env.REACT_APP_API_BASE
     ? process.env.REACT_APP_API_BASE.replace(/\/api$/, '')
-    : 'http://localhost:5000';
+    : 'http://localhost:5001';
   const DEBUG = String(process.env.REACT_APP_DEBUG_MODE || '').toLowerCase() === 'true';
   const isHttps = /^https:\/\//i.test(targetBase);
 

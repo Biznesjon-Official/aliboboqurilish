@@ -59,40 +59,14 @@ const processImageSrc = (baseSrc, fallbackSrc) => {
 
   const normalized = normalizeUploadsPath(baseSrc);
 
-  // Handle file paths - convert to full backend base URL with size optimization
+  // Handle file paths - use the stored path directly
   if (normalized && normalized.startsWith('/uploads/')) {
-    // Auto-detect and use appropriate image size based on context
-    let optimizedPath = normalized;
-
-    // If it's a product image, try to use medium size for better performance
-    if (normalized.includes('/uploads/products/') && !normalized.includes('/original/') &&
-      !normalized.includes('/medium/') && !normalized.includes('/large/') &&
-      !normalized.includes('/thumbnail/')) {
-
-      // Extract filename from path like /uploads/products/converted-xxx.jpg
-      const filename = normalized.split('/').pop();
-
-      // Try medium size first (best balance of quality and performance)
-      optimizedPath = `/uploads/products/medium/${filename}`;
-
-      if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-        console.log(`[OptimizedImage] Auto-optimized path: ${normalized} -> ${optimizedPath}`);
-      }
-    }
-
     // Production: Use relative URLs (nginx handles routing)
     // Development: Use full localhost URL
     if (process.env.NODE_ENV === 'production') {
-      if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-        console.log(`[OptimizedImage] Production URL: ${optimizedPath}`);
-      }
-      return optimizedPath; // Return relative URL like /uploads/products/medium/...
+      return normalized;
     } else {
-      const fullUrl = `http://localhost:5000${optimizedPath}`;
-      if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-        console.log(`[OptimizedImage] Development URL: ${fullUrl}`);
-      }
-      return fullUrl;
+      return `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}${normalized}`;
     }
   }
 
@@ -234,41 +208,31 @@ const OptimizedImage = ({
       }
     }
 
-    // Smart fallback for product images: medium -> original -> fallback
+    // Smart fallback for product images
     if (currentSrc && currentSrc.includes('/uploads/products/') && !triedFallbackRef.current) {
-      triedFallbackRef.current = true;
       setHasError(false);
       setIsLoaded(false);
 
-      // If we tried medium and it failed, try original
-      if (currentSrc.includes('/medium/')) {
-        const originalPath = currentSrc.replace('/medium/', '/original/');
-        if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-          console.log(`[OptimizedImage] Fallback: medium failed, trying original: ${originalPath}`);
-        }
-        setCurrentSrc(originalPath);
-        return;
-      }
-
-      // If original also failed, try the raw path (without size folder)
-      if (currentSrc.includes('/original/')) {
+      // If we tried a size subfolder, try the raw path
+      if (currentSrc.includes('/medium/') || currentSrc.includes('/original/') ||
+          currentSrc.includes('/large/') || currentSrc.includes('/thumbnail/')) {
         const filename = currentSrc.split('/').pop();
-        const rawPath = `/uploads/products/${filename}`;
-        if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-          console.log(`[OptimizedImage] Fallback: original failed, trying raw path: ${rawPath}`);
-        }
+        const rawPath = currentSrc.includes('localhost')
+          ? `http://localhost:${process.env.REACT_APP_BACKEND_PORT || "5001"}/uploads/products/${filename}`
+          : `/uploads/products/${filename}`;
         setCurrentSrc(rawPath);
+        triedFallbackRef.current = true;
         return;
       }
 
-      // Final fallback
+      triedFallbackRef.current = true;
       if (fallbackSrc) {
         setCurrentSrc(fallbackSrc);
         return;
       }
     }
 
-    // Try regular fallback once if not already
+    // Try regular fallback
     if (currentSrc !== fallbackSrc && fallbackSrc && !triedFallbackRef.current) {
       triedFallbackRef.current = true;
       setHasError(false);
@@ -607,3 +571,4 @@ export const OptimizedImageGallery = ({
 };
 
 export default OptimizedImage;
+
